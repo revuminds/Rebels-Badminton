@@ -15,10 +15,11 @@ css = "".join(
     f"src:url(data:font/woff2;base64,{b64(WEB / 'fonts' / (f + '.woff2'))}) format('woff2')}}\n"
     for fam, w, f in FONTS)
 logo = "data:image/webp;base64," + b64(WEB / "logo.webp")
+sketch = "data:image/webp;base64," + b64(WEB / "logo-sketch.webp")
 
 html = (WEB / "app.html").read_text(encoding="utf-8")
-assert html.count("/*FONTS*/") == 1 and html.count("url(LOGO)") == 2 and html.count('src="LOGO"') == 1
-html = html.replace("/*FONTS*/", css).replace("url(LOGO)", f"url({logo})").replace('src="LOGO"', f'src="{logo}"')
+assert html.count("/*FONTS*/") == 1 and html.count("url(LOGO)") == 2 and html.count('src="LOGO"') == 1 and html.count('src="SKETCH"') == 1
+html = html.replace("/*FONTS*/", css).replace("url(LOGO)", f"url({logo})").replace('src="LOGO"', f'src="{logo}"').replace('src="SKETCH"', f'src="{sketch}"')
 
 for out in (ROOT / "android/app/src/main/assets/index.html", ROOT / "dist/RebelsBadminton.html"):
     out.parent.mkdir(parents=True, exist_ok=True)

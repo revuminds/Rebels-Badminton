@@ -1,6 +1,12 @@
 package com.rebels.badminton;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.app.KeyguardManager;
+import android.hardware.biometrics.BiometricManager;
+import android.hardware.biometrics.BiometricPrompt;
+import android.os.Build;
+import android.os.CancellationSignal;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -53,6 +59,44 @@ public class MainActivity extends Activity {
     // Back button never closes the app by accident (data is saved anyway).
     @Override public void onBackPressed() { moveTaskToBack(true); }
 
+    private static final int REQ_CRED = 41;
+
+    private boolean isPinnedNow() {
+        ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        return am.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE;
+    }
+
+    private void unpinNow() {
+        try { stopLockTask(); } catch (Exception ignored) { }
+        web.postDelayed(() -> web.evaluateJavascript("window.__dl&&__dl()", null), 400);
+    }
+
+    /** Unlock: face/fingerprint if the tablet allows, otherwise the tablet's own PIN/pattern. */
+    private void askToUnpin() {
+        if (Build.VERSION.SDK_INT >= 28) {
+            BiometricPrompt.Builder b = new BiometricPrompt.Builder(this).setTitle("Unlock tablet");
+            if (Build.VERSION.SDK_INT >= 30) {
+                b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK
+                        | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+            } else {
+                b.setDeviceCredentialAllowed(true);
+            }
+            b.build().authenticate(new CancellationSignal(), getMainExecutor(),
+                    new BiometricPrompt.AuthenticationCallback() {
+                        @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult r) { unpinNow(); }
+                    });
+            return;
+        }
+        KeyguardManager km = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        Intent i = km.createConfirmDeviceCredentialIntent("Unlock tablet", null);
+        if (i == null) unpinNow(); else startActivityForResult(i, REQ_CRED);
+    }
+
+    @Override protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == REQ_CRED && res == RESULT_OK) unpinNow();
+    }
+
     /** Second copy of the data in app storage, used if WebView storage is ever empty. */
     class Bridge {
         private File f() { return new File(getFilesDir(), "rebels-data.json"); }
@@ -69,6 +113,11 @@ public class MainActivity extends Activity {
             try { return f().exists() ? new String(Files.readAllBytes(f().toPath()), StandardCharsets.UTF_8) : ""; }
             catch (Exception e) { return ""; }
         }
+
+        /** Players tab lock button: Android screen pinning, screen stays on. */
+        @JavascriptInterface public void pinScreen() { runOnUiThread(() -> { try { startLockTask(); } catch (Exception ignored) { } }); }
+        @JavascriptInterface public boolean isPinned() { return isPinnedNow(); }
+        @JavascriptInterface public void unlock() { runOnUiThread(() -> askToUnpin()); }
 
         @JavascriptInterface public void copy(String text) {
             ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
