@@ -12,7 +12,7 @@ android {
         minSdk 24
         targetSdk 35
         versionCode vc
-        versionName "1.0.${vc}"
+        versionName "2.0.${vc}"
     }
     signingConfigs {
         release {

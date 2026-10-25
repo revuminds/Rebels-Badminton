@@ -56,7 +56,7 @@ jobs:
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
           "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | tee certs.txt
           grep -qi "SHA-256 digest: $(cat signing/fingerprint.txt)" certs.txt
-          cp android/app/build/outputs/apk/release/app-release.apk "rebels-badminton-1.0.${GITHUB_RUN_NUMBER}.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "rebels-badminton-2.0.${GITHUB_RUN_NUMBER}.apk"
 
       - uses: actions/upload-artifact@v5
         with:
@@ -70,5 +70,5 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release create "build-${GITHUB_RUN_NUMBER}" rebels-badminton-*.apk dist/RebelsBadminton.html \
-            --target "$GITHUB_SHA" --title "Build ${GITHUB_RUN_NUMBER} (1.0.${GITHUB_RUN_NUMBER})" \
+            --target "$GITHUB_SHA" --title "Build ${GITHUB_RUN_NUMBER} (2.0.${GITHUB_RUN_NUMBER})" \
             --notes "From: $(git log -1 --format=%s). Tap the .apk on the tablet to install over the previous version (do not uninstall first). The .html is the same app for a laptop browser."

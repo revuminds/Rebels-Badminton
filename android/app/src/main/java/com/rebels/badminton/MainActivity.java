@@ -5,6 +5,8 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.os.Bundle;
+import android.print.PrintAttributes;
+import android.print.PrintManager;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -71,6 +73,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void copy(String text) {
             ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("Rebels backup", text));
+        }
+
+        /** Export PDF: opens Android's print screen, where "Save as PDF" makes the file to share. */
+        @JavascriptInterface public void print(String title) {
+            runOnUiThread(() -> {
+                PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
+                PrintAttributes a = new PrintAttributes.Builder()
+                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape()).build();
+                pm.print(title, web.createPrintDocumentAdapter(title), a);
+            });
         }
 
         @JavascriptInterface public void share(String text) {
