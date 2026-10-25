@@ -288,12 +288,14 @@ function mix(ids,g){if(!ids.length)return[];const e=effMap(g),pr=pairMaps(g);
     const X=gr[a].slice(),Y=gr[b].slice();const t=X[i];X[i]=Y[j];Y[j]=t;const cx=gc(X),cy=gc(Y);
     if(cx+cy<cs[a]+cs[b]-1e-9){gr[a]=X;gr[b]=Y;cs[a]=cx;cs[b]=cy}}
   return gr.map(q=>groupCost(q,e,pr).order)}
-function priority(g,exclude){const cnt=counts(g,true),t=Date.now();
-  return onIds(g.d).filter(id=>!exclude.has(id)).map(id=>({id,c:cnt[id]||0,o:isOrg(id)?1:0,w:g.since[id]!=null?t-g.since[id]:-1,r:Math.random()}))
+function meId(){const a=active();if(S.me&&a.some(p=>p.id===S.me))return S.me;if(S.me===null)return null;const m=a.find(p=>/^raj\s*kumar$/i.test(p.name.trim()));return m?m.id:null}
+const meCap=()=>S.meCap==null?2:Math.max(0,+S.meCap||0);
+function priority(g,exclude){const cnt=counts(g,true),t=Date.now(),me=meId(),cap=meCap();
+  return onIds(g.d).filter(id=>!exclude.has(id)&&!(id===me&&(cnt[id]||0)>=cap)).map(id=>({id,c:cnt[id]||0,o:id===me?1:0,w:g.since[id]!=null?t-g.since[id]:-1,r:Math.random()}))
     .sort((a,b)=>a.c-b.c||a.o-b.o||b.w-a.w||a.r-b.r).map(x=>x.id)}
 const isOrg=id=>(S.orgs||[]).includes(id);
 /* bench players first, then players now on court */
-function gen(g){const cs=new Set(g.cur.flat().filter(Boolean));const pool=[...priority(g,cs),...priority(g,new Set()).filter(id=>cs.has(id))];
+function gen(g){const cs=new Set(g.cur.flat().filter(Boolean));const pool=priority(g,cs);
   const n=Math.min(g.courts,Math.floor(pool.length/4));const gr=mix(pool.slice(0,n*4),g);const res=[];for(let i=0;i<g.courts;i++)res.push(gr[i]||NUL4());return res}
 function genOne(g,i){const ex=new Set([...g.cur.flat(),...g.nxt.filter((q,k)=>k!==i).flat()].filter(Boolean));const pool=priority(g,ex);
   return pool.length<4?NUL4():mix(pool.slice(0,4),g)[0]}
@@ -311,10 +313,11 @@ function saveGame(g,i,t){t=t||Date.now();const q=g.cur[i],L=g.live[i];const s=Ma
 /* ---------- planned games: whole booked time ---------- */
 const slotOf=g=>Math.max(5,num(g.slot)||15)+Math.max(0,num(g.chg));
 const planRounds=g=>Math.max(1,Math.floor((num(g.bh)||2)*60/slotOf(g)));
-const planSig=g=>[onIds(g.d).sort().join(','),g.courts,g.bh,g.slot,g.chg,(S.orgs||[]).join(','),S.players.map(p=>p.lv).join('')].join('/');
-function buildPlan(g){const ids=onIds(g.d),R=planRounds(g),n=Math.min(g.courts,Math.floor(ids.length/4)),fake={d:g.d,hist:[]},c={},last={},rounds=[];
-  for(let r=0;r<R;r++){const pool=ids.map(id=>({id,c:c[id]||0,o:isOrg(id)?1:0,l:last[id]==null?-1:last[id],x:Math.random()})).sort((a,b)=>a.c-b.c||a.o-b.o||a.l-b.l||a.x-b.x).map(x=>x.id);
-    const gr=n?mix(pool.slice(0,n*4),fake):[];gr.forEach(q=>{fake.hist.unshift({ids:q,sa:0,sb:0});q.forEach(id=>{c[id]=(c[id]||0)+1;last[id]=r})});
+const planSig=g=>[onIds(g.d).sort().join(','),g.courts,g.bh,g.slot,g.chg,meId(),meCap(),S.players.map(p=>p.lv).join('')].join('/');
+/* hard rules: nobody plays two rounds in a row; "me" capped (sits out first); fewest games first */
+function buildPlan(g){const ids=onIds(g.d),R=planRounds(g),me=meId(),cap=meCap(),fake={d:g.d,hist:[]},c={},last={},rounds=[];
+  for(let r=0;r<R;r++){const pool=ids.filter(id=>last[id]!==r-1&&!(id===me&&(c[id]||0)>=cap)).map(id=>({id,c:c[id]||0,o:id===me?1:0,l:last[id]==null?-1:last[id],x:Math.random()})).sort((a,b)=>a.c-b.c||a.o-b.o||a.l-b.l||a.x-b.x).map(x=>x.id);
+    const n=Math.min(g.courts,Math.floor(pool.length/4));const gr=n?mix(pool.slice(0,n*4),fake):[];gr.forEach(q=>{fake.hist.unshift({ids:q,sa:0,sb:0});q.forEach(id=>{c[id]=(c[id]||0)+1;last[id]=r})});
     const rd=[];for(let i=0;i<g.courts;i++)rd.push(gr[i]||NUL4());rounds.push(rd)}
   g.nxt=rounds[0];g.plan=rounds.slice(1);g.psig=planSig(g)}
 function ensurePlan(g){if(g.st)return;if(g.psig!==planSig(g))return buildPlan(g);const on=new Set(onIds(g.d));g.plan=g.plan.map(rd=>rd.map(q=>q.map(id=>id&&on.has(id)?id:null)))}
@@ -333,7 +336,7 @@ function shuffle(){const g=GS(),t=Date.now();if(!running(g))return;
   nw.forEach(id=>benchOff(g,id,t));
   g.cur=nx;g.live=nx.map(blankLive);g.round++;g.nxt=fromPlan(g)||gen(g);save();render()}
 function startSession(){const g=GS();if(g.d!==TODAY())return;if(onIds(g.d).length<4)return toast('Turn on at least 4 players first');
-  g.st=Date.now();g.en=0;G(g.d);save();if(g.nxt.some(q=>q.every(Boolean)))shuffle();else render()}
+  ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);if(!num(g.bh))g.bh=S.def.bh;g.st=Date.now();g.en=0;G(g.d);save();if(g.nxt.some(q=>q.every(Boolean)))shuffle();else render()}
 /* stops everything, saves scored games, closes bench timers, turns all players off */
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
@@ -389,11 +392,12 @@ function vPlayers(){const t=TODAY();day(t);if(ui.sel<t||!S.days[ui.sel])ui.sel=t
   const plan=ui.plan?'<input type="date" id="pdate" class="sel" style="height:40px" min="'+iso(new Date(Date.now()+864e5))+'"><button class="btn" style="height:40px;padding:0 16px;font-size:14px" data-a="plandate">Add</button><button class="gh" style="height:40px" data-a="plancancel">Cancel</button>':'<button class="gh" style="height:40px" data-a="plan">+ Plan a date</button>';
   const locSel='<select class="sel" data-c="loc" aria-label="Location for this date">'+S.locs.map(n=>'<option'+(n===D.loc?' selected':'')+'>'+esc(n)+'</option>').join('')+(S.locs.includes(D.loc)||!D.loc?'':'<option selected>'+esc(D.loc)+'</option>')+'</select>';
   const nl=ui.newLoc?'<input id="nloc" class="inp" style="height:44px;width:200px;background:var(--pn);font-size:15px" placeholder="New location name"><button class="btn" style="height:44px;padding:0 14px;font-size:14px" data-a="saveloc">Save</button><button class="gh" data-a="cancelloc">Cancel</button>':'<button class="gh" data-a="newloc">+ New location</button>';
-  return '<div class="sb" style="align-items:flex-end"><div><div class="row" style="flex-wrap:wrap;margin-bottom:8px">'+chips+plan+
+  return '<div class="sb" style="align-items:flex-start"><div><div class="row" style="flex-wrap:wrap;margin-bottom:8px">'+chips+plan+
    (isT?'':'<span style="font-size:13px;color:var(--ok);font-weight:600">✓ Saved · opens on match day</span><button class="gh" style="height:40px;border-style:solid" data-a="delday">Remove date</button>')+'</div>'+
    '<h1>'+(isT?"WHO'S ON <span>COURT</span>":'PLAN FOR <span>'+esc(dlab(ui.sel).toUpperCase())+'</span>')+'</h1>'+
    '<div class="row" style="margin-top:10px;flex-wrap:wrap">'+PIN_SVG+locSel+nl+'<span style="font-size:13px;color:var(--mu)">Saved with this date and its summaries</span></div></div>'+
-   '<div class="row"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>'+(isT?'Playing today':'Playing')+'</i></div><div class="tile"><b style="color:var(--y)">'+(S.games[ui.sel]?S.games[ui.sel].courts:Math.max(1,Math.min(2,Math.floor(on/4))))+'</b><i>Courts</i></div>'+(pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – tap to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>')+'</div></div>'+
+   (pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – tap to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>')+'</div>'+
+   '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>'+(isT?'Playing today':'Playing')+'</i></div><div class="tile"><b style="color:var(--y)">'+(S.games[ui.sel]?S.games[ui.sel].courts:Math.max(1,Math.min(2,Math.floor(on/4))))+'</b><i>Courts</i></div></div>'+
    '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><button class="btn" data-a="add">+ Add</button></div>'+
    '<div id="dup">'+vDup()+'</div>'+
    '<div class="row" style="gap:12px"><div class="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="psearch" placeholder="Search players, then tap to turn on" value="'+esc(ui.q)+'" data-i="q" autocomplete="off"><button class="ib" style="background:var(--pn);color:var(--mu)" data-a="clearq" aria-label="Clear search">×</button></div><button class="ol" data-a="alloff">Turn all off</button></div>'+
@@ -420,10 +424,7 @@ function vEdit(){const p=P(ui.edit.id);if(!p)return '';const e=ui.edit;const d=d
 
 /* ---------- GAMES ---------- */
 function vSBar(g){const ps=g.st?((g.en||Date.now())-g.st)/1000:0,bh=num(g.bh);
-  return '<div class="sbar"><span>POINTS</span><select class="sel" data-c="gpts" aria-label="Points to win">'+[11,15,21].map(p=>'<option'+(p==g.pts?' selected':'')+'>'+p+'</option>').join('')+'</select>'+
-   '<button class="fc'+(g.deuce?' on':'')+'" style="height:40px" data-a="gdeuce">Deuce '+(g.deuce?'ON · cap '+capOf(g):'OFF')+'</button>'+
-   '<span>BOOKED HRS</span><input class="inp" type="number" inputmode="decimal" min="0" step="0.5" value="'+esc(g.bh)+'" data-i="g_bh" data-c="grender" aria-label="Court hours booked">'+
-   (g.st?'':'<span>GAME MIN</span><input class="inp" style="width:70px" type="number" inputmode="numeric" min="5" value="'+esc(g.slot)+'" data-i="g_slot" data-c="grender" aria-label="Minutes per game"><span>CHANGEOVER</span><input class="inp" style="width:64px" type="number" inputmode="numeric" min="0" value="'+esc(g.chg)+'" data-i="g_chg" data-c="grender" aria-label="Changeover minutes">')+
+  return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · BOOKED '+(bh?bh+' H':'–')+(g.st?'':' · '+(num(g.slot)||15)+'+'+num(g.chg)+' MIN SLOT')+' <span style="opacity:.7">(Settings)</span></span>'+
    '<span style="margin-left:auto">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b>'+(bh?' / BOOKED '+bh+'h':''):'Session not started')+'</span></div>'}
 function vGames(){const t=TODAY(),ds=[t,...Object.keys(S.days).filter(d=>d>t).sort()];if(!ds.includes(ui.gsel))ui.gsel=t;
   const d=ui.gsel,g=G(d),D=day(d),on=onIds(d),plan=d>t,run=running(g),ended=!!g.en;ensurePlan(g);fixNxt(g);
@@ -432,7 +433,7 @@ function vGames(){const t=TODAY(),ds=[t,...Object.keys(S.days).filter(d=>d>t).so
   const title=plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'ROUND <span>'+(g.round||'–')+'</span>':'READY TO <span>PLAY</span>';
   const ctl=(ended?'':'<div class="row" style="background:var(--pn);border-radius:14px;height:52px;padding:0 6px;gap:6px"><button class="ib" data-a="courts" data-x="-1" aria-label="Fewer courts">−</button><span style="font-weight:600;font-size:16px;padding:0 4px">'+g.courts+' court'+(g.courts>1?'s':'')+'</span><button class="ib" data-a="courts" data-x="1" aria-label="More courts">+</button></div>')+
    (run?'<button class="btn sh" data-a="shuffle">Shuffle next round →</button><button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
-    ended?(d===t?'<button class="ol" data-a="reopen">Reopen session</button>':''):
+    ended?(d===t?(Date.now()-g.en<REOPEN_MS?'<button class="ol" data-a="reopen">Reopen session</button>':'<button class="ol" disabled style="opacity:.35">Reopen session</button>'):''):
     plan?'<button class="btn" disabled>▶ Start session</button>':'<button class="btn sh" data-a="startsess">▶ Start session</button>');
   const courts=[];
   if(run)for(let i=0;i<g.courts;i++){const q=g.cur[i],L=g.live[i]||blankLive();const full=q&&q.every(Boolean);
@@ -459,12 +460,17 @@ function vGames(){const t=TODAY(),ds=[t,...Object.keys(S.days).filter(d=>d>t).so
   const nextM=g.nxt.map((q,i)=>quad(q,i,'0.'+i,pick)).join('');
   let planV='';if(!run&&!ended){const rds=[g.nxt,...g.plan],sl=slotOf(g),cnt2={};rds.forEach(rd=>rd.forEach(q=>{if(q.every(Boolean))q.forEach(id=>cnt2[id]=(cnt2[id]||0)+1)}));
     const ng=rds.reduce((a,rd)=>a+rd.filter(q=>q.every(Boolean)).length,0),cs=on.map(id=>cnt2[id]||0),mn=cs.length?Math.min(...cs):0,mx=cs.length?Math.max(...cs):0,avg=on.length?ng*4/on.length:0;
-    const short=on.filter(id=>(cnt2[id]||0)<Math.floor(avg)||(mn<mx&&(cnt2[id]||0)===mn));const orgs=on.filter(isOrg);
+    const me=meId(),reg=on.filter(id=>id!==me),rc=reg.map(id=>cnt2[id]||0),rmn=rc.length?Math.min(...rc):0,TG=5;
+    const short=reg.filter(id=>(cnt2[id]||0)<TG),bh2=num(g.bh)||2,need=TG*reg.length+(me&&on.includes(me)?meCap():0);
+    const fix=[];if(Math.ceil(rds.length/2)<TG)fix.push('slot ≤ '+Math.floor(bh2*60/(2*TG-1))+' min incl. changeover ('+(2*TG-1)+'+ rounds)');
+    const cn=Math.ceil(need/(4*rds.length));if(cn>g.courts)fix.push(cn+' courts');
+    const wp=Math.floor(4*g.courts*rds.length/TG);if(reg.length>wp)fix.push('≤ '+wp+' players');
     const tips=[(num(g.bh)?num(g.bh)+' h':'2 h (booked hours not set)')+', '+g.courts+' court'+(g.courts>1?'s':'')+', '+on.length+' players ≈ '+ng+' games ≈ '+(mn===mx?mn:mn+'–'+mx)+' each',
       'Slot '+(num(g.slot)||15)+' min game + '+num(g.chg)+' min changeover = '+sl+' min → '+rds.length+' rounds',
       'Games per player: min '+mn+' · avg '+avg.toFixed(1),
-      short.length?'Short of games: '+short.map(nameOf).join(', '):'Everyone gets the same number of games',
-      orgs.length?'Organizers sit out first: '+orgs.map(nameOf).join(', '):'No organizers set (Settings)'];
+      reg.length?(rmn>=TG?'✓ Every player gets at least '+TG+' games':'Target '+TG+' games each not reached (min '+rmn+'). Short: '+short.map(nameOf).join(', ')+(fix.length?'. Try: '+fix.join(' · '):'')):'',
+      'No one plays two games in a row (place a player by hand to override)',
+      me?nameOf(me)+' (you) capped at '+meCap()+' game'+(meCap()===1?'':'s')+' · sits out first':'Pick "This is me" in Settings to cap your games'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
      '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
        return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>quad(q,i,(r+1)+'.'+i,pk)).join('')+'</div>'}).join('')+'</div>'+
@@ -486,7 +492,9 @@ function vGames(){const t=TODAY(),ds=[t,...Object.keys(S.days).filter(d=>d>t).so
    (hist.length?'<table><thead><tr><th>RND · CT</th><th>TEAM A</th><th style="text-align:center">SCORE</th><th>TEAM B</th><th>WINNER</th><th style="text-align:right">TIME</th></tr></thead><tbody>'+hrows+'</tbody></table>':'<div class="empty" style="padding:12px">No games saved yet. Tap A won / B won, then Save.</div>')+'</section>'+
    '<section class="pn" style="gap:8px"><div class="sb"><span class="lab">GAMES PLAYED</span><span class="lab">FEWEST FIRST</span></div>'+
    (ppl.length?'<table style="width:600px;max-width:100%"><thead><tr><th style="text-align:center">NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')}
+const REOPEN_MS=5*60*1000;
 function tick(){if(ui.tab!=='games')return;const g=S.games[ui.gsel];if(!g)return;const t=Date.now(),run=running(g);
+  if(g.en&&t-g.en>=REOPEN_MS&&document.querySelector('[data-a="reopen"]'))return render();
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((t-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(t-g.since[el.dataset.id])/1000:0;el.lastChild.textContent=fmt(s);el.classList.toggle('red',s>900)}
@@ -504,8 +512,8 @@ function vFinance(){if(!ui.unlocked)return '<div class="lock">'+vPin()+'</div>';
    '<select class="sel" style="flex:1;min-width:0;height:52px;background:var(--bg);font-size:17px" data-c="fsel" aria-label="Choose a session">'+opts+'</select>'+
    '<button class="fc'+(ui.unpaid?' on':'')+'" data-a="unpaid">'+(ui.unpaid?'Unpaid only ✓':'Unpaid only')+'</button><span id="fsaved" style="font-size:13px;color:var(--ok);font-weight:600;min-width:150px;text-align:right">'+(ui.saved||'Auto-saves on every tap')+'</span><button class="btn" data-a="fsave">Save</button></section>'+
    '<div style="display:flex;gap:18px;align-items:flex-start"><section class="pn" style="width:400px;flex:none;border-radius:20px"><div class="sb" style="padding:0 4px 4px"><span class="lab">PAYMENTS</span><span class="lab" style="color:var(--bad)" id="fdue">'+due+' PENDING</span></div><div id="fpay" style="display:flex;flex-direction:column;gap:6px">'+vPay(cur)+'</div></section>'+
-   '<section style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0"><div class="pn" style="border-radius:20px;padding:16px 20px"><div class="laby">SESSION INPUTS · FOR THE SESSION PICKED ABOVE</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">'+
-   [['court','Total paid for court (AED)'],['fee','Price per player (AED)'],['box','Shuttle box cost (AED, 12)'],['bh','Court hours booked']].map(([k,l])=>'<label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mu);font-weight:600">'+l+'<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(k==='bh'?(S.games[cur.d]||{}).bh||'':cur.f[k])+'" data-i="f_'+k+'"></label>').join('')+'</div></div>'+
+   '<section style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0"><div class="pn" style="border-radius:20px;padding:16px 20px"><div class="laby">SESSION INPUTS · FOR THE SESSION PICKED ABOVE</div><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:stretch">'+
+   [['court','Total paid for court (AED)'],['fee','Price per player (AED)'],['box','Shuttle box cost (AED, 12)'],['bh','Court hours booked']].map(([k,l])=>'<label style="display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-width:0;font-size:13px;color:var(--mu);font-weight:600">'+l+'<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(k==='bh'?(S.games[cur.d]||{}).bh||'':cur.f[k])+'" data-i="f_'+k+'"></label>').join('')+'</div></div>'+
    '<div id="fboxes" style="display:flex;flex-direction:column;gap:14px">'+vFBoxes(cur)+'</div></section></div>'+
    '<section class="pn" id="fsum" style="border-radius:20px;padding:18px 20px;gap:14px">'+vFSum(all)+'</section>'+
    '<section id="fult" style="border-radius:20px;padding:20px;display:flex;gap:18px;background:var(--y);color:var(--bg)">'+vFUlt(all)+'</section>'}
@@ -566,11 +574,14 @@ function pinKey(k){if(k==='⌫'){ui.pin=ui.pin.slice(0,-1);ui.err='';return rend
 /* ---------- SETTINGS ---------- */
 function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.keys(E).length,act2=active();const g=Object.values(S.games).reduce((a,x)=>a+x.hist.length,0);
   return '<h1>SET<span>TINGS</span></h1>'+
-   '<section class="pn"><div class="laby">SCORING DEFAULTS</div><div class="row" style="flex-wrap:wrap;gap:10px"><span class="lab" style="margin-right:6px">POINTS TO WIN</span>'+[11,15,21].map(p=>'<button class="fc'+(df.pts==p?' on':'')+'" data-a="dpts" data-x="'+p+'">'+p+'</button>').join('')+
-   '<button class="fc'+(df.deuce?' on':'')+'" style="margin-left:10px" data-a="ddeuce">Deuce '+(df.deuce?'ON · 2-point lead, cap '+capOf(df):'OFF')+'</button></div></section>'+
+   '<section class="pn"><div class="laby">SESSION DEFAULTS · USED FOR EVERY SESSION</div><div class="row" style="flex-wrap:wrap;gap:10px"><span class="lab" style="margin-right:6px">POINTS TO WIN</span>'+[11,15,21].map(p=>'<button class="fc'+(df.pts==p?' on':'')+'" data-a="dpts" data-x="'+p+'">'+p+'</button>').join('')+
+   '<button class="fc'+(df.deuce?' on':'')+'" style="margin-left:10px" data-a="ddeuce">Deuce '+(df.deuce?'ON · 2-point lead, cap '+capOf(df):'OFF')+'</button></div>'+
+   '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'+[['bh','Court hours booked','0.5'],['slot','Game minutes','1'],['chg','Changeover minutes','1']].map(([k,l,st])=>'<label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--mu);font-weight:600">'+l+'<input class="fin" type="number" inputmode="decimal" min="0" step="'+st+'" value="'+esc(df[k])+'" data-i="d_'+k+'"></label>').join('')+'</div></section>'+
+   '<section class="pn"><div class="sb"><div class="laby">THIS IS ME</div><div class="row" style="gap:6px"><span class="lab">MY GAMES CAP</span><button class="ib" data-a="mecap" data-x="-1" aria-label="Lower cap">−</button><span class="d" style="font-size:26px;min-width:28px;text-align:center;color:var(--y)">'+meCap()+'</span><button class="ib" data-a="mecap" data-x="1" aria-label="Raise cap">+</button></div></div><div style="font-size:14px;color:var(--mu)">You sit out first and are capped in planned and shuffled games. You can still place yourself by hand.</div>'+
+   '<div class="row" style="flex-wrap:wrap;gap:8px">'+act2.map(p=>'<button class="orgc'+(meId()===p.id?' on':'')+'" data-a="me" data-x="'+p.id+'">'+(meId()===p.id?'✓ ':'')+esc(p.name)+'</button>').join('')+'</div></section>'+
    '<section class="pn"><div class="sb"><div class="laby">PLAYER LEVELS</div><button class="btn" data-a="lvupd"'+(nE?'':' disabled')+'>Update'+(nE?' ('+nE+')':'')+'</button></div><div style="font-size:14px;color:var(--mu)">Changes apply to Up Next, next shuffles and planned games after Update. Games on court now stay as they are.</div>'+
    (act2.length?act2.map(p=>{const v=E[p.id]!=null?E[p.id]:p.lv;return '<div class="row" style="justify-content:space-between;background:var(--bg);border-radius:12px;padding:6px 8px 6px 14px"><span style="font-weight:600;font-size:16px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(E[p.id]!=null?'<span style="color:var(--y)">● </span>':'')+esc(p.name)+'</span><div class="lvb" style="background:var(--pn)">'+lvSeg(v,'slv',p.id)+'</div></div>'}).join(''):'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>'+
-   '<section class="pn"><div class="sb"><div class="laby">ORGANIZERS</div><span class="lab">'+(S.orgs||[]).length+' / 5</span></div><div style="font-size:14px;color:var(--mu)">Organizers sit out first when someone is short of games. You can still remove yourself from any game.</div>'+
+   '<section class="pn"><div class="sb"><div class="laby">ORGANIZERS</div><span class="lab">'+(S.orgs||[]).length+' / 5</span></div><div style="font-size:14px;color:var(--mu)">Organizers play like everyone else; only the player marked "This is me" is capped.</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:8px">'+act2.map(p=>'<button class="orgc'+(isOrg(p.id)?' on':'')+'" data-a="org" data-x="'+p.id+'">'+(isOrg(p.id)?'★ ':'')+esc(p.name)+'</button>').join('')+'</div></section>'+
    '<section class="pn"><div class="laby">ADMIN PIN</div>'+(ui.pmode?'<div style="display:flex;justify-content:center;padding:10px 0">'+vPin()+'</div>':
     '<div class="row"><span style="color:var(--mu);font-size:15px;flex:1">'+(S.pin?'Finance is locked with a 4-digit PIN. Changing it needs the current PIN.':'No PIN set yet.')+'</span><button class="btn" data-a="chpin">'+(S.pin?'Change PIN':'Set PIN')+'</button></div>')+'</section>'+
@@ -657,7 +668,7 @@ const act={
  remix:()=>{const g=GS();if(g.st)g.nxt=gen(g);else buildPlan(g);save();render()},
  startsess:()=>startSession(),
  endsess:()=>{const g=GS();if(!confirm('End this session? All timers stop, scored games are saved and every player is turned off.'))return;endSession(g,Date.now());save();render();toast('Session saved')},
- reopen:()=>{const g=GS();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});g.en=0;G(g.d);save();render()},
+ reopen:()=>{const g=GS();if(!g.en||Date.now()-g.en>=REOPEN_MS)return render();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});g.en=0;G(g.d);save();render()},
  send:x=>{const g=GS(),i=+x,q=g.nxt[i],t=Date.now();if(!running(g))return;if(!q||!q.every(Boolean))return toast('Fill all 4 players in Up Next first');
    const busy=q.find(id=>g.cur.some(c=>c&&c.includes(id)));if(busy)return toast(nameOf(busy)+' is still on court');
    g.cur[i]=q.slice();g.live[i]=blankLive();q.forEach(id=>benchOff(g,id,t));g.nxt[i]=NUL4();g.nxt[i]=genOne(g,i);save();render()},
@@ -690,7 +701,8 @@ const act={
  open:x=>{ui.open=ui.open===x?null:x;refreshFin()},
  bcopy:()=>copy(JSON.stringify(S)),
  bshare:()=>{try{NB.share(JSON.stringify(S))}catch(e){toast('Share not available')}},
- dpts:x=>{S.def.pts=+x;save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;save();render()},
+ dpts:x=>{S.def.pts=+x;applyDef('pts');save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
+ me:x=>{S.me=meId()===x?null:x;save();render()},mecap:x=>{S.meCap=Math.min(10,Math.max(0,meCap()+(+x)));save();render()},
  exp:()=>{ui.exp={m:'one',s:ui.fsel||'',mo:'',a:'',b:''};render()},closeexp:()=>{ui.exp=null;render()},xmode:x=>{ui.exp.m=x;render()},
  mkpdf:()=>{const ds=expDates();if(!ds.length)return toast('No sessions in that period');const e=ui.exp;
    const ti=e.m==='one'?'Session '+(sessions().indexOf(ds[0])+1)+' · '+dlab(ds[0]):e.m==='month'?mlab(e.mo):dlab(ds[0])+' – '+dlab(ds[ds.length-1]);
@@ -706,9 +718,9 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='q'){ui.q=el.value;$('#pgrid').innerHTML=vGrid()}
   else if(k==='ename'){ui.edit.name=el.value;const d=dupInfo(el.value,ui.edit.id);$('#edup').innerHTML=d?'<div class="warn '+(d.red?'red':'yel')+'">⚠ '+esc(d.msg)+'</div>':''}
   else if(k.startsWith('f_')){const f=k.slice(2);if(f==='bh')G(ui.fsel).bh=el.value;else finOf(ui.fsel,true)[f]=el.value;S.def[f]=el.value;save();ui.saved='✓ Auto-saved';refreshFin()}
-  else if(k.startsWith('d_')){S.def[k.slice(2)]=el.value;save()}
-  else if(k==='g_bh'){GS().bh=el.value;S.def.bh=el.value;save()}
-  else if(k==='g_slot'||k==='g_chg'){const f=k.slice(2);GS()[f]=el.value;S.def[f]=el.value;save()}});
+  else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
+/* Settings defaults flow into every session that has not started yet */
+function applyDef(f){const t=TODAY();Object.values(S.games).forEach(g=>{if(!g.st&&g.d>=t)g[f]=S.def[f]})}
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
 document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;
   if(c==='loc'){day(ui.sel).loc=el.value;save();render()}
