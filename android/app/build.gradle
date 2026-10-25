@@ -1,0 +1,32 @@
+plugins { id 'com.android.application' }
+
+// versionCode comes from the GitHub run number, so every build is higher than the last
+// and installs over the previous app (data kept). Never change applicationId or the key.
+def vc = (System.getenv('VERSION_CODE') ?: '1') as int
+
+android {
+    namespace 'com.rebels.badminton'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.rebels.badminton'
+        minSdk 24
+        targetSdk 35
+        versionCode vc
+        versionName "1.0.${vc}"
+    }
+    signingConfigs {
+        release {
+            storeFile System.getenv('REBELS_KEYSTORE') ? file(System.getenv('REBELS_KEYSTORE')) : null
+            storePassword System.getenv('REBELS_SIGNING_PASSWORD')
+            keyAlias 'rebels'
+            keyPassword System.getenv('REBELS_SIGNING_PASSWORD')
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}

@@ -1,0 +1,74 @@
+name: Android build
+
+# Builds the signed APK on every push to main.
+# Published under Releases as "Build N": open it on the tablet and tap the .apk
+# to install OVER the old version (never uninstall first, or the app's data is lost).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build the offline app (one HTML file)
+        run: python3 tools/build.py
+
+      - name: Unlock the permanent signing key
+        env:
+          REBELS_SIGNING_PASSWORD: ${{ secrets.REBELSBADMINTON }}
+        run: |
+          if [ -z "$REBELS_SIGNING_PASSWORD" ]; then
+            echo "::error::Secret REBELSBADMINTON is missing (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
+            -in signing/rebels-release.keystore.enc \
+            -out "$RUNNER_TEMP/release.keystore" -pass env:REBELS_SIGNING_PASSWORD
+          echo "REBELS_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Build APK
+        working-directory: android
+        run: gradle assembleRelease --no-daemon
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          REBELS_SIGNING_PASSWORD: ${{ secrets.REBELSBADMINTON }}
+
+      - name: Check the APK is signed with the permanent key
+        run: |
+          rm -f "$RUNNER_TEMP/release.keystore"
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | tee certs.txt
+          grep -qi "SHA-256 digest: $(cat signing/fingerprint.txt)" certs.txt
+          cp android/app/build/outputs/apk/release/app-release.apk "rebels-badminton-1.0.${GITHUB_RUN_NUMBER}.apk"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: rebels-badminton-apk
+          path: rebels-badminton-*.apk
+          retention-days: 30
+
+      - name: Publish under Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "build-${GITHUB_RUN_NUMBER}" rebels-badminton-*.apk dist/RebelsBadminton.html \
+            --target "$GITHUB_SHA" --title "Build ${GITHUB_RUN_NUMBER} (1.0.${GITHUB_RUN_NUMBER})" \
+            --notes "From: $(git log -1 --format=%s). Tap the .apk on the tablet to install over the previous version (do not uninstall first). The .html is the same app for a laptop browser."
