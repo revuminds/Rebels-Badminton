@@ -18,7 +18,10 @@ logo = "data:image/webp;base64," + b64(WEB / "logo.webp")
 sketch = "data:image/webp;base64," + b64(WEB / "logo-sketch.webp")
 
 html = (WEB / "app.html").read_text(encoding="utf-8")
-assert html.count("/*FONTS*/") == 1 and html.count("url(LOGO)") == 2 and html.count('src="LOGO"') == 1 and html.count('src="SKETCH"') == 1
+js = "".join(f.read_text(encoding="utf-8") + "\n" for f in sorted((WEB / "js").glob("*.js")))
+assert html.count("/*JS*/") == 1
+html = html.replace("/*JS*/", "(function(){\n'use strict';\n" + js + "})();")
+assert html.count("/*FONTS*/") == 1 and html.count("url(LOGO)") == 2 and html.count('src="LOGO"') == 2 and html.count('src="SKETCH"') == 1
 html = html.replace("/*FONTS*/", css).replace("url(LOGO)", f"url({logo})").replace('src="LOGO"', f'src="{logo}"').replace('src="SKETCH"', f'src="{sketch}"')
 
 for out in (ROOT / "android/app/src/main/assets/index.html", ROOT / "dist/RebelsBadminton.html"):
