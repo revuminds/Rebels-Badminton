@@ -221,6 +221,7 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .cbh{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border-radius:10px;padding:2px 4px 2px 10px;color:var(--tx);letter-spacing:.02em}
 .cbh button{width:34px;height:34px;border-radius:8px;border:0;background:var(--pn);color:var(--tx);font-size:18px}
 .ingrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
+.dbx{width:44px;height:44px;flex:none;border-radius:10px;border:2px solid var(--bd);background:var(--bg);color:var(--bg);font-size:24px;font-weight:900}.dbx.on{background:var(--y);border-color:var(--y)}
 .fin.ro{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;overflow:hidden;line-height:1.05;border-color:var(--bd);color:var(--tx)}.fin.ro small{font-size:11px;color:var(--mu);font-weight:600;white-space:nowrap}
 .btile small{display:block;font-size:11px;color:var(--mu);max-width:230px}
 .ptag{height:36px;padding:0 10px;border-radius:9px;border:0;background:#123F33;color:var(--ok);font-weight:600;font-size:13px;white-space:nowrap}
@@ -374,7 +375,7 @@ const arrived=(d,id)=>{const a=att(d,id);return !!(a&&a.a)};
 const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
 /* dummy = organiser/family filler: no game target, plays only when no regular is free (default: Settings organizers) */
-const isDum=(d,id)=>{const D=S.days[d];return D&&D.dm&&D.dm[id]!=null?!!D.dm[id]:isOrg(id)};
+const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
@@ -903,7 +904,7 @@ function vCk(){const d=curDate(),g=S.games[d],run=running(g),ids=onIds(d),st=id=
       s===1?'<button class="att in" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">In '+hm(a.a)+'</button><button class="ol sm" data-a="ckout" data-x="'+id+'">Left</button>':
       '<button class="att left" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">Left '+hm(a.l)+'</button><button class="ol sm" data-a="ckback" data-x="'+id+'">Back</button>';
     return '<div class="ckr'+(s===2?' gone':'')+'"><span class="pchip" style="'+pchip(id)+';flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg)">'+esc(nameOf(id))+'</span>'+stat+
-      '</div>'};
+      '<button class="dbx'+(dm?' on':'')+'" data-a="ckdum" data-x="'+id+'" aria-label="Tick">'+(dm?'✓':'')+'</button></div>'};
   return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet':'Check-in opens after Start session')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
    
    (L.length?'<div class="ckg">'+L.map(row).join('')+'</div>':'<div class="empty">No players on. Turn players on in the Players tab.</div>')+
@@ -1193,8 +1194,8 @@ const act={
  ckin:x=>act.arrive(x),
  ckout:x=>{const d=curDate(),a=att(d,x);if(!a)return;a.l=Date.now();attChanged(x,nameOf(x)+' left at '+hm(a.l)+' – removed from Up Next and the plan');save();render()},
  ckback:x=>{const a=att(curDate(),x);if(a)a.l=0;attChanged(x,nameOf(x)+' is back');save();render()},
- ckdum:x=>{const d=curDate(),D=day(d),v=!isDum(d,x);D.dm=D.dm||{};D.dm[x]=v;const g=S.games[d];
-   if(g){if(running(g))autoNext(g,'all',nameOf(x)+(v?' marked dummy – plays only when no regular is free':' is a regular again – gets the 5-game target'));else g.psig=''}save();render()},
+ ckdum:x=>{const d=curDate(),v=!isDum(d,x);S.dum=S.dum||{};if(v)S.dum[x]=1;else delete S.dum[x];const g=S.games[d];
+   if(g){if(running(g))autoNext(g,'all','Up Next updated');else g.psig=''}save();render()},
  cfopen:x=>{const g=CG(),q=g.nxt[+x];if(!q||!q.every(Boolean))return toast('Fill all 4 players in Up Next first');ui.cf={i:+x};render()},
  closecf:()=>{ui.cf=null;render()},cfok:()=>{const i=ui.cf.i;ui.cf=null;sendCourt(CG(),i);render()},hist:()=>{ui.h=null;go('hist')},
  cancelup:x=>{const D=S.days[x];if(!D)return;const pk=pkgsFor(x).length;
@@ -1342,7 +1343,7 @@ window.addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false}else{topUp();render()}});
 
 /* ---------- data upgrade ---------- */
-function migrate(){const t=TODAY();S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
+function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
   ['series','ent','rules','ovr','orgs'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.eid)S.eid=1;
   S.orgs=S.orgs.filter(id=>P(id)&&!P(id).gone);
   if((S.v||0)<3){Object.keys(S.games).forEach(d=>{if(!S.days[d])S.days[d]={loc:S.locs[0]||'',on:{}}});

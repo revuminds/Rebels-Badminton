@@ -26,8 +26,8 @@ const act={
  ckin:x=>act.arrive(x),
  ckout:x=>{const d=curDate(),a=att(d,x);if(!a)return;a.l=Date.now();attChanged(x,nameOf(x)+' left at '+hm(a.l)+' – removed from Up Next and the plan');save();render()},
  ckback:x=>{const a=att(curDate(),x);if(a)a.l=0;attChanged(x,nameOf(x)+' is back');save();render()},
- ckdum:x=>{const d=curDate(),D=day(d),v=!isDum(d,x);D.dm=D.dm||{};D.dm[x]=v;const g=S.games[d];
-   if(g){if(running(g))autoNext(g,'all',nameOf(x)+(v?' marked dummy – plays only when no regular is free':' is a regular again – gets the 5-game target'));else g.psig=''}save();render()},
+ ckdum:x=>{const d=curDate(),v=!isDum(d,x);S.dum=S.dum||{};if(v)S.dum[x]=1;else delete S.dum[x];const g=S.games[d];
+   if(g){if(running(g))autoNext(g,'all','Up Next updated');else g.psig=''}save();render()},
  cfopen:x=>{const g=CG(),q=g.nxt[+x];if(!q||!q.every(Boolean))return toast('Fill all 4 players in Up Next first');ui.cf={i:+x};render()},
  closecf:()=>{ui.cf=null;render()},cfok:()=>{const i=ui.cf.i;ui.cf=null;sendCourt(CG(),i);render()},hist:()=>{ui.h=null;go('hist')},
  cancelup:x=>{const D=S.days[x];if(!D)return;const pk=pkgsFor(x).length;
@@ -175,7 +175,7 @@ window.addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false}else{topUp();render()}});
 
 /* ---------- data upgrade ---------- */
-function migrate(){const t=TODAY();S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
+function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
   ['series','ent','rules','ovr','orgs'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.eid)S.eid=1;
   S.orgs=S.orgs.filter(id=>P(id)&&!P(id).gone);
   if((S.v||0)<3){Object.keys(S.games).forEach(d=>{if(!S.days[d])S.days[d]={loc:S.locs[0]||'',on:{}}});

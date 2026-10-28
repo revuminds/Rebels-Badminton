@@ -105,7 +105,7 @@ function vCk(){const d=curDate(),g=S.games[d],run=running(g),ids=onIds(d),st=id=
       s===1?'<button class="att in" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">In '+hm(a.a)+'</button><button class="ol sm" data-a="ckout" data-x="'+id+'">Left</button>':
       '<button class="att left" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">Left '+hm(a.l)+'</button><button class="ol sm" data-a="ckback" data-x="'+id+'">Back</button>';
     return '<div class="ckr'+(s===2?' gone':'')+'"><span class="pchip" style="'+pchip(id)+';flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg)">'+esc(nameOf(id))+'</span>'+stat+
-      '</div>'};
+      '<button class="dbx'+(dm?' on':'')+'" data-a="ckdum" data-x="'+id+'" aria-label="Tick">'+(dm?'✓':'')+'</button></div>'};
   return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet':'Check-in opens after Start session')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
    
    (L.length?'<div class="ckg">'+L.map(row).join('')+'</div>':'<div class="empty">No players on. Turn players on in the Players tab.</div>')+

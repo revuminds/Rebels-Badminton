@@ -81,7 +81,7 @@ const arrived=(d,id)=>{const a=att(d,id);return !!(a&&a.a)};
 const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
 /* dummy = organiser/family filler: no game target, plays only when no regular is free (default: Settings organizers) */
-const isDum=(d,id)=>{const D=S.days[d];return D&&D.dm&&D.dm[id]!=null?!!D.dm[id]:isOrg(id)};
+const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
