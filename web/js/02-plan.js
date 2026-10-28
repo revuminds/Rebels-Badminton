@@ -2,8 +2,8 @@
 const blankLive=()=>({run:false,start:0,sa:0,sb:0,el:0,w:''});
 const NUL4=()=>[null,null,null,null];
 const running=g=>!!(g&&g.st&&!g.en);
-const capOf=g=>g.deuce?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
-const winOf=(g,l)=>g.deuce?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
+const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
+const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
 function G(d){let g=S.games[d];
   if(!g){g=S.games[d]={d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]}}
@@ -119,7 +119,7 @@ function sendCourt(g,i){const q=g.nxt[i],t=Date.now();if(!running(g))return;if(!
 function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
   ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);ensurePlan(g);g.pre=g.nxt.map(q=>q.every(Boolean)?q.slice():null);
   g.st=Date.now();g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};
-  logIt(g,'Session started · check players in with the Players button – only checked-in players get games, dummies fill in when needed');save();render()}
+  logIt(g,'Session started · check players in with the Players button – only checked-in players get games');save();render()}
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
   const D=S.days[g.d];g.ros=[...new Set([...(g.ros||[]),...(D?Object.keys(D.on).filter(k=>D.on[k]):[]),...g.hist.flatMap(h=>h.ids)])];

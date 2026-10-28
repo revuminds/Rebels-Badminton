@@ -46,11 +46,11 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
       'Slot '+(num(g.slot)||15)+' min game + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
-      'You have '+on.length+' on'+(og.length?' ('+reg.length+' regular + '+pl(og.length,'dummy').replace('dummys','dummies')+')':'')+' → regulars '+rng(rc)+' games'+(og.length?' · dummies '+rng(oc)+' (fill-ins only)':''),
+      'You have '+on.length+' on → '+rng(rc)+' games each',
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
       on.length>=4&&on.length<nC*6?'Max 2 in a row: '+pl(nC,'court')+' need ≥ '+nC*6+' players to fill every round':'',
-      'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share · dummies fill in only when no regular is free'].filter(Boolean);
+      'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
      '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
        return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
@@ -66,7 +66,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const red=id=>{if(!g.st||isDum(d,id))return false;const c=cnt[id]||0,a=att(d,id),tg=target(g,id);if(!a||!a.a)return false;
     if(!c&&(g.en||now)-a.a>20*60e3)return true;if(a.l&&c<tg)return true;if(run&&!a.l){const rem=Math.max(0,sessEnd(d)-now)/60e3;return c+Math.floor(rem/slotOf(g)*2/3)<tg}return false};
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
-  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(isDum(d,id)?' <small class="dtag">DUMMY</small>':'')+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
+  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
   let happ='';if(g.st){const el=on.filter(id=>eligible(d,id)).length,nC2=courtsOf(d).filter((c,i)=>courtOpen(g,i,now)).length,remS=Math.max(0,Math.floor((sessEnd(d)-now)/60e3/slotOf(g)))*Math.max(1,nC2)*4;
     const notes=run?[el+' checked in · '+pl(nC2,'court')+' open'+(el?' → ≈ '+Math.floor(remS/Math.max(1,el))+' more games each possible':''),
       ...(el&&el<nC2*4?['Only '+el+' checked in – some courts wait for more players']:[]),
@@ -105,15 +105,15 @@ function vCk(){const d=curDate(),g=S.games[d],run=running(g),ids=onIds(d),st=id=
       s===1?'<button class="att in" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">In '+hm(a.a)+'</button><button class="ol sm" data-a="ckout" data-x="'+id+'">Left</button>':
       '<button class="att left" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">Left '+hm(a.l)+'</button><button class="ol sm" data-a="ckback" data-x="'+id+'">Back</button>';
     return '<div class="ckr'+(s===2?' gone':'')+'"><span class="pchip" style="'+pchip(id)+';flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg)">'+esc(nameOf(id))+'</span>'+stat+
-      '<button class="fc'+(dm?' on':'')+'" style="height:44px;padding:0 12px" data-a="ckdum" data-x="'+id+'">'+(dm?'✓ Dummy':'Dummy')+'</button></div>'};
-  return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet · ':'Check-in opens after Start session · ')+pl(nD,'dummy').replace('dummys','dummies')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
-   '<div style="font-size:13px;color:var(--mu)">Dummy = organiser / family: no 5-game target, used only when a court needs a player and no regular is free. You can still place anyone yourself.</div>'+
+      '</div>'};
+  return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet':'Check-in opens after Start session')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
+   
    (L.length?'<div class="ckg">'+L.map(row).join('')+'</div>':'<div class="empty">No players on. Turn players on in the Players tab.</div>')+
    '<div class="sb"><button class="ol" data-a="ckplayers">Add / remove players</button><button class="btn" data-a="closeck">Done</button></div></div></div>'}
 /* ---------- check the 4 players before they go on court ---------- */
 function vCf(){const g=CG(),d=g.d,i=ui.cf.i,q=g.nxt[i]||NUL4(),onC=new Set(g.cur.flat().filter(Boolean));
   const pool=onIds(d).filter(id=>eligible(d,id)&&!onC.has(id));
-  const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+(isDum(d,id)?' · dummy':'')+'</option>').join('')+'</select>'};
+  const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+'</option>').join('')+'</select>'};
   const full=q.every(Boolean),sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
   const bal=!full?'Fill all 4':df<=1?'● Balanced':(sa>sb?'Team A':'Team B')+' stronger',bc=!full?'var(--mu)':df<=1?'var(--ok)':'var(--y)';
   const team=(l,a,b)=>'<div style="background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0"><div class="lab">'+l+'</div>'+sel(a)+sel(b)+'</div>';

@@ -125,7 +125,7 @@ const act={
  stab:x=>{ui.setTab=x;if(x==='rules'){render();(S.rules||[]).forEach(r=>delete r.nw);S.newRules=0;save();return}render()},
  ruletog:x=>{const r=S.rules[+x];r.on=!r.on;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},
  ruledel:x=>{if(!confirm('Delete this learned rule?'))return;const r=S.rules.splice(+x,1)[0];S.ovr=(S.ovr||[]).filter(o=>!o.k.includes(r.k));save();render()},
- dpts:x=>{S.def.pts=+x;applyDef('pts');save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
+ dpts:x=>{S.def.pts=+x;applyDef('pts');if(+x===30){S.def.deuce=false;applyDef('deuce')}save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
  slv:(x,y)=>{const p=P(x);if(!p)return;ui.lvE=ui.lvE||{};if(+y===p.lv)delete ui.lvE[x];else ui.lvE[x]=+y;render()},
  lvupd:()=>{const E=ui.lvE||{};const ks=Object.keys(E);if(!ks.length)return;ks.forEach(id=>{const p=P(id);if(p)p.lv=E[id]});ui.lvE={};
    const d=curDate();if(d)lvChanged(ks);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render();toast(pl(ks.length,'level')+' updated')},

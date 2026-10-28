@@ -221,7 +221,7 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .cbh{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border-radius:10px;padding:2px 4px 2px 10px;color:var(--tx);letter-spacing:.02em}
 .cbh button{width:34px;height:34px;border-radius:8px;border:0;background:var(--pn);color:var(--tx);font-size:18px}
 .ingrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}
-.fin.ro{display:flex;align-items:center;gap:6px;border-color:var(--bd);color:var(--tx)}.fin.ro small{font-size:12px;color:var(--mu);font-weight:600}
+.fin.ro{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;overflow:hidden;line-height:1.05;border-color:var(--bd);color:var(--tx)}.fin.ro small{font-size:11px;color:var(--mu);font-weight:600;white-space:nowrap}
 .btile small{display:block;font-size:11px;color:var(--mu);max-width:230px}
 .ptag{height:36px;padding:0 10px;border-radius:9px;border:0;background:#123F33;color:var(--ok);font-weight:600;font-size:13px;white-space:nowrap}
 .qrb{height:40px;padding:0 12px;border-radius:9px;border:2px solid var(--bd);background:transparent;color:var(--tx);font-weight:700;font-size:13px;white-space:nowrap}
@@ -384,8 +384,8 @@ function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.i
 const blankLive=()=>({run:false,start:0,sa:0,sb:0,el:0,w:''});
 const NUL4=()=>[null,null,null,null];
 const running=g=>!!(g&&g.st&&!g.en);
-const capOf=g=>g.deuce?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
-const winOf=(g,l)=>g.deuce?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
+const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
+const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
 function G(d){let g=S.games[d];
   if(!g){g=S.games[d]={d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]}}
@@ -501,7 +501,7 @@ function sendCourt(g,i){const q=g.nxt[i],t=Date.now();if(!running(g))return;if(!
 function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
   ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);ensurePlan(g);g.pre=g.nxt.map(q=>q.every(Boolean)?q.slice():null);
   g.st=Date.now();g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};
-  logIt(g,'Session started · check players in with the Players button – only checked-in players get games, dummies fill in when needed');save();render()}
+  logIt(g,'Session started · check players in with the Players button – only checked-in players get games');save();render()}
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
   const D=S.days[g.d];g.ros=[...new Set([...(g.ros||[]),...(D?Object.keys(D.on).filter(k=>D.on[k]):[]),...g.hist.flatMap(h=>h.ids)])];
@@ -844,11 +844,11 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
       'Slot '+(num(g.slot)||15)+' min game + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
-      'You have '+on.length+' on'+(og.length?' ('+reg.length+' regular + '+pl(og.length,'dummy').replace('dummys','dummies')+')':'')+' → regulars '+rng(rc)+' games'+(og.length?' · dummies '+rng(oc)+' (fill-ins only)':''),
+      'You have '+on.length+' on → '+rng(rc)+' games each',
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
       on.length>=4&&on.length<nC*6?'Max 2 in a row: '+pl(nC,'court')+' need ≥ '+nC*6+' players to fill every round':'',
-      'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share · dummies fill in only when no regular is free'].filter(Boolean);
+      'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
      '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
        return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
@@ -864,7 +864,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const red=id=>{if(!g.st||isDum(d,id))return false;const c=cnt[id]||0,a=att(d,id),tg=target(g,id);if(!a||!a.a)return false;
     if(!c&&(g.en||now)-a.a>20*60e3)return true;if(a.l&&c<tg)return true;if(run&&!a.l){const rem=Math.max(0,sessEnd(d)-now)/60e3;return c+Math.floor(rem/slotOf(g)*2/3)<tg}return false};
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
-  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(isDum(d,id)?' <small class="dtag">DUMMY</small>':'')+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
+  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
   let happ='';if(g.st){const el=on.filter(id=>eligible(d,id)).length,nC2=courtsOf(d).filter((c,i)=>courtOpen(g,i,now)).length,remS=Math.max(0,Math.floor((sessEnd(d)-now)/60e3/slotOf(g)))*Math.max(1,nC2)*4;
     const notes=run?[el+' checked in · '+pl(nC2,'court')+' open'+(el?' → ≈ '+Math.floor(remS/Math.max(1,el))+' more games each possible':''),
       ...(el&&el<nC2*4?['Only '+el+' checked in – some courts wait for more players']:[]),
@@ -903,15 +903,15 @@ function vCk(){const d=curDate(),g=S.games[d],run=running(g),ids=onIds(d),st=id=
       s===1?'<button class="att in" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">In '+hm(a.a)+'</button><button class="ol sm" data-a="ckout" data-x="'+id+'">Left</button>':
       '<button class="att left" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">Left '+hm(a.l)+'</button><button class="ol sm" data-a="ckback" data-x="'+id+'">Back</button>';
     return '<div class="ckr'+(s===2?' gone':'')+'"><span class="pchip" style="'+pchip(id)+';flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg)">'+esc(nameOf(id))+'</span>'+stat+
-      '<button class="fc'+(dm?' on':'')+'" style="height:44px;padding:0 12px" data-a="ckdum" data-x="'+id+'">'+(dm?'✓ Dummy':'Dummy')+'</button></div>'};
-  return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet · ':'Check-in opens after Start session · ')+pl(nD,'dummy').replace('dummys','dummies')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
-   '<div style="font-size:13px;color:var(--mu)">Dummy = organiser / family: no 5-game target, used only when a court needs a player and no regular is free. You can still place anyone yourself.</div>'+
+      '</div>'};
+  return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet':'Check-in opens after Start session')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
+   
    (L.length?'<div class="ckg">'+L.map(row).join('')+'</div>':'<div class="empty">No players on. Turn players on in the Players tab.</div>')+
    '<div class="sb"><button class="ol" data-a="ckplayers">Add / remove players</button><button class="btn" data-a="closeck">Done</button></div></div></div>'}
 /* ---------- check the 4 players before they go on court ---------- */
 function vCf(){const g=CG(),d=g.d,i=ui.cf.i,q=g.nxt[i]||NUL4(),onC=new Set(g.cur.flat().filter(Boolean));
   const pool=onIds(d).filter(id=>eligible(d,id)&&!onC.has(id));
-  const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+(isDum(d,id)?' · dummy':'')+'</option>').join('')+'</select>'};
+  const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+'</option>').join('')+'</select>'};
   const full=q.every(Boolean),sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
   const bal=!full?'Fill all 4':df<=1?'● Balanced':(sa>sb?'Team A':'Team B')+' stronger',bc=!full?'var(--mu)':df<=1?'var(--ok)':'var(--y)';
   const team=(l,a,b)=>'<div style="background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0"><div class="lab">'+l+'</div>'+sel(a)+sel(b)+'</div>';
@@ -969,7 +969,7 @@ function vKitty(){const ss=sessions();if(!ss.length)return '<div class="pn"><div
 function headTiles(sel,lab){const sum=x=>sel.reduce((a,s)=>a+s[x],0),c=sum('ret'),sp=sum('inv'),b=c-sp,h=holds(sel);
   const hl=Object.keys(h).map(o=>esc(o?nameOf(o):'Unassigned')+' holds '+A0(h[o].cash+h[o].bank)).join(' · ');
   return '<div class="sb" style="align-items:flex-end"><div><div class="laby" style="letter-spacing:.18em">'+esc(lab.toUpperCase())+'</div><h1 style="margin-top:4px">THE <span>KITTY</span></h1></div>'+
-   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small>'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
+   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small style="white-space:nowrap;font-size:12px">'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
    '<div class="btile" style="background:'+(b<0?'var(--bad)':'var(--ok)')+';color:var(--bg)"><i style="color:var(--bg);font-weight:600">Balance</i><b>'+sg(b)+'</b></div></div></div>'}
 function sumBoxes(s){const bx=(h,c,big,lines)=>'<div class="sbox" style="border-top:3px solid '+c+'"><div style="font-size:12px;letter-spacing:.12em;color:var(--mu);font-weight:700">'+h+'</div><div class="d" style="font-size:28px;line-height:1">'+big+'</div>'+lines.map(([k,v])=>'<div class="kv"><span>'+k+'</span><span>'+v+'</span></div>').join('')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">'+
@@ -985,7 +985,7 @@ function vKSession(all,cur){ui.fsel=cur.d;const t=TODAY();
    '<button class="fc'+(ui.unpaid?' on':'')+'" data-a="unpaid">'+(ui.unpaid?'Unpaid only ✓':'Unpaid only')+'</button><span id="fsaved" style="font-size:13px;color:var(--ok);font-weight:600;min-width:140px;text-align:right">'+(ui.saved||'Auto-saves on every tap')+'</span><button class="btn" data-a="fsave">Save</button></section>'+
    '<div style="display:flex;gap:18px;align-items:flex-start"><section class="pn" style="width:430px;flex:none;border-radius:20px"><div class="sb" style="padding:0 4px 4px"><span class="lab">PAYMENTS</span><span class="lab" style="color:var(--bad)">'+(cur.pl-cur.pdn)+' PENDING</span></div><div style="display:flex;flex-direction:column;gap:6px">'+vPay(cur)+'</div></section>'+
    '<section style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0"><div class="pn" style="border-radius:20px;padding:16px 20px"><div class="laby">SESSION INPUTS</div><div class="ingrid">'+
-   '<label class="fl">Total paid for court (AED)'+(cur.pk?'<div class="fin ro">'+cur.COURT.toFixed(2)+'<small>package</small></div>':'<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(cur.f.court)+'" data-i="f_court">')+'</label>'+
+   '<label class="fl">Total paid for court (AED)'+(cur.pk?'<div class="fin ro">'+cur.COURT.toFixed(2)+'<small>from package</small></div>':'<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(cur.f.court)+'" data-i="f_court">')+'</label>'+
    '<label class="fl">Price per player (AED)<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(cur.f.fee)+'" data-i="f_fee"></label>'+
    '<div class="fl">Shuttle price (from Rebels)<div class="fin ro">'+cur.PER.toFixed(2)+'<small>/ shuttle</small></div></div>'+
    '<div class="fl">Court hours booked<div class="fin ro" style="font-size:17px">'+courtsOf(cur.d).map(c=>hrsL(num(c.h))).join(' + ')+'</div></div></div></div>'+
@@ -1127,8 +1127,8 @@ function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.
      (R.length?R.map((r,i)=>'<div class="row" style="background:var(--bg);border-radius:12px;padding:10px 12px;gap:12px"><div style="flex:1"><div style="font-weight:600;font-size:16px">'+(r.nw?'<i class="nb">New</i> ':'')+esc(r.why)+'</div><div style="font-size:13px;color:var(--mu)">Seen '+pl(r.n||0,'time')+' · learned '+dlab(r.at)+'</div></div><button class="fc'+(r.on?' on':'')+'" data-a="ruletog" data-x="'+i+'">'+(r.on?'On':'Off')+'</button><button class="ol sm" style="color:var(--bad)" data-a="ruledel" data-x="'+i+'">Delete</button></div>').join(''):'<div class="empty">No learned rules yet.</div>')+
      '<div style="font-size:13px;color:var(--mu)">'+pl((S.ovr||[]).length,'manual change')+' recorded (levels of all 4 players each time).</div></section>'}
   return '<div class="sb"><h1>SET<span>TINGS</span></h1>'+tabs+'</div>'+
-   '<section class="pn"><div class="laby">SESSION DEFAULTS · USED FOR EVERY SESSION</div><div class="row" style="flex-wrap:wrap;gap:10px"><span class="lab" style="margin-right:6px">POINTS TO WIN</span>'+[11,15,21].map(p=>'<button class="fc'+(df.pts==p?' on':'')+'" data-a="dpts" data-x="'+p+'">'+p+'</button>').join('')+
-   '<button class="fc'+(df.deuce?' on':'')+'" style="margin-left:10px" data-a="ddeuce">Deuce '+(df.deuce?'ON · 2-point lead, cap '+capOf(df):'OFF')+'</button></div>'+
+   '<section class="pn"><div class="laby">SESSION DEFAULTS · USED FOR EVERY SESSION</div><div class="row" style="flex-wrap:wrap;gap:10px"><span class="lab" style="margin-right:6px">POINTS TO WIN</span>'+[11,15,21,30].map(p=>'<button class="fc'+(df.pts==p?' on':'')+'" data-a="dpts" data-x="'+p+'">'+p+'</button>').join('')+
+   (df.pts==30?'<span class="fc" style="margin-left:10px;opacity:.5">Deuce OFF · first to 30</span>':'<button class="fc'+(df.deuce?' on':'')+'" style="margin-left:10px" data-a="ddeuce">Deuce '+(df.deuce?'ON · 2-point lead, cap '+capOf(df):'OFF')+'</button>')+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'+[['slot','Game minutes','1'],['chg','Changeover minutes','1'],['spt','Shuttles per tube','1']].map(([k,l,st])=>'<label class="fl">'+l+'<input class="fin" type="number" inputmode="decimal" min="1" step="'+st+'" value="'+esc(df[k])+'" data-i="d_'+k+'"></label>').join('')+'</div>'+
    '<div style="font-size:13px;color:var(--mu)">Court hours are set per session in Schedule session.</div></section>'+
    '<section class="pn"><div class="sb"><div class="laby">PLAYER LEVELS</div><button class="btn" data-a="lvupd"'+(nE?'':' disabled')+'>Update'+(nE?' ('+nE+')':'')+'</button></div><div style="font-size:14px;color:var(--mu)">Changes apply to Up Next and planned games after Update. Games on court now stay as they are.</div>'+
@@ -1292,7 +1292,7 @@ const act={
  stab:x=>{ui.setTab=x;if(x==='rules'){render();(S.rules||[]).forEach(r=>delete r.nw);S.newRules=0;save();return}render()},
  ruletog:x=>{const r=S.rules[+x];r.on=!r.on;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},
  ruledel:x=>{if(!confirm('Delete this learned rule?'))return;const r=S.rules.splice(+x,1)[0];S.ovr=(S.ovr||[]).filter(o=>!o.k.includes(r.k));save();render()},
- dpts:x=>{S.def.pts=+x;applyDef('pts');save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
+ dpts:x=>{S.def.pts=+x;applyDef('pts');if(+x===30){S.def.deuce=false;applyDef('deuce')}save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
  slv:(x,y)=>{const p=P(x);if(!p)return;ui.lvE=ui.lvE||{};if(+y===p.lv)delete ui.lvE[x];else ui.lvE[x]=+y;render()},
  lvupd:()=>{const E=ui.lvE||{};const ks=Object.keys(E);if(!ks.length)return;ks.forEach(id=>{const p=P(id);if(p)p.lv=E[id]});ui.lvE={};
    const d=curDate();if(d)lvChanged(ks);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render();toast(pl(ks.length,'level')+' updated')},
