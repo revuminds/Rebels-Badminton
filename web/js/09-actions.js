@@ -14,7 +14,7 @@ const act={
  tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
- resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
+ resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
  newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
  hstart:()=>{ui.cur=TODAY();ui.flow='start';go('app','players');toast('Check who is playing, then tap Next')},
  pnext:()=>{const d=curDate();if(!d)return;ui.cur=d;const g=S.games[d],st=ui.flow==='start'&&canStart(d);ui.flow='';go('app','games');

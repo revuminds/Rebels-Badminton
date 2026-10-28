@@ -1,5 +1,5 @@
 /* ===== Games ===== */
-const REOPEN_MS=5*60*1000;
+const REOPEN_MS=15*60*1000;
 function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
@@ -86,7 +86,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th style="text-align:center">NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
-  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
+  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(g&&g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="hreopen"]'))return render();if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
   if(g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="reopen"]'))return render();
   if(run&&now-lastAuto>30e3){lastAuto=now;const cl=g.cur.some((q,i)=>!courtOpen(g,i,now)&&g.nxt[i].some(Boolean));if(autoNext(g,'fill',cl?'A court booking ended · its Up Next was cleared':null)){save();return render()}}
