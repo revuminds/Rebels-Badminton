@@ -10,9 +10,10 @@ function cStrip(g,i,t){const end=courtEnd(g.d,i),left=end-t,open=left>0,n=g.hist
 function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY(),g=G(d),D=day(d),on=onIds(d),plan=d>t,past=d<t,run=running(g),ended=!!g.en,now=Date.now();
   if(!past&&!g.st)ensurePlan(g);if(run)autoNext(g,'fill',null);
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
-  const ctl=past?'':run?'<button class="ol sm2" data-a="reshuffle">↻ Re-shuffle Up Next</button><button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
+  const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
+  const ctl=past?'':run?'<button class="ol sm2" data-a="reshuffle">↻ Re-shuffle Up Next</button>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
     ended?(d===t?(now-g.en<REOPEN_MS?'<button class="ol" data-a="reopen">Reopen session</button>':'<button class="ol" disabled style="opacity:.35">Reopen session</button>'):''):
-    plan?'<button class="btn" disabled>▶ Start session</button>':'<button class="btn sh" data-a="startsess">▶ Start session</button>';
+    plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
   const benchE=on.filter(id=>!onC.has(id)&&(!run||eligible(d,id)));const pick=benchE.filter(id=>!inN.has(id));
   const quad=(q,i,key,pk,lab)=>{const full=q.every(Boolean);const sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
@@ -26,7 +27,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     let body,tb;
     if(!full){const last=g.last[i],wait=nq.filter(Boolean).filter(id=>onC.has(id));
       body='<div class="court big'+(open?'':' shut')+'">'+lines+'<div class="cwait" style="flex-direction:column;gap:12px">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+last.sa+' – '+last.sb+'</b> '+esc(tn(last,1))+'</span>':'')+
-        (!open?'<span>Booking ended · no more games on this court</span>':nf&&!wait.length?'<button class="btn" data-a="send" data-x="'+i+'">Send Up Next on court ▶</button>':'<span>Court free · Up Next fills as players are free</span>')+'</div></div>';tb=''}
+        (!open?'<span>Booking ended · no more games on this court</span>':nf&&!wait.length?'<button class="btn" data-a="cfopen" data-x="'+i+'">Check &amp; send Up Next ▶</button>':'<span>Court free · Up Next fills as players are free</span>')+'</div></div>';tb=''}
     else{const ch=id=>'<div class="pchip" style="'+pchip(id)+'">'+esc(nameOf(id))+'</div>';
       const sc=(s,side)=>'<div class="row" style="gap:6px"><button class="sc" data-a="sc" data-x="'+i+'" data-y="'+side+'-">−</button><span class="scn">'+s+'</span><button class="sc p" data-a="sc" data-x="'+i+'" data-y="'+side+'+">+</button></div>';
       const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(s==='a'?'◀ A won':'B won ▶')+'</button>';
@@ -39,17 +40,17 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   if(!run&&!ended&&!past){const rds=[g.nxt,...g.plan],sl=slotOf(g),cnt2={};rds.forEach(rd=>rd.forEach(q=>{if(q.every(Boolean))q.forEach(id=>cnt2[id]=(cnt2[id]||0)+1)}));
     const ng=rds.reduce((a,rd)=>a+rd.filter(q=>q.every(Boolean)).length,0),cap=4*totSlots(g),nC=courtsOf(d).length;
     pre='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">ROUND 1 · '+(plan?'SAVED FOR THIS DATE':'FIRST GAMES ONCE PLAYERS ARRIVE')+'</span><button class="gh" style="height:36px;border-style:solid" data-a="remix">↻ Re-mix</button></div><div class="g2" style="gap:12px">'+g.nxt.map((q,i)=>quad(q,i,'0.'+i,on.filter(id=>!inN.has(id)),esc(cname(d,i).toUpperCase()))).join('')+'</div></section>';
-    const og=on.filter(isOrg),reg=on.filter(id=>!isOrg(id)),rc=reg.map(id=>cnt2[id]||0),oc=og.map(id=>cnt2[id]||0);
+    const og=on.filter(id=>isDum(d,id)),reg=on.filter(id=>!isDum(d,id)),rc=reg.map(id=>cnt2[id]||0),oc=og.map(id=>cnt2[id]||0);
     const rng=a=>{if(!a.length)return '–';const m=Math.min(...a),x=Math.max(...a);return m===x?''+m:m+'–'+x};
     const pmin=Math.ceil(cap/TGT),pmax=Math.floor(cap/TMIN);
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
       'Slot '+(num(g.slot)||15)+' min game + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
-      'You have '+on.length+' on'+(og.length?' ('+reg.length+' regular + '+pl(og.length,'organizer')+')':'')+' → regulars '+rng(rc)+' games'+(og.length?' · organizers '+rng(oc):''),
+      'You have '+on.length+' on'+(og.length?' ('+reg.length+' regular + '+pl(og.length,'dummy').replace('dummys','dummies')+')':'')+' → regulars '+rng(rc)+' games'+(og.length?' · dummies '+rng(oc)+' (fill-ins only)':''),
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
       on.length>=4&&on.length<nC*6?'Max 2 in a row: '+pl(nC,'court')+' need ≥ '+nC*6+' players to fill every round':'',
-      'On the day: only players marked Arrived get games · late arrivals get a fair share for the time they are here'].filter(Boolean);
+      'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share · dummies fill in only when no regular is free'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
      '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
        return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
@@ -62,10 +63,10 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     return '<tr class="tap" data-a="gedit" data-x="'+hi+'"><td style="color:var(--mu)">'+hlab(h)+'</td><td style="font-weight:'+(aw?700:400)+';color:'+(aw||tie?'var(--tx)':'var(--mu)')+'">'+esc(A2)+'</td><td class="d" style="text-align:center;font-size:22px">'+h.sa+' – '+h.sb+'</td><td style="font-weight:'+(!aw&&!tie?700:400)+';color:'+(!aw||tie?'var(--tx)':'var(--mu)')+'">'+esc(B2)+'</td><td><span class="win">'+(tie?'Draw':esc(aw?A2:B2))+'</span></td><td style="text-align:right;font-weight:600">'+fmt(h.s)+'</td></tr>'};
   let groups='';for(let c=1;c<=nC;c++){const hs=hist.filter(h=>h.c===c);if(!hs.length)continue;const st2=hs.reduce((a,h)=>a+h.s,0);
     groups+='<tr class="grp"><td colspan="6">'+esc(cname(d,c-1).toUpperCase())+' · '+pl(hs.length,'game')+' · avg '+fmt(st2/hs.length)+'</td></tr>'+hs.slice().reverse().map(hrow).join('')}
-  const red=id=>{if(!g.st)return false;const c=cnt[id]||0,a=att(d,id),tg=target(g,id);if(!a||!a.a)return false;
+  const red=id=>{if(!g.st||isDum(d,id))return false;const c=cnt[id]||0,a=att(d,id),tg=target(g,id);if(!a||!a.a)return false;
     if(!c&&(g.en||now)-a.a>20*60e3)return true;if(a.l&&c<tg)return true;if(run&&!a.l){const rem=Math.max(0,sessEnd(d)-now)/60e3;return c+Math.floor(rem/slotOf(g)*2/3)<tg}return false};
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
-  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
+  const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td><span class="pchip" style="'+pchip(id)+';padding:4px 12px;font-size:14px;display:inline-block;background:var(--bg)">'+esc(nameOf(id))+'</span>'+(isDum(d,id)?' <small class="dtag">DUMMY</small>':'')+(leftAt(d,id)?' <small style="color:var(--mu)">left '+hm(leftAt(d,id))+'</small>':'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
   let happ='';if(g.st){const el=on.filter(id=>eligible(d,id)).length,nC2=courtsOf(d).filter((c,i)=>courtOpen(g,i,now)).length,remS=Math.max(0,Math.floor((sessEnd(d)-now)/60e3/slotOf(g)))*Math.max(1,nC2)*4;
     const notes=run?[el+' checked in · '+pl(nC2,'court')+' open'+(el?' → ≈ '+Math.floor(remS/Math.max(1,el))+' more games each possible':''),
       ...(el&&el<nC2*4?['Only '+el+' checked in – some courts wait for more players']:[]),
@@ -77,7 +78,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    vSBar(g)+
    (plan?'<div class="warn yel">Planning mode · games planned here wait for '+esc(dlab(d))+'. Start session on match day.</div>':'')+
    (!ended&&!past&&on.length<4?'<div class="warn yel">Only '+pl(on.length,'player')+' on. Turn on at least 4 in Players.</div>':'')+
-   (run&&!on.some(id=>arrived(d,id))?'<div class="warn yel">Nobody checked in yet · mark players Arrived in the Players tab.</div>':'')+
+   (run&&!on.some(id=>arrived(d,id))?'<div class="warn yel" style="justify-content:space-between">Session started · nobody checked in yet. Games begin once players check in.<button class="btn" data-a="ckopen">Check in players</button></div>':'')+
    courts+bench+pre+planV+
    (plan?'':'<section class="pn" style="gap:8px"><div class="sb"><span class="lab">GAME SUMMARY · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></span><span class="row" style="gap:10px"><span class="lab">'+hist.length+' GAMES · AVG '+(hist.length?fmt(tot/hist.length):'00:00')+'</span><button class="gh" style="height:40px;border-style:solid" data-a="gadd">+ Add game manually</button></span></div>'+
    (hist.length?'<div style="font-size:13px;color:var(--mu)">Tap a game to edit or delete it.</div><table><thead><tr><th>GAME</th><th>TEAM A</th><th style="text-align:center">SCORE</th><th>TEAM B</th><th>WINNER</th><th style="text-align:right">TIME</th></tr></thead><tbody>'+groups+'</tbody></table>':'<div class="empty" style="padding:12px">No games saved yet. Tap A won / B won, then Save – or add games manually.</div>')+'</section>'+
@@ -95,6 +96,31 @@ function tick(){const now=Date.now();
     else if(k==='sess'){if(g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000)}
     else if(k==='left'){const l=courtEnd(g.d,+el.dataset.i)-now;el.textContent=Math.max(0,Math.ceil(l/60e3))+' min left';el.style.color=l<10*60e3?'var(--bad)':l<20*60e3?'var(--y)':'var(--ok)'}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
+
+/* ---------- Players pop-up: check in / left / dummy ---------- */
+function vCk(){const d=curDate(),g=S.games[d],run=running(g),ids=onIds(d),st=id=>{const a=att(d,id);return !a||!a.a?0:a.l?2:1};
+  const L=ids.slice().sort((a,b)=>st(a)-st(b)||nameOf(a).localeCompare(nameOf(b))),nIn=ids.filter(id=>st(id)===1).length,nNo=ids.filter(id=>!st(id)).length,nD=ids.filter(id=>isDum(d,id)).length;
+  const row=id=>{const a=att(d,id),s=st(id),dm=isDum(d,id);
+    const stat=!run?'':s===0?'<button class="btn ckb" data-a="ckin" data-x="'+id+'">Check in</button>':
+      s===1?'<button class="att in" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">In '+hm(a.a)+'</button><button class="ol sm" data-a="ckout" data-x="'+id+'">Left</button>':
+      '<button class="att left" style="margin:0;height:44px" data-a="attedit" data-x="'+id+'">Left '+hm(a.l)+'</button><button class="ol sm" data-a="ckback" data-x="'+id+'">Back</button>';
+    return '<div class="ckr'+(s===2?' gone':'')+'"><span class="pchip" style="'+pchip(id)+';flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg)">'+esc(nameOf(id))+'</span>'+stat+
+      '<button class="fc'+(dm?' on':'')+'" style="height:44px;padding:0 12px" data-a="ckdum" data-x="'+id+'">'+(dm?'✓ Dummy':'Dummy')+'</button></div>'};
+  return '<div class="modal tall" data-a="closeck"><div class="pn" data-a="noop" style="gap:14px;width:min(1040px,95vw)"><div class="sb"><div><div class="laby">PLAYERS · '+esc(dlab(d).toUpperCase())+'</div><div style="font-size:14px;color:var(--mu);margin-top:4px">'+(run?nIn+' checked in · '+nNo+' not here yet · ':'Check-in opens after Start session · ')+pl(nD,'dummy').replace('dummys','dummies')+'</div></div><button class="ib" data-a="closeck" aria-label="Close">×</button></div>'+
+   '<div style="font-size:13px;color:var(--mu)">Dummy = organiser / family: no 5-game target, used only when a court needs a player and no regular is free. You can still place anyone yourself.</div>'+
+   (L.length?'<div class="ckg">'+L.map(row).join('')+'</div>':'<div class="empty">No players on. Turn players on in the Players tab.</div>')+
+   '<div class="sb"><button class="ol" data-a="ckplayers">Add / remove players</button><button class="btn" data-a="closeck">Done</button></div></div></div>'}
+/* ---------- check the 4 players before they go on court ---------- */
+function vCf(){const g=CG(),d=g.d,i=ui.cf.i,q=g.nxt[i]||NUL4(),onC=new Set(g.cur.flat().filter(Boolean));
+  const pool=onIds(d).filter(id=>eligible(d,id)&&!onC.has(id));
+  const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+(isDum(d,id)?' · dummy':'')+'</option>').join('')+'</select>'};
+  const full=q.every(Boolean),sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
+  const bal=!full?'Fill all 4':df<=1?'● Balanced':(sa>sb?'Team A':'Team B')+' stronger',bc=!full?'var(--mu)':df<=1?'var(--ok)':'var(--y)';
+  const team=(l,a,b)=>'<div style="background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0"><div class="lab">'+l+'</div>'+sel(a)+sel(b)+'</div>';
+  return '<div class="modal" data-a="closecf"><div class="pn" data-a="noop" style="gap:16px"><div class="sb"><div class="laby">SEND TO '+esc(cname(d,i).toUpperCase())+' · CHECK THE 4 PLAYERS</div><button class="ib" data-a="closecf">×</button></div>'+
+   '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center">'+team('TEAM A',0,1)+'<span class="d" style="color:var(--y);font-size:28px">VS</span>'+team('TEAM B',2,3)+'</div>'+
+   '<div class="sb"><b style="color:'+bc+'">'+bal+'</b><span style="font-size:13px;color:var(--mu)">Swap anyone here · your choice always wins</span></div>'+
+   '<div class="sb"><button class="ol" data-a="closecf">Cancel</button><button class="btn sh" data-a="cfok"'+(full?'':' disabled')+'>✓ Confirm · send on court ▶</button></div></div></div>'}
 
 /* ---------- manual game / session times ---------- */
 function vGE(){const e=ui.ge,g=G(e.d),used=new Set(e.ids.filter(Boolean));

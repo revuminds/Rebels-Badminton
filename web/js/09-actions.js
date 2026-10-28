@@ -2,7 +2,7 @@
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 function copy(t){if(NB&&NB.copy){NB.copy(t);return toast('Copied')}
   const ta=$('#bexp');if(ta){ta.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Select the text and copy')}}
   if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast('Copied'),()=>{})}
@@ -11,10 +11,25 @@ const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};if(x==='home')return go('home');if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
- home:()=>{ui.sc=null;go('home')},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
- newsched:()=>openSched(''),sedit2:x=>openSched(x),hist:()=>{ui.h=null;go('hist')},
+ newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
+ hstart:()=>{ui.cur=TODAY();ui.flow='start';go('app','players');toast('Check who is playing, then tap Next')},
+ pnext:()=>{const d=curDate();if(!d)return;ui.cur=d;const g=S.games[d],st=ui.flow==='start'&&canStart(d);ui.flow='';go('app','games');
+   if(st){startSession();if(running(S.games[d])){ui.ck=1;render()}}},
+ delsess:x=>{const g=S.games[x];if(g&&running(g))return toast('End the session first');
+   if(!confirm('Delete the session on '+dlab(x)+'? Its games, attendance and payments are removed. This cannot be undone.'))return;
+   delSess(x);if(ui.h&&ui.h.sel==='s:'+x)ui.h.sel=ui.h.selM||'y';save();render();toast('Session deleted')},
+ scplayers:()=>schedSave('players'),
+ ckopen:()=>{ui.ck=1;render()},closeck:()=>{ui.ck=0;render()},ckplayers:()=>{ui.ck=0;go('app','players')},
+ ckin:x=>act.arrive(x),
+ ckout:x=>{const d=curDate(),a=att(d,x);if(!a)return;a.l=Date.now();attChanged(x,nameOf(x)+' left at '+hm(a.l)+' – removed from Up Next and the plan');save();render()},
+ ckback:x=>{const a=att(curDate(),x);if(a)a.l=0;attChanged(x,nameOf(x)+' is back');save();render()},
+ ckdum:x=>{const d=curDate(),D=day(d),v=!isDum(d,x);D.dm=D.dm||{};D.dm[x]=v;const g=S.games[d];
+   if(g){if(running(g))autoNext(g,'all',nameOf(x)+(v?' marked dummy – plays only when no regular is free':' is a regular again – gets the 5-game target'));else g.psig=''}save();render()},
+ cfopen:x=>{const g=CG(),q=g.nxt[+x];if(!q||!q.every(Boolean))return toast('Fill all 4 players in Up Next first');ui.cf={i:+x};render()},
+ closecf:()=>{ui.cf=null;render()},cfok:()=>{const i=ui.cf.i;ui.cf=null;sendCourt(CG(),i);render()},hist:()=>{ui.h=null;go('hist')},
  cancelup:x=>{const D=S.days[x];if(!D)return;const pk=pkgsFor(x).length;
    if(!confirm('Cancel the session on '+dlab(x)+'?'+(pk?' It is part of a court package – to keep its share, use Edit and move it to the new date instead.':'')))return;
    if(D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(x)}}
@@ -58,7 +73,7 @@ const act={
  /* games */
  reshuffle:()=>{const g=CG();autoNext(g,'all','Up Next re-shuffled');save();render();toast('Up Next re-shuffled')},
  remix:()=>{const g=CG();if(g.st)autoNext(g,'all','Up Next re-mixed');else{g.nman=[];buildPlan(g)}save();render()},
- startsess:()=>startSession(),
+ startsess:()=>{const d=curDate();startSession();if(running(S.games[d])){ui.ck=1;render()}},
  endsess:()=>{const g=CG();if(!confirm('End this session? All timers stop, scored games are saved and every player is turned off.'))return;endSession(g,Date.now());save();render();toast('Session saved')},
  reopen:()=>{const g=CG();if(!g.en||Date.now()-g.en>=REOPEN_MS)return render();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);
    g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();render()},
@@ -147,6 +162,8 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='scloc'){if(el.value==='__new'){ui.scNew=true;render();setTimeout(()=>$('#nloc')&&$('#nloc').focus(),50)}else{ui.sc.loc=el.value;render()}}
   else if(c==='slot'){if(!el.value)return;const g=CG(),x=el.dataset.x;qref(g,x)[+el.dataset.y]=el.value;
     if(String(x)[0]==='0'){const i=+String(x).split('.')[1];g.nman[i]=1;if(running(g)&&g.nxt[i].every(Boolean)){g.nxt[i]=orderQ(g.nxt[i],g);recordOverride(g,i)}}save();render()}
+  else if(c==='cfslot'){const g=CG(),i=ui.cf.i,k=+el.dataset.y,v=el.value||null;g.nxt.forEach((q,j)=>{if(j!==i)g.nxt[j]=q.map(x=>x===v?null:x)});g.nxt[i][k]=v;g.nman[i]=1;
+    if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}

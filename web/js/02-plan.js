@@ -4,7 +4,7 @@ const NUL4=()=>[null,null,null,null];
 const running=g=>!!(g&&g.st&&!g.en);
 const capOf=g=>g.deuce?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
 const winOf=(g,l)=>g.deuce?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
-const REST=8*60e3,TGT=5,TMIN=4;
+const REST=8*60e3,TGT=5,TMIN=5;
 function G(d){let g=S.games[d];
   if(!g){g=S.games[d]={d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]}}
   ['nman','log','pre','auto','plan','last','ros','nxt','cur','live'].forEach(k=>{if(!Array.isArray(g[k]))g[k]=[]});if(!g.strk)g.strk={};
@@ -52,10 +52,10 @@ function target(g,id){const len=Math.max(1,sessLenH(g.d))*3600,base=TGT*sessLenH
   return Math.max(1,Math.round(base*Math.min(1,presentSec(g,id)/len)))}
 const courtOpen=(g,i,t)=>(t||Date.now())<courtEnd(g.d,i);
 const blocked=(g,id,t)=>(g.strk[id]||0)>=2&&!(g.since[id]!=null&&t-g.since[id]>=REST);
-/* live order: regulars below target first (furthest behind), organizers sit out first, longest wait breaks ties */
+/* live order: regulars below target first (furthest behind), then regulars at target, dummies only as fillers; longest wait breaks ties */
 function priority(g,exclude){const cnt=counts(g,true),t=Date.now(),bk=ruleOn('wait')?5:20;
   return onIds(g.d).filter(id=>eligible(g.d,id)&&!exclude.has(id)&&!blocked(g,id,t)).map(id=>{const c=cnt[id]||0,tg=target(g,id);
-    return{id,o:isOrg(id)?1:c>=tg?2:0,r:Math.round(c/Math.max(1,tg)*bk),w:g.since[id]!=null?t-g.since[id]:0,x:Math.random()}})
+    return{id,o:isDum(g.d,id)?3:c>=tg?2:0,r:Math.round(c/Math.max(1,tg)*bk),w:g.since[id]!=null?t-g.since[id]:0,x:Math.random()}})
     .sort((a,b)=>a.o-b.o||a.r-b.r||b.w-a.w||a.x-b.x).map(x=>x.id)}
 const logIt=(g,m)=>{g.log.unshift({t:Date.now(),m});if(g.log.length>60)g.log.length=60};
 
@@ -81,15 +81,15 @@ const slotOf=g=>Math.max(5,num(g.slot)||15)+Math.max(0,num(g.chg));
 const courtRounds=(g,i)=>Math.floor(num((courtsOf(g.d)[i]||{}).h)*60/slotOf(g));
 const planRounds=g=>Math.max(1,...courtsOf(g.d).map((c,i)=>courtRounds(g,i)));
 const totSlots=g=>courtsOf(g.d).reduce((a,c,i)=>a+courtRounds(g,i),0);
-const planSig=g=>[onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,(S.orgs||[]).join(','),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
-const tier=(id,c)=>isOrg(id)?1:c>=TGT?2:0;
+const planSig=g=>[onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,(S.orgs||[]).join(','),JSON.stringify((S.days[g.d]||{}).dm||{}),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
+const tier=(d,id,c)=>isDum(d,id)?3:c>=TGT?2:0;
 function buildPlan(g){let best=null;const ids=onIds(g.d);for(let k=0;k<80;k++){if(k===40&&best.sc<100)break;const p=planOnce(g,k>=40),cn={};let em=0;
   p.forEach((rd,r)=>rd.forEach((q,i)=>{if(q.every(Boolean))q.forEach(id=>cn[id]=(cn[id]||0)+1);else if(r<courtRounds(g,i))em++}));
-  const rc=ids.filter(id=>!isOrg(id)).map(id=>cn[id]||0),oc=(S.orgs||[]).reduce((a,id)=>a+(cn[id]||0),0),sc=em*100+(rc.length?Math.max(...rc)-Math.min(...rc):0)*3+oc*.2;if(!best||sc<best.sc)best={sc,p};if(!sc)break}
+  const rc=ids.filter(id=>!isDum(g.d,id)).map(id=>cn[id]||0),oc=ids.filter(id=>isDum(g.d,id)).reduce((a,id)=>a+(cn[id]||0),0),sc=em*100+(rc.length?Math.max(...rc)-Math.min(...rc):0)*3+oc*.2;if(!best||sc<best.sc)best={sc,p};if(!sc)break}
   const keep=g.nxt.map((q,i)=>g.nman[i]?q:null);g.nxt=best.p[0].map((q,i)=>keep[i]||q);g.plan=best.p.slice(1);g.psig=planSig(g)}
 function planOnce(g,soft){const ids=onIds(g.d),R=planRounds(g),fake={d:g.d,hist:[]},c={},st={},lr={},rounds=[],nC=courtsOf(g.d).length;
   for(let r=0;r<R;r++){const av=[];for(let i=0;i<nC;i++)if(r<courtRounds(g,i)||(r===0&&!courtRounds(g,i)))av.push(i);
-    const pool=ids.filter(id=>!(lr[id]===r-1&&st[id]>=2)).map(id=>{const k=c[id]||0;return{id,c:soft&&isOrg(id)?k+2:k,o:soft?(!isOrg(id)&&k>=TGT?2:0):tier(id,k),s:lr[id]===r-1?st[id]:0,x:Math.random()}}).sort((a,b)=>a.o-b.o||(a.c+a.s*.75)-(b.c+b.s*.75)||a.x-b.x).map(x=>x.id);
+    const pool=ids.filter(id=>!(lr[id]===r-1&&st[id]>=2)).map(id=>{const k=c[id]||0;return{id,c:k,o:tier(g.d,id,k),s:lr[id]===r-1?st[id]:0,x:Math.random()}}).sort((a,b)=>a.o-b.o||(a.c+a.s*.75)-(b.c+b.s*.75)||a.x-b.x).map(x=>x.id);
     const n=Math.min(av.length,Math.floor(pool.length/4));const gr=n?mix(pool.slice(0,n*4),fake):[];gr.forEach(q=>{fake.hist.unshift({ids:q,sa:0,sb:0});q.forEach(id=>{st[id]=lr[id]===r-1?(st[id]||0)+1:1;c[id]=(c[id]||0)+1;lr[id]=r})});
     const rd=[];for(let i=0;i<nC;i++)rd.push(NUL4());av.forEach((i,k)=>{if(gr[k])rd[i]=gr[k]});rounds.push(rd)}
   return rounds}
@@ -116,10 +116,10 @@ function sendCourt(g,i){const q=g.nxt[i],t=Date.now();if(!running(g))return;if(!
   const nh=q.find(id=>!eligible(g.d,id));if(nh)return toast(nameOf(nh)+' is not checked in');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.cur[i]=q.slice();g.live[i]=blankLive();g.nxt[i]=NUL4();g.nman[i]=0;g.round++;autoNext(g,'fill',null);save();render()}
-function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
+function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
   ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);ensurePlan(g);g.pre=g.nxt.map(q=>q.every(Boolean)?q.slice():null);
   g.st=Date.now();g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};
-  logIt(g,'Session started · mark players Arrived in the Players tab – only checked-in players get games');save();render()}
+  logIt(g,'Session started · check players in with the Players button – only checked-in players get games, dummies fill in when needed');save();render()}
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
   const D=S.days[g.d];g.ros=[...new Set([...(g.ros||[]),...(D?Object.keys(D.on).filter(k=>D.on[k]):[]),...g.hist.flatMap(h=>h.ids)])];

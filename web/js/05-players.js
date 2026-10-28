@@ -10,8 +10,9 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
    '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><button class="btn" data-a="add">+ Add</button></div>'+
    '<div id="dup">'+vDup()+'</div>'+
    '<div class="row" style="gap:12px"><div class="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="psearch" placeholder="Search players, then tap to turn on" value="'+esc(ui.q)+'" data-i="q" autocomplete="off"><button class="ib" style="background:var(--pn);color:var(--mu)" data-a="clearq" aria-label="Clear search">×</button></div><button class="ol" data-a="alloff">Turn all off</button></div>'+
-   (st&&!(g&&g.en)?'<div style="font-size:14px;color:var(--mu)">Tap <b style="color:var(--tx)">Not here yet</b> when a player arrives · tap the time to edit or mark Left. Tap a name for level and stats.</div>':'<div style="font-size:14px;color:var(--mu)">Tap a card to turn a player on · tap the name for level and stats.</div>')+
-   '<div id="pgrid">'+vGrid()+'</div>'}
+   (st&&!(g&&g.en)?'<div style="font-size:14px;color:var(--mu)">Check players in / out with the <b style="color:var(--tx)">Players</b> button on the Games page. Tap a name for level and stats.</div>':'<div style="font-size:14px;color:var(--mu)">Tap a card to turn a player on · tap the name for level and stats.</div>')+
+   '<div id="pgrid">'+vGrid()+'</div>'+
+   '<div class="row" style="justify-content:flex-end;padding-bottom:12px"><button class="btn sh" style="min-width:160px" data-a="pnext">Next → Games</button></div>'}
 const lvSeg=(cur,a,x)=>LVN.map((n,i)=>'<button'+(cur===i?' class="on"':'')+' data-a="'+a+'"'+(x!=null?' data-x="'+x+'" data-y="'+i+'"':' data-x="'+i+'"')+'>'+n+'</button>').join('');
 function vLv(){return lvSeg(ui.lv,'lv')}
 function lev(a,b){const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
@@ -22,8 +23,8 @@ function dupInfo(nm,skip){nm=nm.trim().toLowerCase().replace(/\s+/g,' ');if(!nm)
   return sim.length?{red:false,msg:'Similar name already added: '+sim.map(p=>p.name).join(', ')+'. Check before adding.'}:null}
 function vDup(){const d=dupInfo(ui.nm);return d?'<div class="warn '+(d.red?'red':'yel')+'">⚠ '+esc(d.msg)+'</div>':''}
 function attChip(d,id){const a=att(d,id),g=S.games[d];if(!g||!g.st)return '';
-  if(!a||!a.a)return g.en?'<span class="att no">Did not come</span>':'<button class="att no" data-a="arrive" data-x="'+id+'">Not here yet</button>';
-  return '<button class="att '+(a.l?'left':'in')+'" data-a="attedit" data-x="'+id+'">'+(a.l?'Left '+hm(a.l):'Arrived '+hm(a.a))+'</button>'}
+  if(!a||!a.a)return '<span class="att no">'+(g.en?'Did not come':'Not here yet')+'</span>';
+  return '<span class="att '+(a.l?'left':'in')+'">'+(a.l?'Left '+hm(a.l):'Arrived '+hm(a.a))+'</span>'}
 function vGrid(){const d=curDate(),q=ui.q.trim().toLowerCase(),D=day(d),L=active().filter(p=>!q||p.name.toLowerCase().includes(q));
   if(!active().length)return '<div class="empty">No players yet. Add your first player above.</div>';
   if(!L.length)return '<div class="empty">No player with that name. Add them above.</div>';

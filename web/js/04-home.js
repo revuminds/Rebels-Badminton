@@ -20,9 +20,9 @@ const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'
 function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d=>d<t||((S.games[d]||{}).en));const g=S.games[t];
   let card='';if(isSched(t)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
     const sub=esc(D.loc)+' · '+courtSum(t)+' · '+pl(n,'player');
-    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run||ended?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':'TODAY · NOT STARTED')+'</span>'+
+    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run||ended?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
      '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended':'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run?'Resume':ended?'Summary':'Open')+' →</span></button>'+
-     (g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>')+'</div>'}
+     (g&&g.st?(ended?'<button class="ol tedit" style="color:var(--bad);border-color:var(--bad)" data-a="delsess" data-x="'+t+'">Delete</button>':''):'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
   const rows=up.map(d=>{const D=S.days[d],n=onIds(d).length;return '<div class="uprow"><div class="udate"><b>'+DN[pd(d).getDay()].toUpperCase()+'</b><span>'+pd(d).getDate()+'</span></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:16px">'+dlab(d)+' · '+t12(D.time)+' · '+esc(D.loc)+(D.ser?' <span class="rep">WEEKLY</span>':'')+'</div><div style="font-size:13px;color:var(--mu)">'+pl(courtsOf(d).length,'court')+' · '+courtSum(d)+' · '+n+' players ON</div></div>'+
     '<button class="ol sm" data-a="sedit2" data-x="'+d+'">Edit</button><button class="ol sm" style="color:var(--bad)" data-a="cancelup" data-x="'+d+'">Cancel</button></div>'}).join('');
   return '<div class="home"><section class="hleft"><img id="homeLogo" src="'+LOGO_SRC()+'" alt="Rebels Badminton"><div class="d" style="font-size:40px;letter-spacing:.02em">REBELS <span style="color:var(--y)">BADMINTON</span></div><div style="font-size:15px;color:var(--mu)">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]+' '+new Date().getDate()+' '+MNF[new Date().getMonth()]+'</div></section>'+
@@ -35,10 +35,10 @@ function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d
 /* ---------- SCHEDULE SESSION ---------- */
 const TIMES=(()=>{const a=[];for(let m=6*60;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
 function nextSessDate(){const t=TODAY(),all=Object.keys(S.days).filter(d=>isSched(d)).sort(),last=all[all.length-1];let d=last?addD(last,7):addD(t,7);while(d<=t)d=addD(d,7);while(S.days[d]&&isSched(d))d=addD(d,7);return d}
-function openSched(d){const t=TODAY();if(d&&S.days[d]){const D=S.days[d];ui.sc={d,orig:d,time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(S.games[d]&&S.games[d].st)}}
+function openSched(d,ret){const t=TODAY();if(d&&S.days[d]){const D=S.days[d],g=S.games[d];ui.sc={d,orig:d,ret:ret||'home',time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(g&&g.st),ended:!!(g&&g.en)}}
   else{const last=Object.keys(S.days).filter(x=>isSched(x)).sort().pop(),L=last?S.days[last]:null;ui.sc={d:isSched(t)?nextSessDate():t,orig:'',time:L?L.time:'20:00',loc:L?L.loc:(S.locs[0]||''),courts:[{n:'Court 1',h:2}],rep:false}}
   ui.scr='sched';render();window.scrollTo(0,0)}
-function vSched(){const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started;
+function vSched(){const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started,lockV=s.started&&!s.ended;
   const st=tms(s.d||t,s.time),fm=ms=>t12(hm(ms));
   const dchip=(d,l)=>'<button class="dchip'+(s.d===d?' on':'')+'" data-a="scd" data-x="'+d+'"'+(lock?' disabled':'')+'>'+l+'</button>';
   const chips=dchip(t,'Today · '+DN[pd(t).getDay()]+' '+pd(t).getDate())+(nx!==t?dchip(nx,dlab(nx)):'')+(s.d!==t&&s.d!==nx?dchip(s.d,dlab(s.d)):'')+'<input type="date" class="sel dpick" data-c="scdate" min="'+t+'" value="'+s.d+'"'+(lock?' disabled':'')+' aria-label="Calendar">';
@@ -50,21 +50,24 @@ function vSched(){const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started;
   const bars=C.map(c=>'<div class="row" style="gap:10px"><div style="width:90px;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.n)+'</div><div class="tl"><div style="width:'+(num(c.h)/span*100)+'%"></div></div></div>').join('');
   const ticks=[];for(let h=0;h<=span;h+=span>3?1:.5)ticks.push(fm(st+h*3600e3));
   return '<div class="scr"><div class="row" style="gap:16px">'+backBtn+'<h1 style="flex:1">'+(s.orig?'EDIT <span>SESSION</span>':'SCHEDULE <span>SESSION</span>')+'</h1>'+(s.orig?'':'<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="sclast">⧉ Same as last session</button>')+'</div>'+
-   (lock?'<div class="warn yel">Session already started · date and venue are fixed. Court hours can still change here or on the Games page.</div>':'')+
+   (s.ended?'<div class="warn yel">Finished session · date is fixed. Time, venue and court hours can be corrected.</div>':lock?'<div class="warn yel">Session already started · date and venue are fixed. Court hours can still change here or on the Games page.</div>':'')+
    '<div class="schg"><section class="pn" style="gap:18px;padding:20px"><div><div class="lab">DATE</div><div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">'+chips+'</div></div>'+
-   '<label class="fl">START TIME<select class="sel big" data-c="sctime"'+(lock?' disabled':'')+'>'+TIMES.map(v=>'<option value="'+v+'"'+(v===s.time?' selected':'')+'>'+t12(v)+'</option>').join('')+'</select></label>'+
+   '<label class="fl">START TIME<select class="sel big" data-c="sctime"'+(lockV?' disabled':'')+'>'+TIMES.map(v=>'<option value="'+v+'"'+(v===s.time?' selected':'')+'>'+t12(v)+'</option>').join('')+'</select></label>'+
    '<div class="fl">LOCATION'+(ui.scNew?'<div class="row"><input id="nloc" class="gei" placeholder="New location name"><button class="btn" style="height:48px" data-a="saveloc">Save</button><button class="gh" data-a="cancelloc">×</button></div>':
-     '<select class="sel big" data-c="scloc"'+(lock?' disabled':'')+'>'+locs.map(n=>'<option'+(n===s.loc?' selected':'')+'>'+esc(n)+'</option>').join('')+'<option value="__new">+ New location</option></select>')+'</div>'+
+     '<select class="sel big" data-c="scloc"'+(lockV?' disabled':'')+'>'+locs.map(n=>'<option'+(n===s.loc?' selected':'')+'>'+esc(n)+'</option>').join('')+'<option value="__new">+ New location</option></select>')+'</div>'+
    '<div class="fl">NUMBER OF COURTS<div class="row" style="gap:12px"><button class="ib xl" data-a="scn" data-x="-1">−</button><div class="d" style="flex:1;text-align:center;font-size:52px;color:var(--y)">'+C.length+'</div><button class="ib xl" data-a="scn" data-x="1">+</button></div></div>'+
    '<button class="fc'+(s.rep?' on':'')+'" style="height:52px" data-a="screp">'+(s.rep?'✓ Repeat weekly · next 4 weeks':'Repeat weekly')+'</button></section>'+
    '<section style="display:flex;flex-direction:column;gap:12px;min-width:0"><div class="sb"><b style="font-size:18px">Courts booked</b><span style="font-size:13px;color:var(--mu)">All start at '+fm(st)+' · each can end at its own time</span></div>'+crow+
    '<div class="pn"><div class="lab">TIMELINE</div>'+bars+'<div class="sb" style="padding-left:100px;font-size:12px;color:var(--mu)">'+ticks.map(x=>'<span>'+x+'</span>').join('')+'</div></div></section></div>'+
    '<div class="sfoot"><div class="row" style="flex:1;gap:28px"><div><i>Court-hours</i><b>'+hrsL(ch)+'</b></div><div><i>Game slots ('+num(S.def.slot)+' + '+num(S.def.chg)+' min)</i><b style="color:var(--ok)">≈ '+slots+' games</b></div><div><i>Players for 4–5 games each</i><b>'+Math.ceil(slots*4/5)+'–'+Math.floor(slots*4/4)+' players</b></div></div>'+
-   '<button class="btn sh" style="height:60px;font-size:18px" data-a="scsave">'+(s.orig?'Save changes':'Continue → Players')+'</button></div></div>'}
+   (s.orig&&!s.ended?'<button class="ol" style="height:60px;font-size:17px;border-color:var(--y);color:var(--y)" data-a="scplayers">Players →</button>':'')+'<button class="btn sh" style="height:60px;font-size:18px" data-a="scsave">'+(s.orig?'Save changes':'Continue → Players')+'</button></div></div>'}
 function moveDate(a,b){['days','games','fin'].forEach(k=>{if(S[k][a]){S[k][b]=S[k][a];delete S[k][a];if(k==='games')S.games[b].d=b}});
   ENT('pkg').forEach(e=>{const i=(e.dates||[]).indexOf(a);if(i>=0){e.dates[i]=b;e.post=e.post||{};e.post[b]=e.post[a]||a;delete e.post[a]}})}
-function schedSave(){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date');if(!s.orig&&s.d<t)return toast('Pick today or a future date');
-  if(s.d!==s.orig&&isSched(s.d))return toast('There is already a session on '+dlab(s.d)+' – use Edit');
+function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date');if(!s.orig&&s.d<t)return toast('Pick today or a future date');
+  if(s.d!==s.orig&&(isSched(s.d)||S.games[s.d])){const g0=S.games[s.d];
+    if(g0&&g0.st&&!g0.en)return toast('A session is running on '+dlab(s.d)+' – end it first');
+    if(g0&&g0.en){if(!confirm('There is a finished session on '+dlab(s.d)+'. Delete it (games and payments) and schedule this one instead?'))return;delSess(s.d)}
+    else return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
   const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
@@ -74,7 +77,8 @@ function schedSave(){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date')
   else if(!s.rep&&D.ser){const id=D.ser;S.series=S.series.filter(x=>x.id!==id);Object.keys(S.days).forEach(x=>{const X=S.days[x];if(X.ser===id){delete X.ser;if(x>s.d&&!onIds(x).length&&!(S.games[x]&&S.games[x].st))delete S.days[x]}})}
   topUp();const g=S.games[s.d];if(g){G(s.d);if(running(g)){autoNext(g,'fill','Court hours changed · Up Next updated')}else g.psig=''}
   const edit=!!s.orig;ui.sc=null;ui.cur=s.d;save();
-  if(edit){ui.scr='home';toast('Session updated')}else{ui.scr='app';ui.tab='players';toast('Saved to '+dlab(s.d))}render();window.scrollTo(0,0)}
+  if(to==='players'||!edit){ui.scr='app';ui.tab='players';if(!edit)ui.flow=s.d===t?'start':'';toast(edit?'Session updated':'Saved to '+dlab(s.d))}
+  else{ui.scr=s.ret==='hist'?'hist':'home';toast('Session updated')}render();window.scrollTo(0,0)}
 
 /* ---------- PREVIOUS SESSIONS ---------- */
 function vHist(){const t=TODAY(),ss=sessions().filter(d=>d<t||(S.games[d]&&S.games[d].st)),ys=[...new Set(ss.map(d=>d.slice(0,4)))].sort().reverse();
@@ -92,7 +96,7 @@ function vHist(){const t=TODAY(),ss=sessions().filter(d=>d<t||(S.games[d]&&S.gam
     else{const ids=c.ids.slice().sort((a,b)=>(c.f.paid[a]?1:0)-(c.f.paid[b]?1:0)||nameOf(a).localeCompare(nameOf(b)));
       body='<div class="sb"><span class="lab">PAYMENTS · '+c.pdn+' / '+c.pl+' PAID</span><span class="lab" style="color:var(--bad)">PENDING '+A(c.due)+'</span></div>'+ids.map(id=>{const p=payOf(c.f,id);return '<div class="row" style="background:var(--bg);border-radius:10px;padding:10px 14px"><span style="flex:1;font-weight:600">'+esc(nameOf(id))+'</span>'+(p?'<span class="badge ok">Paid · '+(p.m==='bank'?'Bank':'Cash')+(p.by?' · '+esc(nameOf(p.by)):'')+'</span>':'<span class="badge">Unpaid · '+A(c.FEE)+'</span>')+'</div>'}).join('')+
         '<div class="row"><button class="ol" data-a="hfin" data-x="'+d+'">Open in Finance →</button></div>'}
-    right='<section class="pn" style="padding:22px;gap:16px"><div class="sb" style="align-items:flex-start"><div><div class="laby">SESSION</div><div class="d" style="font-size:40px;line-height:1;margin-top:4px">'+dlab(d).toUpperCase()+' '+d.slice(0,4)+'</div><div style="font-size:14px;color:var(--mu);margin-top:6px">'+esc(c.loc)+' · '+courtSum(d)+(c.st?' · '+hm(c.st)+' – '+(c.en?hm(c.en):'…'):'')+'</div></div><button class="ib" data-a="hsel" data-x="'+(H.selM||'y')+'" aria-label="Close">×</button></div>'+
+    right='<section class="pn" style="padding:22px;gap:16px"><div class="sb" style="align-items:flex-start"><div><div class="laby">SESSION</div><div class="d" style="font-size:40px;line-height:1;margin-top:4px">'+dlab(d).toUpperCase()+' '+d.slice(0,4)+'</div><div style="font-size:14px;color:var(--mu);margin-top:6px">'+esc(c.loc)+' · '+courtSum(d)+(c.st?' · '+hm(c.st)+' – '+(c.en?hm(c.en):'…'):'')+'</div></div><div class="row" style="gap:8px"><button class="ol sm" data-a="hedit" data-x="'+d+'">Edit session</button><button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="delsess" data-x="'+d+'">Delete</button><button class="ib" data-a="hsel" data-x="'+(H.selM||'y')+'" aria-label="Close">×</button></div></div>'+
      '<div class="grid3" style="grid-template-columns:repeat(3,1fr)"><div class="tile"><b>'+c.pl+'</b><i>Players</i></div><div class="tile"><b>'+c.ng+'</b><i>Games</i></div><div class="tile"><b style="font-size:26px;line-height:1.3">'+(c.ps?fmtH(c.ps):'—')+' / '+hrsL(c.bh)+'</b><i>Played / booked</i></div></div>'+tabs+body+'</section>'}
   return '<div class="scr"><div class="row" style="gap:16px">'+backBtn+'<h1 style="flex:1">PREVIOUS <span>SESSIONS</span></h1>'+ys.map(y=>'<button class="dchip'+(H.y===y?' on':'')+'" data-a="hy" data-x="'+y+'">'+y+'</button>').join('')+'</div>'+
    '<div class="histg">'+left+right+'</div></div>'}
