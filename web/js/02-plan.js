@@ -77,11 +77,20 @@ function autoNext(g,mode,why){if(!running(g))return;const t=Date.now(),d=g.d,onC
   if(ch&&why)logIt(g,why);return ch}
 
 /* ---------- planned games (before Start session): whole booked time, per court ---------- */
-const slotOf=g=>Math.max(5,num(g.slot)||15)+Math.max(0,num(g.chg));
+/* learned game length: real timed games (5–30 min), per level band; 15 min until 5 real games */
+const bandOf=ids=>{const a=ids.reduce((s,id)=>s+lvOf(id),0)/Math.max(1,ids.length);return a<1.5?0:a<2.75?1:2};
+let LGc=null,LGk='';
+function learnG(){const k=S.savedAt+'';if(LGc&&LGk===k)return LGc;const all=[];
+  Object.keys(S.games).sort().forEach(d=>(S.games[d].hist||[]).forEach(h=>{if(!h.m&&h.s>=300&&h.s<=1800&&h.ids&&h.ids.every(Boolean))all.push({at:h.at||0,s:h.s,b:bandOf(h.ids)})}));
+  all.sort((x,y)=>y.at-x.at);const av=L=>{L=L.slice(0,40);return L.length>=5?{m:L.reduce((a,x)=>a+x.s,0)/L.length/60,n:L.length}:null};
+  LGc={all:av(all),b:[0,1,2].map(b=>av(all.filter(x=>x.b===b))),n:all.length};LGk=k;return LGc}
+const learnOn=()=>S.def.learn!==false;
+function gameMin(g,ids){const man=num(g&&g.slot)||num(S.def.slot)||15;if(!learnOn())return man;const L=learnG(),b=ids&&ids.every(Boolean)?L.b[bandOf(ids)]:null;return b?b.m:L.all?L.all.m:man}
+const slotOf=(g,ids)=>Math.max(5,gameMin(g,ids))+Math.max(0,num(g.chg));
 const courtRounds=(g,i)=>Math.floor(num((courtsOf(g.d)[i]||{}).h)*60/slotOf(g));
 const planRounds=g=>Math.max(1,...courtsOf(g.d).map((c,i)=>courtRounds(g,i)));
 const totSlots=g=>courtsOf(g.d).reduce((a,c,i)=>a+courtRounds(g,i),0);
-const planSig=g=>[onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,(S.orgs||[]).join(','),JSON.stringify((S.days[g.d]||{}).dm||{}),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
+const planSig=g=>[Math.round(gameMin(g)*2),onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,(S.orgs||[]).join(','),JSON.stringify((S.days[g.d]||{}).dm||{}),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
 const tier=(d,id,c)=>isDum(d,id)?3:c>=TGT?2:0;
 function buildPlan(g){let best=null;const ids=onIds(g.d);for(let k=0;k<80;k++){if(k===40&&best.sc<100)break;const p=planOnce(g,k>=40),cn={};let em=0;
   p.forEach((rd,r)=>rd.forEach((q,i)=>{if(q.every(Boolean))q.forEach(id=>cn[id]=(cn[id]||0)+1);else if(r<courtRounds(g,i))em++}));

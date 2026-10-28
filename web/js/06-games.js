@@ -2,9 +2,9 @@
 const REOPEN_MS=5*60*1000;
 function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
-  return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+(num(g.slot)||15)+'+'+num(g.chg)+' MIN</span>'+cs+
+  return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
    '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d)):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span></div>'}
-function cStrip(g,i,t){const end=courtEnd(g.d,i),left=end-t,open=left>0,n=g.hist.filter(h=>h.c===i+1).length,fit=Math.max(0,Math.floor(left/60e3/slotOf(g))-(g.cur[i]&&g.cur[i].every(Boolean)?1:0));
+function cStrip(g,i,t){const end=courtEnd(g.d,i),left=end-t,open=left>0,n=g.hist.filter(h=>h.c===i+1).length,fit=Math.max(0,Math.floor(left/60e3/slotOf(g,(g.cur[i]&&g.cur[i].every(Boolean))?g.cur[i]:g.nxt[i]))-(g.cur[i]&&g.cur[i].every(Boolean)?1:0));
   const lc=left<10*60e3?'var(--bad)':left<20*60e3?'var(--y)':'var(--ok)';
   return '<div class="cstrip'+(open?'':' off')+'"><b>'+esc(cname(g.d,i))+'</b><span>ends '+hm(end)+'</span>'+(open?'<span style="color:'+lc+';font-weight:700" data-tk="left" data-i="'+i+'">'+Math.ceil(left/60e3)+' min left</span>':'<span style="font-weight:700">Booking ended</span>')+'<span>'+pl(n,'game')+' played</span>'+(open?'<span>≈ '+fit+' more fit</span>':'')+'</div>'}
 function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY(),g=G(d),D=day(d),on=onIds(d),plan=d>t,past=d<t,run=running(g),ended=!!g.en,now=Date.now();
@@ -17,7 +17,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
   const benchE=on.filter(id=>!onC.has(id)&&(!run||eligible(d,id)));const pick=benchE.filter(id=>!inN.has(id));
   const quad=(q,i,key,pk,lab)=>{const full=q.every(Boolean);const sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
-    const bal=!full?'FILL ALL 4':df<=1?'● BALANCED':(sa>sb?'TEAM A':'TEAM B')+' STRONGER',bc=!full?'var(--mu)':df<=1?'var(--ok)':'var(--y)';
+    const bal=!full?'FILL ALL 4':'',bc='var(--mu)';
     const slots=q.map((id,k)=>(k===2?'<span class="d" style="color:var(--y);font-size:16px;padding:0 2px">VS</span>':'')+(id?'<span class="slot" style="'+pchip(id)+'"><span style="overflow:hidden;text-overflow:ellipsis">'+esc(nameOf(id))+'</span><button data-a="rmslot" data-x="'+key+'" data-y="'+k+'" aria-label="Remove">×</button></span>':
       '<select class="slotsel" data-c="slot" data-x="'+key+'" data-y="'+k+'" aria-label="Pick a player"><option value="">'+(run?'+ Bench…':'+ Player…')+'</option>'+pk.map(b=>'<option value="'+b+'">'+esc(nameOf(b))+' · '+LVN[lvOf(b)]+'</option>').join('')+'</select>')).join('');
     return '<div class="nm"><div class="sb" style="font-size:12px;font-weight:700;letter-spacing:.1em"><span style="color:var(--mu)">'+lab+(key[0]==='0'&&g.nman[i]?' · <span style="color:var(--y)">PLACED BY YOU</span>':'')+'</span><span style="color:'+bc+'">'+bal+'</span></div><div class="row" style="gap:6px">'+slots+'</div></div>'};
@@ -45,7 +45,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     const pmin=Math.ceil(cap/TGT),pmax=Math.floor(cap/TMIN);
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
-      'Slot '+(num(g.slot)||15)+' min game + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
+      'Slot '+Math.round(gameMin(g))+' min game'+(learnOn()&&learnG().all?' (learned)':'')+' + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
       'You have '+on.length+' on → '+rng(rc)+' games each',
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
@@ -83,7 +83,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (plan?'':'<section class="pn" style="gap:8px"><div class="sb"><span class="lab">GAME SUMMARY · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></span><span class="row" style="gap:10px"><span class="lab">'+hist.length+' GAMES · AVG '+(hist.length?fmt(tot/hist.length):'00:00')+'</span><button class="gh" style="height:40px;border-style:solid" data-a="gadd">+ Add game manually</button></span></div>'+
    (hist.length?'<div style="font-size:13px;color:var(--mu)">Tap a game to edit or delete it.</div><table><thead><tr><th>GAME</th><th>TEAM A</th><th style="text-align:center">SCORE</th><th>TEAM B</th><th>WINNER</th><th style="text-align:right">TIME</th></tr></thead><tbody>'+groups+'</tbody></table>':'<div class="empty" style="padding:12px">No games saved yet. Tap A won / B won, then Save – or add games manually.</div>')+'</section>'+
    '<section class="pn" style="gap:8px"><div class="sb"><span class="lab">GAMES PLAYED</span><span class="lab">FEWEST FIRST · RED = BEHIND FAIR SHARE</span></div>'+
-   (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th style="text-align:center">NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ}
+   (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th style="text-align:center">NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
   if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
@@ -115,7 +115,7 @@ function vCf(){const g=CG(),d=g.d,i=ui.cf.i,q=g.nxt[i]||NUL4(),onC=new Set(g.cur
   const pool=onIds(d).filter(id=>eligible(d,id)&&!onC.has(id));
   const sel=k=>{const cur=q[k];return '<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · '+LVN[lvOf(id)]+'</option>').join('')+'</select>'};
   const full=q.every(Boolean),sa=lvOf(q[0])+lvOf(q[1]),sb=lvOf(q[2])+lvOf(q[3]),df=Math.abs(sa-sb);
-  const bal=!full?'Fill all 4':df<=1?'● Balanced':(sa>sb?'Team A':'Team B')+' stronger',bc=!full?'var(--mu)':df<=1?'var(--ok)':'var(--y)';
+  const bal=!full?'Fill all 4':'',bc='var(--mu)';
   const team=(l,a,b)=>'<div style="background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0"><div class="lab">'+l+'</div>'+sel(a)+sel(b)+'</div>';
   return '<div class="modal" data-a="closecf"><div class="pn" data-a="noop" style="gap:16px"><div class="sb"><div class="laby">SEND TO '+esc(cname(d,i).toUpperCase())+' · CHECK THE 4 PLAYERS</div><button class="ib" data-a="closecf">×</button></div>'+
    '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center">'+team('TEAM A',0,1)+'<span class="d" style="color:var(--y);font-size:28px">VS</span>'+team('TEAM B',2,3)+'</div>'+

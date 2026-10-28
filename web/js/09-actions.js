@@ -12,6 +12,7 @@ const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
  tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
  newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
@@ -82,7 +83,7 @@ const act={
  shuffle:()=>{},
  send:x=>sendCourt(CG(),+x),
  rmslot:(x,y)=>{const g=CG();qref(g,x)[+y]=null;if(String(x)[0]==='0')g.nman[+String(x).split('.')[1]]=1;save();render()},
- gadd:()=>{const g=CG(),l=g.hist[0];ui.ge={d:g.d,i:-1,ids:NUL4(),sa:'',sb:'',w:'',c:1,st:l?hm(l.at+num(g.chg)*60000):g.st?hm(g.st):hm(Date.now()),du:num(g.slot)||15};render()},
+ gadd:()=>{const g=CG(),l=g.hist[0];ui.ge={d:g.d,i:-1,ids:NUL4(),sa:'',sb:'',w:'',c:1,st:l?hm(l.at+num(g.chg)*60000):g.st?hm(g.st):hm(Date.now()),du:Math.round(gameMin(g))};render()},
  gedit:x=>{const g=CG(),h=g.hist[+x];if(!h)return;ui.ge={d:g.d,i:+x,ids:h.ids.slice(),sa:h.sa,sb:h.sb,w:h.sa>h.sb?'a':h.sb>h.sa?'b':'',c:h.c,st:hm(h.at-h.s*1000),du:Math.round(h.s/60)};render()},
  closege:()=>{ui.ge=null;render()},gesave:()=>geSave(),
  gedel:()=>{const e=ui.ge,g=G(e.d);if(!confirm('Delete this game?'))return;g.hist.splice(e.i,1);g.man=1;ui.ge=null;save();render();toast('Game deleted')},
@@ -125,7 +126,7 @@ const act={
  stab:x=>{ui.setTab=x;if(x==='rules'){render();(S.rules||[]).forEach(r=>delete r.nw);S.newRules=0;save();return}render()},
  ruletog:x=>{const r=S.rules[+x];r.on=!r.on;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},
  ruledel:x=>{if(!confirm('Delete this learned rule?'))return;const r=S.rules.splice(+x,1)[0];S.ovr=(S.ovr||[]).filter(o=>!o.k.includes(r.k));save();render()},
- dpts:x=>{S.def.pts=+x;applyDef('pts');if(+x===30){S.def.deuce=false;applyDef('deuce')}save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
+ dpts:x=>{S.def.pts=+x;applyDef('pts');if(+x===30){S.def.deuce=false;applyDef('deuce')}save();render()},dlearn:()=>{S.def.learn=!learnOn();Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},ddeuce:()=>{S.def.deuce=!S.def.deuce;applyDef('deuce');save();render()},
  slv:(x,y)=>{const p=P(x);if(!p)return;ui.lvE=ui.lvE||{};if(+y===p.lv)delete ui.lvE[x];else ui.lvE[x]=+y;render()},
  lvupd:()=>{const E=ui.lvE||{};const ks=Object.keys(E);if(!ks.length)return;ks.forEach(id=>{const p=P(id);if(p)p.lv=E[id]});ui.lvE={};
    const d=curDate();if(d)lvChanged(ks);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render();toast(pl(ks.length,'level')+' updated')},
