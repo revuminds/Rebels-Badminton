@@ -78,7 +78,7 @@ h1 span{color:var(--y)}
 .court .net{position:absolute;top:-10px;bottom:-10px;left:50%;width:6px;margin-left:-3px;background:repeating-linear-gradient(0deg,#EAF2FA 0 3px,transparent 3px 7px);border-left:2px solid #EAF2FA;border-right:2px solid #EAF2FA}
 .court .no{position:absolute;top:6px;left:50%;transform:translateX(-50%);background:var(--bg);color:var(--mu);font-size:12px;font-weight:700;letter-spacing:.12em;padding:3px 10px;border-radius:99px;white-space:nowrap}
 .side{flex:1;display:flex;flex-direction:column;justify-content:center;gap:7px;padding:0 16px;position:relative;min-width:0}
-.side.r{align-items:flex-end}
+.side{align-items:flex-start}.side.r{align-items:flex-end}
 .pchip{background:var(--bg);color:var(--tx);border-radius:9px;padding:6px 12px;font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .sc{width:40px;height:40px;border-radius:10px;border:0;background:rgba(11,36,64,.6);color:#fff;font-size:20px}
 .sc.p{background:var(--y);color:var(--bg);font-weight:700}
@@ -374,7 +374,7 @@ const att=(d,id)=>{const D=S.days[d];return D&&D.att?D.att[id]||null:null};
 const arrived=(d,id)=>{const a=att(d,id);return !!(a&&a.a)};
 const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
-/* dummy = organiser/family filler: no game target, plays only when no regular is free (default: Settings organizers) */
+/* dummy = family/friend filler (tick box in Games → Players): no game target, plays only when no regular is free */
 const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
@@ -473,7 +473,7 @@ const slotOf=(g,ids)=>Math.max(5,gameMin(g,ids))+Math.max(0,num(g.chg));
 const courtRounds=(g,i)=>Math.floor(num((courtsOf(g.d)[i]||{}).h)*60/slotOf(g));
 const planRounds=g=>Math.max(1,...courtsOf(g.d).map((c,i)=>courtRounds(g,i)));
 const totSlots=g=>courtsOf(g.d).reduce((a,c,i)=>a+courtRounds(g,i),0);
-const planSig=g=>[Math.round(gameMin(g)*2),onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,(S.orgs||[]).join(','),JSON.stringify((S.days[g.d]||{}).dm||{}),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
+const planSig=g=>[Math.round(gameMin(g)*2),onIds(g.d).sort().join(','),JSON.stringify(courtsOf(g.d)),g.slot,g.chg,JSON.stringify(S.dum||{}),S.players.map(p=>p.lv).join(''),(S.rules||[]).filter(r=>r.on).map(r=>r.k).join('')].join('/');
 const tier=(d,id,c)=>isDum(d,id)?3:c>=TGT?2:0;
 function buildPlan(g){let best=null;const ids=onIds(g.d);for(let k=0;k<80;k++){if(k===40&&best.sc<100)break;const p=planOnce(g,k>=40),cn={};let em=0;
   p.forEach((rd,r)=>rd.forEach((q,i)=>{if(q.every(Boolean))q.forEach(id=>cn[id]=(cn[id]||0)+1);else if(r<courtRounds(g,i))em++}));
@@ -853,15 +853,15 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     const pmin=Math.ceil(cap/TGT),pmax=Math.floor(cap/TMIN);
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
-      'Slot '+Math.round(gameMin(g))+' min game'+(learnOn()&&learnG().all?' (learned)':'')+' + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
+      'Slot '+Math.round(gameMin(g))+' min game'+(learnOn()&&learnG().all?' (learned)':'')+' + '+num(g.chg)+' min changeover = '+Math.round(sl)+' min · '+ng+' games planned',
       'You have '+on.length+' on → '+rng(rc)+' games each',
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
       on.length>=4&&on.length<nC*6?'Max 2 in a row: '+pl(nC,'court')+' need ≥ '+nC*6+' players to fill every round':'',
       'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
-     '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
-       return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
+     '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id));
+       return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
      '<div class="tipbox"><div class="laby" style="font-size:12px">PLAN TIPS</div>'+tips.map(x=>'<div class="tip"><span>→</span><span>'+esc(x)+'</span></div>').join('')+'</div></section>'}
   let bench='';if(run){const w=id=>g.since[id]!=null?now-g.since[id]:0,E=benchE.slice().sort((a,b)=>w(b)-w(a)),nh=on.filter(id=>!arrived(d,id)),lf=on.filter(id=>leftAt(d,id));
     bench='<div class="row" style="flex-wrap:wrap;gap:8px;padding:0 4px"><span class="lab" style="margin-right:4px">ON THE BENCH</span>'+(E.length?E.map(id=>'<button class="bch" data-a="pmod" data-x="'+id+'" data-tk="bench" data-id="'+id+'"><span>'+esc(nameOf(id))+'</span><small></small></button>').join(''):'<span style="color:var(--mu)">Nobody waiting</span>')+
@@ -1116,12 +1116,12 @@ function entSave(){const e=ui.ent,a=num(e.amt);if(!a)return toast('Enter an amou
 /* ===== PIN, Settings, PDF report ===== */
 function vPin(){const setting=!S.pin||ui.pmode==='new',old=ui.pmode==='old';
   const title=old?'CURRENT PIN':!setting?'ADMIN ONLY':ui.pin1?'CONFIRM PIN':(S.pin?'NEW PIN':'SET ADMIN PIN');
-  const sub=old?'Enter the PIN you use now':!setting?'Enter your 4-digit PIN to open Finance':ui.pin1?'Enter the same 4 digits again':'Choose a 4-digit PIN for Finance';
+  const sub=old?'Enter the PIN you use now':!setting?(ui.pctx==='bak'?'Enter your 4-digit PIN to open Backup':'Enter your 4-digit PIN to open Finance'):ui.pin1?'Enter the same 4 digits again':'Choose a 4-digit PIN for Finance';
   const keys=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>k?'<button class="key" data-a="key" data-x="'+k+'" aria-label="'+(k==='⌫'?'Delete':k)+'">'+k+'</button>':'<span></span>').join('');
   return '<div style="display:flex;flex-direction:column;align-items:center;gap:18px"><span style="color:var(--y)">'+LOCK_SVG.replace(/22/g,'44')+'</span><div class="d" style="font-size:44px;line-height:1">'+title+'</div><div style="font-size:15px;color:var(--mu)">'+sub+'</div>'+
    '<div class="row" style="gap:14px;margin:6px 0">'+[0,1,2,3].map(i=>'<span class="pdot'+(i<ui.pin.length?' on':'')+'"></span>').join('')+'</div><div style="height:20px;font-size:14px;color:var(--bad);font-weight:600">'+esc(ui.err)+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat(3,84px);gap:12px">'+keys+'</div>'+(ui.pmode?'<button class="gh" data-a="pincancel">Cancel</button>':'')+'</div>'}
-function pinOK(){if(ui.pctx==='hist')ui.hun=true;else ui.unlocked=true}
+function pinOK(){if(ui.pctx==='hist')ui.hun=true;else if(ui.pctx==='bak')ui.bun=true;else ui.unlocked=true}
 function pinKey(k){if(k==='⌫'){ui.pin=ui.pin.slice(0,-1);ui.err='';return render()}if(ui.pin.length>=4)return;ui.pin+=k;ui.err='';
   if(ui.pin.length<4)return render();const p=ui.pin;ui.pin='';
   if(ui.pmode==='old'){if(p===S.pin){ui.pmode='new'}else ui.err='Wrong PIN. Try again.';return render()}
@@ -1143,14 +1143,15 @@ function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.
    (()=>{const L=learnG(),f=x=>x?x.m.toFixed(1)+' min ('+x.n+')':'—';return '<div class="row" style="gap:10px;flex-wrap:wrap"><button class="fc'+(learnOn()?' on':'')+'" data-a="dlearn">'+(learnOn()?'✓ Learn game time from real games':'Learn game time from real games')+'</button><span style="font-size:14px;color:var(--mu)">'+(L.all?'Learned: avg '+f(L.all)+' · Beginner '+f(L.b[0])+' · Intermediate '+f(L.b[1])+' · Advanced '+f(L.b[2]):'Needs 5 real games – using '+num(S.def.slot)+' min until then')+'</span></div>'})()+'<div style="font-size:13px;color:var(--mu)">Court hours are set per session in Schedule session.</div></section>'+
    '<section class="pn"><div class="sb"><div class="laby">PLAYER LEVELS</div><button class="btn" data-a="lvupd"'+(nE?'':' disabled')+'>Update'+(nE?' ('+nE+')':'')+'</button></div><div style="font-size:14px;color:var(--mu)">Changes apply to Up Next and planned games after Update. Games on court now stay as they are.</div>'+
    (act2.length?act2.map(p=>{const v=E[p.id]!=null?E[p.id]:p.lv;return '<div class="row" style="justify-content:space-between;background:var(--bg);border-radius:12px;padding:6px 8px 6px 14px"><span style="font-weight:600;font-size:16px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(E[p.id]!=null?'<span style="color:var(--y)">● </span>':'')+esc(p.name)+'</span><div class="lvb" style="background:var(--pn)">'+lvSeg(v,'slv',p.id)+'</div></div>'}).join(''):'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>'+
-   '<section class="pn"><div class="sb"><div class="laby">ORGANIZERS</div><span class="lab">'+(S.orgs||[]).length+' / 5</span></div><div style="font-size:14px;color:var(--mu)">Organizers sit out first and only fill slots when needed. They receive payments and get a partner card in Finance → Rebels.</div>'+
+   '<section class="pn"><div class="sb"><div class="laby">ORGANIZERS</div><span class="lab">'+(S.orgs||[]).length+' / 5</span></div><div style="font-size:14px;color:var(--mu)">Organizers receive payments and get a partner card in Finance → Rebels.</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:8px">'+act2.map(p=>'<button class="orgc'+(isOrg(p.id)?' on':'')+'" data-a="org" data-x="'+p.id+'">'+(isOrg(p.id)?'★ ':'')+esc(p.name)+'</button>').join('')+'</div></section>'+
    '<section class="pn"><div class="laby">ADMIN PIN</div>'+(ui.pmode?'<div style="display:flex;justify-content:center;padding:10px 0">'+vPin()+'</div>':
     '<div class="row"><span style="color:var(--mu);font-size:15px;flex:1">'+(S.pin?'Finance is locked with a 4-digit PIN. Changing it needs the current PIN.':'No PIN set yet.')+'</span><button class="btn" data-a="chpin">'+(S.pin?'Change PIN':'Set PIN')+'</button></div>')+'</section>'+
-   '<section class="pn"><div class="laby">BACKUP</div><div style="font-size:14px;color:var(--mu)">Everything is saved on this tablet on every tap. Keep a copy elsewhere too (WhatsApp to yourself, email, notes).</div>'+
+   '<section class="pn"><div class="laby">BACKUP</div><div style="font-size:14px;color:var(--mu)">Everything is saved on this device on every tap. Keep a copy elsewhere too (WhatsApp to yourself, email, notes).</div>'+
    '<div class="row"><div class="tile"><b>'+active().length+'</b><i>Players</i></div><div class="tile"><b>'+ss+'</b><i>Sessions</i></div><div class="tile"><b>'+g+'</b><i>Games saved</i></div><div class="tile"><b style="font-size:20px;line-height:1.7">'+(S.savedAt?new Date(S.savedAt).toLocaleString():'—')+'</b><i>Last saved</i></div></div>'+
-   '<div class="lab">EXPORT</div><textarea id="bexp" readonly>'+esc(JSON.stringify(S))+'</textarea><div class="row"><button class="btn" data-a="bcopy">Copy backup</button>'+(NB&&NB.share?'<button class="ol" data-a="bshare">Share…</button>':'')+'</div>'+
-   '<div class="lab">IMPORT</div><div style="font-size:14px;color:var(--mu)">Paste a backup below. This replaces all data on this tablet.</div><textarea id="bimp" placeholder="Paste backup text here"></textarea><div class="row"><button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="bimport">Import backup</button></div></section>'}
+   (!ui.bun&&!ui.pmode?(()=>{ui.pctx='bak';return '<div class="lab">EXPORT / IMPORT · ADMIN PIN</div><div style="display:flex;justify-content:center;padding:10px 0">'+vPin()+'</div>'})():ui.bun?
+   '<div class="row" style="flex-wrap:wrap"><button class="btn" data-a="bexport">Export backup</button><button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="bimport">Import backup</button></div>'+
+   '<div style="font-size:14px;color:var(--mu)">Export saves a file (rebels-backup-'+TODAY()+'.txt) to keep or send. Import replaces ALL data on this device with the file.</div>':'')+'</section>'}
 
 /* ---------- PDF report: exactly the Kitty selection ---------- */
 function vReport(ds,title){const all=allCalc(),sel=all.filter(s=>ds.includes(s.d));
@@ -1180,10 +1181,7 @@ function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',u
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
   $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
-function copy(t){if(NB&&NB.copy){NB.copy(t);return toast('Copied')}
-  const ta=$('#bexp');if(ta){ta.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Select the text and copy')}}
-  if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast('Copied'),()=>{})}
-const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
+const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
@@ -1311,10 +1309,10 @@ const act={
  chpin:()=>{ui.pctx='set';ui.pmode=S.pin?'old':'new';ui.pin='';ui.pin1='';ui.err='';render()},
  pincancel:()=>{ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render()},
  key:x=>pinKey(x),
- bcopy:()=>copy(JSON.stringify(S)),
- bshare:()=>{try{NB.share(JSON.stringify(S))}catch(e){toast('Share not available')}},
- bimport:()=>{const s=parse(($('#bimp').value||'').trim());if(!s)return toast('That is not a valid backup');
-   if(!confirm('Replace ALL data on this tablet with this backup?'))return;S=s;migrate();save();ui.ks=null;ui.unlocked=false;toast('Backup imported');render()}
+ bexport:()=>{if(!ui.bun)return render();const t=JSON.stringify(S),n='rebels-backup-'+TODAY()+'.txt';if(NB&&NB.saveAs){try{NB.saveAs(n,t);return}catch(e){}}
+   const u=URL.createObjectURL(new Blob([t],{type:'text/plain'})),l=document.createElement('a');l.href=u;l.download=n;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast('Backup saved')},
+ bimport:()=>{if(!ui.bun)return render();if(NB&&NB.pickFile){try{NB.pickFile();return}catch(e){}}const f=document.createElement('input');f.type='file';f.accept='.txt,.json,text/plain';
+   f.onchange=()=>{const r=new FileReader();r.onload=()=>impText(String(r.result||''));if(f.files[0])r.readAsText(f.files[0])};f.click()}
 };
 function applyDef(f){const t=TODAY();Object.values(S.games).forEach(g=>{if(!g.st&&g.d>=t){g[f]=S.def[f];g.psig=''}})}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.dataset.a==='noop'){e.stopPropagation();return}
@@ -1350,9 +1348,12 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='ge_c'){ui.ge.c=+el.value}});
 setInterval(tick,1000);
 window.addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false}else{topUp();render()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false;ui.bun=false}else{topUp();render()}});
 
 /* ---------- data upgrade ---------- */
+function impText(x){const s=parse((x||'').trim());if(!s)return toast('That is not a valid backup file');
+  if(!confirm('Replace ALL data on this device with this backup?'))return;S=s;migrate();save();ui.ks=null;ui.unlocked=false;toast('Backup imported');render()}
+window.__imp=impText;window.__saved=n=>toast(n?'Backup saved':'Not saved');
 function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
   ['series','ent','rules','ovr','orgs'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.eid)S.eid=1;
   S.orgs=S.orgs.filter(id=>P(id)&&!P(id).gone);

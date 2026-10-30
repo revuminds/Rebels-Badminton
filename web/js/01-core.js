@@ -80,7 +80,7 @@ const att=(d,id)=>{const D=S.days[d];return D&&D.att?D.att[id]||null:null};
 const arrived=(d,id)=>{const a=att(d,id);return !!(a&&a.a)};
 const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
-/* dummy = organiser/family filler: no game target, plays only when no regular is free (default: Settings organizers) */
+/* dummy = family/friend filler (tick box in Games → Players): no game target, plays only when no regular is free */
 const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */

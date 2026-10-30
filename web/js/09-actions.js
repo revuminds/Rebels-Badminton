@@ -3,10 +3,7 @@ function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',u
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
   $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
-function copy(t){if(NB&&NB.copy){NB.copy(t);return toast('Copied')}
-  const ta=$('#bexp');if(ta){ta.select();try{document.execCommand('copy');toast('Copied')}catch(e){toast('Select the text and copy')}}
-  if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>toast('Copied'),()=>{})}
-const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
+const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
@@ -134,10 +131,10 @@ const act={
  chpin:()=>{ui.pctx='set';ui.pmode=S.pin?'old':'new';ui.pin='';ui.pin1='';ui.err='';render()},
  pincancel:()=>{ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render()},
  key:x=>pinKey(x),
- bcopy:()=>copy(JSON.stringify(S)),
- bshare:()=>{try{NB.share(JSON.stringify(S))}catch(e){toast('Share not available')}},
- bimport:()=>{const s=parse(($('#bimp').value||'').trim());if(!s)return toast('That is not a valid backup');
-   if(!confirm('Replace ALL data on this tablet with this backup?'))return;S=s;migrate();save();ui.ks=null;ui.unlocked=false;toast('Backup imported');render()}
+ bexport:()=>{if(!ui.bun)return render();const t=JSON.stringify(S),n='rebels-backup-'+TODAY()+'.txt';if(NB&&NB.saveAs){try{NB.saveAs(n,t);return}catch(e){}}
+   const u=URL.createObjectURL(new Blob([t],{type:'text/plain'})),l=document.createElement('a');l.href=u;l.download=n;document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);toast('Backup saved')},
+ bimport:()=>{if(!ui.bun)return render();if(NB&&NB.pickFile){try{NB.pickFile();return}catch(e){}}const f=document.createElement('input');f.type='file';f.accept='.txt,.json,text/plain';
+   f.onchange=()=>{const r=new FileReader();r.onload=()=>impText(String(r.result||''));if(f.files[0])r.readAsText(f.files[0])};f.click()}
 };
 function applyDef(f){const t=TODAY();Object.values(S.games).forEach(g=>{if(!g.st&&g.d>=t){g[f]=S.def[f];g.psig=''}})}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.dataset.a==='noop'){e.stopPropagation();return}
@@ -173,9 +170,12 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='ge_c'){ui.ge.c=+el.value}});
 setInterval(tick,1000);
 window.addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false}else{topUp();render()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false;ui.bun=false}else{topUp();render()}});
 
 /* ---------- data upgrade ---------- */
+function impText(x){const s=parse((x||'').trim());if(!s)return toast('That is not a valid backup file');
+  if(!confirm('Replace ALL data on this device with this backup?'))return;S=s;migrate();save();ui.ks=null;ui.unlocked=false;toast('Backup imported');render()}
+window.__imp=impText;window.__saved=n=>toast(n?'Backup saved':'Not saved');
 function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,deuce:true,slot:15,chg:2,court:'',fee:'',spt:12},S.def||{});delete S.def.bh;delete S.def.box;
   ['series','ent','rules','ovr','orgs'].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]});if(!S.eid)S.eid=1;
   S.orgs=S.orgs.filter(id=>P(id)&&!P(id).gone);

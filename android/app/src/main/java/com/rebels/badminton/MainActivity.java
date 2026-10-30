@@ -7,8 +7,6 @@ import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
 import android.os.CancellationSignal;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Intent;
 import android.os.Bundle;
 import android.print.PrintAttributes;
@@ -19,7 +17,11 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
+import java.io.OutputStream;
+import org.json.JSONObject;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -59,7 +61,8 @@ public class MainActivity extends Activity {
     // Back button never closes the app by accident (data is saved anyway).
     @Override public void onBackPressed() { moveTaskToBack(true); }
 
-    private static final int REQ_CRED = 41;
+    private static final int REQ_CRED = 41, REQ_SAVE = 42, REQ_OPEN = 43;
+    private String pendingText;
 
     private boolean isPinnedNow() {
         ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
@@ -95,6 +98,27 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (req == REQ_CRED && res == RESULT_OK) unpinNow();
+        if (req == REQ_SAVE) {
+            boolean ok = false;
+            if (res == RESULT_OK && data != null && data.getData() != null && pendingText != null) {
+                try (OutputStream o = getContentResolver().openOutputStream(data.getData(), "wt")) {
+                    o.write(pendingText.getBytes(StandardCharsets.UTF_8)); ok = true;
+                } catch (Exception ignored) { }
+            }
+            pendingText = null;
+            web.evaluateJavascript("window.__saved&&__saved(" + ok + ")", null);
+        }
+        if (req == REQ_OPEN && res == RESULT_OK && data != null && data.getData() != null) {
+            try (InputStream in = getContentResolver().openInputStream(data.getData())) {
+                ByteArrayOutputStream b = new ByteArrayOutputStream();
+                byte[] buf = new byte[65536]; int n;
+                while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+                String t = b.toString("UTF-8");
+                web.evaluateJavascript("window.__imp&&__imp(" + JSONObject.quote(t) + ")", null);
+            } catch (Exception e) {
+                web.evaluateJavascript("window.__imp&&__imp('')", null);
+            }
+        }
     }
 
     /** Second copy of the data in app storage, used if WebView storage is ever empty. */
@@ -119,11 +143,6 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean isPinned() { return isPinnedNow(); }
         @JavascriptInterface public void unlock() { runOnUiThread(() -> askToUnpin()); }
 
-        @JavascriptInterface public void copy(String text) {
-            ClipboardManager cm = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
-            cm.setPrimaryClip(ClipData.newPlainText("Rebels backup", text));
-        }
-
         /** Export PDF: opens Android's print screen, where "Save as PDF" makes the file to share. */
         @JavascriptInterface public void print(String title) {
             runOnUiThread(() -> {
@@ -134,12 +153,22 @@ public class MainActivity extends Activity {
             });
         }
 
-        @JavascriptInterface public void share(String text) {
-            Intent i = new Intent(Intent.ACTION_SEND);
+        /** Backup: Android "save as" screen (Downloads, Drive, ...). */
+        @JavascriptInterface public void saveAs(String name, String text) {
+            pendingText = text;
+            Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
             i.setType("text/plain");
-            i.putExtra(Intent.EXTRA_SUBJECT, "Rebels Badminton backup");
-            i.putExtra(Intent.EXTRA_TEXT, text);
-            runOnUiThread(() -> startActivity(Intent.createChooser(i, "Share backup")));
+            i.putExtra(Intent.EXTRA_TITLE, name);
+            runOnUiThread(() -> startActivityForResult(i, REQ_SAVE));
+        }
+
+        /** Backup: pick a backup file; its text goes to the app, which asks to confirm. */
+        @JavascriptInterface public void pickFile() {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            runOnUiThread(() -> startActivityForResult(i, REQ_OPEN));
         }
     }
 }

@@ -45,15 +45,15 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     const pmin=Math.ceil(cap/TGT),pmax=Math.floor(cap/TMIN);
     const short=reg.filter(id=>(cnt2[id]||0)<TMIN);
     const tips=[courtsOf(d).map((c,i)=>esc(c.n)+' '+hrsL(num(c.h))+' = '+courtRounds(g,i)+' games').join(' · ')+' → '+totSlots(g)+' game slots = '+cap+' player-slots → '+(pmin===pmax?pl(pmin,'player'):pmin+'–'+pl(pmax,'player'))+' for '+TMIN+'–'+TGT+' games each',
-      'Slot '+Math.round(gameMin(g))+' min game'+(learnOn()&&learnG().all?' (learned)':'')+' + '+num(g.chg)+' min changeover = '+sl+' min · '+ng+' games planned',
+      'Slot '+Math.round(gameMin(g))+' min game'+(learnOn()&&learnG().all?' (learned)':'')+' + '+num(g.chg)+' min changeover = '+Math.round(sl)+' min · '+ng+' games planned',
       'You have '+on.length+' on → '+rng(rc)+' games each',
       on.length<4?'':reg.length>pmax?(reg.length-pmax)+' too many for '+TMIN+'–'+TGT+' games each – add court time':on.length<pmin?'Short by '+pl(pmin-on.length,'player')+' – regulars may get more than '+TGT+' games':'✓ Players fit '+TMIN+'–'+TGT+' games each',
       short.length&&on.length>=4?TMIN+' games not reached for: '+short.map(nameOf).join(', ')+'. Try: more court hours, shorter slot, or fewer players':'',
       on.length>=4&&on.length<nC*6?'Max 2 in a row: '+pl(nC,'court')+' need ≥ '+nC*6+' players to fill every round':'',
       'On the day: only checked-in players get games (Games → Players) · late arrivals get a fair share'].filter(Boolean);
     planV='<section class="pn" style="gap:10px"><div class="sb"><span class="lab">ALL PLANNED GAMES · '+ng+' GAMES · '+rds.length+' ROUNDS</span><span class="lab">TAP × TO SWAP A PLAYER</span></div>'+
-     '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id)),m=(r+1)*sl;
-       return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+' · +'+Math.floor(m/60)+':'+z(m%60)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
+     '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id));
+       return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
      '<div class="tipbox"><div class="laby" style="font-size:12px">PLAN TIPS</div>'+tips.map(x=>'<div class="tip"><span>→</span><span>'+esc(x)+'</span></div>').join('')+'</div></section>'}
   let bench='';if(run){const w=id=>g.since[id]!=null?now-g.since[id]:0,E=benchE.slice().sort((a,b)=>w(b)-w(a)),nh=on.filter(id=>!arrived(d,id)),lf=on.filter(id=>leftAt(d,id));
     bench='<div class="row" style="flex-wrap:wrap;gap:8px;padding:0 4px"><span class="lab" style="margin-right:4px">ON THE BENCH</span>'+(E.length?E.map(id=>'<button class="bch" data-a="pmod" data-x="'+id+'" data-tk="bench" data-id="'+id+'"><span>'+esc(nameOf(id))+'</span><small></small></button>').join(''):'<span style="color:var(--mu)">Nobody waiting</span>')+
