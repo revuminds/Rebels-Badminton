@@ -108,7 +108,8 @@ const act={
  payun:()=>{const e=ui.pay;delete finOf(e.d,true).paid[e.id];ui.pay=null;fdone()},
  qr:(x,y)=>{ui.qr={id:x,ds:y?y.split(','):[ui.fsel]};render()},closeqr:()=>{ui.qr=null;render()},
  tube:x=>{const f=fin(),n=+x;f.used=n===num(f.used)?n-1:n;fdone()},
- cby:x=>{fin().cby=x;S.lastBy=x;fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
+ cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:(d,o)=>{finOf(d,true).cby=o;S.lastBy=o;save();render()},
+ cnt:x=>{const s=calc(ui.fsel),f=fin();f.cnt=f.cnt||{};f.cnt[x]=!s.ids.includes(x);fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
  addoth:()=>{const l=($('#olab').value||'').trim(),a=num($('#oamt').value);if(!a)return toast('Enter an amount');fin().oth.push({lab:l||'Misc',amt:a,by:ui.oby||S.lastBy||''});fdone()},
  rmoth:x=>{fin().oth.splice(+x,1);fdone()},
  open:x=>{ui.open=ui.open===x?null:x;render()},
@@ -164,6 +165,7 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
     if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
+  else if(c==='bkp'){const f=finOf(el.dataset.x,true);f.court=el.value;if(el.value)S.def.court=el.value;save();render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}

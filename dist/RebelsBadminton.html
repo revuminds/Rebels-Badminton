@@ -516,6 +516,7 @@ function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(B
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
   const D=S.days[g.d];g.ros=[...new Set([...(g.ros||[]),...(D?Object.keys(D.on).filter(k=>D.on[k]):[]),...g.hist.flatMap(h=>h.ids)])];
   if(D&&D.att)Object.keys(D.att).forEach(id=>{const a=D.att[id];if(a.a&&!a.l)a.e=t});
+  if(D)D.dsnap=Object.keys(S.dum||{}).filter(k=>S.dum[k]);
   g.cur=g.cur.map(()=>NUL4());g.live=g.live.map(blankLive);g.en=t;if(D)D.on={}}
 
 /* ---------- learning from admin overrides ---------- */
@@ -550,11 +551,13 @@ function shuttlePrice(d){let s=ENT('stock').filter(e=>!d||e.d<=d);if(!s.length)s
 function stockLeft(){const st=ENT('stock');if(!st.length)return null;const first=st.map(e=>e.d).sort()[0],bought=st.reduce((a,e)=>a+num(e.tubes)*SPT(),0);
   const used=Object.keys(S.fin).filter(d=>d>=first).reduce((a,d)=>a+num(S.fin[d].used),0);return{left:bought-used,bought,used}}
 const tubesTxt=n=>{const k=SPT(),t=Math.floor(Math.max(0,n)/k),r=Math.max(0,n)%k;return pl(t,'tube')+(r?' + '+r:'')};
+/* v10: counted for finance = everyone on except dummies (snapshot at End session); manual tick in Finance wins */
+function cntd(d,f,id){if(f.cnt&&id in f.cnt)return !!f.cnt[id];const D=S.days[d];return D&&D.dsnap?!D.dsnap.includes(id):!isDum(d,id)}
 function calc(d,no){const f=finOf(d,false),g=S.games[d],D=S.days[d]||{};
-  const ids=[...new Set([...onIds(d),...(g&&g.ros?g.ros:[]),...Object.keys(f.paid).filter(k=>f.paid[k]),...Object.keys(D.att||{}).filter(k=>D.att[k].a)])].filter(id=>P(id));
+  const all=[...new Set([...onIds(d),...(g&&g.ros?g.ros:[]),...Object.keys(f.paid).filter(k=>f.paid[k]),...Object.keys(D.att||{}).filter(k=>D.att[k].a)])].filter(id=>P(id)),ids=all.filter(id=>cntd(d,f,id));
   const pk=pkgsFor(d).length>0,COURT=pk?pkgShare(d):num(f.court),FEE=num(f.fee),PER=shuttlePrice(d)||num(f.box)/12;
   const pdn=ids.filter(id=>f.paid[id]).length,shut=num(f.used)*PER,oth=f.oth.reduce((a,o)=>a+num(o.amt),0),inv=COURT+shut+oth,ret=pdn*FEE;
-  return{d,no,f,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
+  return{d,no,f,all,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
     st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:g&&g.st?((g.en||Date.now())-g.st)/1000:0,ng:g?g.hist.length:0}}
 const allCalc=()=>sessions().map((d,i)=>calc(d,i+1));
 /* who holds the fees: per organizer, cash / bank */
@@ -569,6 +572,12 @@ function selTips(list){const sum=k=>list.reduce((a,s)=>a+s[k],0),ti=sum('inv'),t
   tips.push(A0(due)+' still unpaid in this selection.'+(due?' Collect before the next session.':''));
   return tips}
 
+/* ---------- v10 court bookings: one row per scheduled session, price + paid by ---------- */
+function bkOf(d){const D=S.days[d],g=S.games[d],f=S.fin[d],t=TODAY(),pk=pkgsFor(d).length>0,post=pkgsFor(d).some(e=>e.post&&e.post[d]);
+  return{d,loc:D.loc||'',cs:courtsOf(d),ch:courtHrs(d),pk,amt:pk?pkgShare(d):f?num(f.court):0,by:f?f.cby:'',priced:pk||!!(f&&num(f.court)),
+    st:g&&g.st?'Played':post?'Postponed':d>=t?'Upcoming':'Not played'}}
+function bookings(p){const t=TODAY(),ds=Object.keys(S.days).filter(d=>isSched(d)&&(d>=t||inPer(d,p))).sort().reverse(),m={};
+  ds.forEach(d=>{const k=d.slice(0,7);(m[k]=m[k]||[]).push(bkOf(d))});return Object.keys(m).sort().reverse().map(k=>({m:k,rows:m[k]}))}
 /* ---------- Rebels: organisers' money ---------- */
 function inPer(d,p){if(!p||p.m==='all')return true;return p.m==='month'?d.slice(0,7)===p.v:d.slice(0,4)===p.v}
 function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent||[]),o={};
@@ -579,6 +588,7 @@ function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent
     else if(e.t==='pay'||e.t==='xfer'){org(e.from||'').pout+=a;org(e.to||'').pin+=a}});
   list.forEach(s=>{if(!s.pk&&s.COURT)org(s.f.cby||'').courts+=s.COURT;s.f.oth.forEach(x=>org(x.by||'').oth+=num(x.amt));
     if(!ENT('stock').length&&s.shut)org(s.f.cby||'').shut+=s.shut});
+  Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))org(S.fin[d].cby||'').courts+=num(S.fin[d].court)});
   const h=holds(list);Object.keys(h).forEach(k=>{org(k).cash+=h[k].cash;org(k).bank+=h[k].bank});
   Object.values(o).forEach(x=>{x.put=x.courts+x.shut+x.oth;x.hold=x.cash+x.bank+x.pin-x.pout;x.pos=x.hold-x.put});
   const spent=Object.values(o).reduce((a,x)=>a+x.put,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
@@ -588,6 +598,7 @@ function entries(p){const out=[];allCalc().filter(s=>inPer(s.d,p)).forEach(s=>{
     if(!s.pk&&s.COURT)out.push({d:s.d,k:'put',lab:'Court · '+dlab(s.d)+' · '+s.loc,who:s.f.cby,amt:s.COURT,auto:1});
     s.f.oth.forEach(x=>out.push({d:s.d,k:'put',lab:(x.lab||'Other')+' · '+dlab(s.d),who:x.by,amt:num(x.amt),auto:1}));
     const h=holds([s]);Object.keys(h).forEach(k=>{if(h[k].cash)out.push({d:s.d,k:'coll',lab:'Fees · '+dlab(s.d)+' · cash',who:k,amt:h[k].cash,auto:1});if(h[k].bank)out.push({d:s.d,k:'coll',lab:'Fees · '+dlab(s.d)+' · bank',who:k,amt:h[k].bank,auto:1})})});
+  Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))out.push({d,k:'put',lab:'Court booking · '+dlab(d)+' · '+(S.days[d].loc||''),who:S.fin[d].cby,amt:num(S.fin[d].court),auto:1})});
   (S.ent||[]).forEach(e=>{if(!inPer(e.d,p))return;const L={pkg:'Court package · '+(e.loc||'')+' · '+(e.dates||[]).length+' sessions',stock:'Shuttle stock · '+num(e.tubes)+' tubes',oth:'Other · '+(e.note||''),top:'Top-up'+(e.note?' · '+e.note:''),
     pay:'Payback '+nameOf(e.from)+' → '+nameOf(e.to),xfer:'Transfer '+nameOf(e.from)+' → '+nameOf(e.to)}[e.t];
     out.push({d:e.d,k:e.t==='pay'||e.t==='xfer'?'pb':'put',lab:L,who:e.t==='pay'||e.t==='xfer'?'':e.by,amt:num(e.amt),id:e.id})});
@@ -993,7 +1004,7 @@ function vKSession(all,cur){ui.fsel=cur.d;const t=TODAY();
    '<section class="pn" style="flex-direction:row;align-items:center;gap:14px;border:2px solid var(--y);border-radius:20px"><div style="min-width:170px"><div class="laby">SESSION '+cur.no+'</div><div style="font-size:14px;color:var(--mu)">'+dlab(cur.d)+' · '+esc(cur.loc)+' · '+cur.pl+' players</div></div>'+
    '<select class="sel" style="flex:1;min-width:0;height:52px;background:var(--bg);font-size:17px" data-c="fsel" aria-label="Choose a session">'+opts+'</select>'+
    '<button class="fc'+(ui.unpaid?' on':'')+'" data-a="unpaid">'+(ui.unpaid?'Unpaid only ✓':'Unpaid only')+'</button><span id="fsaved" style="font-size:13px;color:var(--ok);font-weight:600;min-width:140px;text-align:right">'+(ui.saved||'Auto-saves on every tap')+'</span><button class="btn" data-a="fsave">Save</button></section>'+
-   '<div style="display:flex;gap:18px;align-items:flex-start"><section class="pn" style="width:430px;flex:none;border-radius:20px"><div class="sb" style="padding:0 4px 4px"><span class="lab">PAYMENTS</span><span class="lab" style="color:var(--bad)">'+(cur.pl-cur.pdn)+' PENDING</span></div><div style="display:flex;flex-direction:column;gap:6px">'+vPay(cur)+'</div></section>'+
+   '<div style="display:flex;gap:18px;align-items:flex-start"><section class="pn" style="width:430px;flex:none;border-radius:20px"><div class="sb" style="padding:0 4px 4px"><span class="lab">PAYMENTS</span><span class="lab" style="color:var(--bad)">'+(cur.pl-cur.pdn)+' PENDING</span></div><div style="display:flex;flex-direction:column;gap:6px">'+vPay(cur)+'</div>'+vCnt(cur)+'</section>'+
    '<section style="flex:1;display:flex;flex-direction:column;gap:14px;min-width:0"><div class="pn" style="border-radius:20px;padding:16px 20px"><div class="laby">SESSION INPUTS</div><div class="ingrid">'+
    '<label class="fl">Total paid for court (AED)'+(cur.pk?'<div class="fin ro">'+cur.COURT.toFixed(2)+'<small>from package</small></div>':'<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(cur.f.court)+'" data-i="f_court">')+'</label>'+
    '<label class="fl">Price per player (AED)<input class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(cur.f.fee)+'" data-i="f_fee"></label>'+
@@ -1006,6 +1017,8 @@ function vPay(c){if(!c.ids.length)return '<div class="empty" style="padding:12px
   return L.slice().sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>{const p=payOf(c.f,id);return '<div class="row" style="background:var(--bg);border-radius:12px;padding:6px 8px 6px 14px;gap:8px"><span style="flex:1;font-weight:600;font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nameOf(id))+'</span>'+
     (p?'<button class="ptag" data-a="payopen" data-x="'+id+'">'+(p.m==='bank'?'Bank':'Cash')+(p.by?' · '+esc(nameOf(p.by)):'')+'</button><span style="width:56px;text-align:right;font-size:15px;color:#C9DAEA">'+c.FEE.toFixed(0)+'</span><button class="paybtn on" data-a="payopen" data-x="'+id+'">Paid</button>':
      '<button class="qrb" data-a="qr" data-x="'+id+'" aria-label="Reminder QR">QR</button><span style="width:56px;text-align:right;font-size:15px;color:#C9DAEA">—</span><button class="paybtn" data-a="payopen" data-x="'+id+'">Not paid</button>')+'</div>'}).join('')}
+function vCnt(c){if(!c.all.length)return '';return '<div class="lab" style="margin-top:12px;padding:0 4px">COUNTED FOR FINANCE · '+c.ids.length+' of '+c.all.length+'</div><div style="font-size:13px;color:var(--mu);padding:0 4px">Ticked players pay and share the cost. Untick fill-ins who don\'t pay.</div>'+
+  '<div class="row" style="flex-wrap:wrap;gap:6px;padding:4px">'+c.all.slice().sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>{const on=c.ids.includes(id);return '<button class="fc sm'+(on?' on':'')+'" data-a="cnt" data-x="'+id+'">'+(on?'✓ ':'')+esc(nameOf(id))+'</button>'}).join('')+'</div>'}
 function vFBoxes(c){const u=num(c.f.used),N=SPT(),rows=Math.floor(u/N)+1,sl=stockLeft();
   const tubeRows=Array.from({length:rows},(_,r)=>'<div class="row" style="gap:6px"><span style="width:64px;font-size:13px;color:var(--mu);font-weight:600">Tube '+(r+1)+'</span>'+Array.from({length:N},(_,i)=>{const n=r*N+i+1;return '<button class="tube'+(n<=u?' on':'')+'" data-a="tube" data-x="'+n+'" aria-label="Shuttle '+n+'"></button>'}).join('')+'</div>').join('');
   return '<div class="pn" style="border-radius:20px;padding:18px 20px"><div class="sb" style="align-items:baseline"><span class="lab">COURT BOOKING</span><span class="d" style="font-size:30px">'+A(c.COURT)+'</span></div><div style="font-size:15px;color:var(--mu)">'+esc(c.loc)+' · '+courtSum(c.d)+(c.pk?' · share of court package (Rebels)':'')+'</div>'+
@@ -1090,9 +1103,17 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
   const carry=orgs.map(o=>R0.o[o]||{pos:0}).sort((a,b)=>a.pos-b.pos),hold=orgs.map(o=>R0.o[o]||{hold:0}).sort((a,b)=>b.hold-a.hold);
   const tips=[visits?'Break-even fee ≈ AED '+Math.ceil(R.list.reduce((a,s)=>a+s.inv,0)/visits)+' per player':'',courtsN?'Players per court ≈ '+(visits/courtsN).toFixed(1)+' (aim for 6)':'',games?'Shuttle cost per game ≈ '+A(shut/games):'',
     R.unpaid?A0(R.unpaid)+' unpaid in this period':'',carry.length&&carry[0].id&&carry[0].pos<-1?nameOf(carry[0].id)+' is carrying the most (out of pocket '+A0(-carry[0].pos)+')':'',hold.length&&hold[0].id&&hold[0].hold>0?nameOf(hold[0].id)+' is holding the most cash ('+A0(hold[0].hold)+')':''].filter(Boolean);
-  return chips+tiles+cards+(pkC||stC?'<div class="lab">BULK BUYS</div>'+pkC+stC:'')+ent+fc+charts+
+  return chips+tiles+cards+'<div class="lab">BULK BUYS</div>'+vBook(p)+pkC+stC+ent+fc+charts+
    '<section style="background:var(--y);color:var(--bg);border-radius:20px;padding:16px 20px;display:flex;flex-direction:column;gap:6px"><b style="letter-spacing:.12em;font-size:13px">TIPS</b>'+(tips.length?tips.map(x=>'<div>→ '+esc(x)+'</div>').join(''):'<div>Add a few sessions to see tips.</div>')+'</section>'}
-function vEnt(){const e=ui.ent,t2=e.t,types=[['pkg','Court package'],['stock','Shuttle stock'],['oth','Other expense'],['top','Top-up'],['pay','Payback'],['xfer','Transfer']];
+function vBook(p){const B=bookings(p);if(!B.length)return '<div class="pn"><b>Court bookings</b><div class="empty" style="padding:10px">Schedule a session – its court booking appears here.</div></div>';
+  return '<div class="pn" style="gap:10px"><div class="sb"><b>Court bookings</b><span style="font-size:13px;color:var(--mu)">From Schedule · enter price + paid by</span></div>'+B.map(M=>{const r=M.rows,tot=r.reduce((a,x)=>a+x.amt,0),ch=r.reduce((a,x)=>a+x.ch,0),pld=r.filter(x=>x.st==='Played').length,miss=r.filter(x=>!x.priced).length;
+    return '<div class="sb" style="border-top:1px solid rgba(143,176,204,.25);padding-top:8px"><span class="lab">'+esc(mlab(M.m).toUpperCase())+'</span><span style="font-size:14px;color:var(--mu)">'+pl(r.length,'session')+' · '+(ch%1?ch.toFixed(1):ch)+' court-h · <b style="color:var(--tx)">'+A0(tot)+'</b> · '+pld+' played'+(miss?' · <b style="color:var(--y)">'+miss+' price missing</b>':'')+'</span></div>'+
+     r.map(x=>'<div class="row" style="flex-wrap:wrap;gap:8px;background:var(--bg);border-radius:12px;padding:8px 12px"><span style="min-width:220px;flex:1"><b>'+dshort(x.d)+'</b> · '+esc(x.loc)+'<br><small style="color:var(--mu)">'+x.cs.map(c=>esc(c.n)+' '+hrsL(num(c.h))).join(' + ')+' = '+hrsL(x.ch)+'</small></span>'+
+      '<span class="badge'+(x.st==='Played'?' ok':'')+'">'+x.st+'</span>'+
+      (!x.pk&&!x.priced?'<span class="badge" style="background:var(--y);color:var(--bg)">Price missing</span>':'')+(x.pk?'<span style="font-size:14px">'+A(x.amt)+' <small style="color:var(--mu)">package</small></span>':
+       '<input class="fin" style="width:120px;height:44px;font-size:16px'+(x.priced?'':';border:2px solid var(--y)')+'" type="number" inputmode="decimal" min="0" step="0.01" placeholder="AED" value="'+(x.priced?esc(S.fin[x.d].court):'')+'" data-c="bkp" data-x="'+x.d+'" aria-label="Court price AED">'+
+       '<span class="row" style="gap:4px;flex-wrap:wrap">'+orgChips(x.by,'bkby',x.d)+'</span>')+'</div>').join('')}).join('')+'</div>'}
+function vEnt(){const e=ui.ent,t2=e.t,types=[...(e.t==='pkg'?[['pkg','Court package']]:[]),['stock','Shuttle stock'],['oth','Other expense'],['top','Top-up'],['pay','Payback'],['xfer','Transfer']];
   const fl=(l,h)=>'<label class="fl">'+l+h+'</label>',inp=(k,ty,ph)=>'<input class="gei" type="'+(ty||'number')+'" inputmode="decimal" value="'+esc(e[k]==null?'':e[k])+'" data-i="en_'+k+'"'+(ph?' placeholder="'+ph+'"':'')+'>';
   const ft=t2==='pay'||t2==='xfer';let body='';
   if(t2==='pkg'){const cand=Object.keys(S.days).filter(d=>isSched(d)&&d>=addD(TODAY(),-60)).sort(),taken=new Set(ENT('pkg').filter(x=>x.id!==e.id).flatMap(x=>x.dates||[]));
@@ -1286,7 +1307,8 @@ const act={
  payun:()=>{const e=ui.pay;delete finOf(e.d,true).paid[e.id];ui.pay=null;fdone()},
  qr:(x,y)=>{ui.qr={id:x,ds:y?y.split(','):[ui.fsel]};render()},closeqr:()=>{ui.qr=null;render()},
  tube:x=>{const f=fin(),n=+x;f.used=n===num(f.used)?n-1:n;fdone()},
- cby:x=>{fin().cby=x;S.lastBy=x;fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
+ cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:(d,o)=>{finOf(d,true).cby=o;S.lastBy=o;save();render()},
+ cnt:x=>{const s=calc(ui.fsel),f=fin();f.cnt=f.cnt||{};f.cnt[x]=!s.ids.includes(x);fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
  addoth:()=>{const l=($('#olab').value||'').trim(),a=num($('#oamt').value);if(!a)return toast('Enter an amount');fin().oth.push({lab:l||'Misc',amt:a,by:ui.oby||S.lastBy||''});fdone()},
  rmoth:x=>{fin().oth.splice(+x,1);fdone()},
  open:x=>{ui.open=ui.open===x?null:x;render()},
@@ -1342,6 +1364,7 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
     if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
+  else if(c==='bkp'){const f=finOf(el.dataset.x,true);f.court=el.value;if(el.value)S.def.court=el.value;save();render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}

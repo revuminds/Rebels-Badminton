@@ -15,11 +15,13 @@ function shuttlePrice(d){let s=ENT('stock').filter(e=>!d||e.d<=d);if(!s.length)s
 function stockLeft(){const st=ENT('stock');if(!st.length)return null;const first=st.map(e=>e.d).sort()[0],bought=st.reduce((a,e)=>a+num(e.tubes)*SPT(),0);
   const used=Object.keys(S.fin).filter(d=>d>=first).reduce((a,d)=>a+num(S.fin[d].used),0);return{left:bought-used,bought,used}}
 const tubesTxt=n=>{const k=SPT(),t=Math.floor(Math.max(0,n)/k),r=Math.max(0,n)%k;return pl(t,'tube')+(r?' + '+r:'')};
+/* v10: counted for finance = everyone on except dummies (snapshot at End session); manual tick in Finance wins */
+function cntd(d,f,id){if(f.cnt&&id in f.cnt)return !!f.cnt[id];const D=S.days[d];return D&&D.dsnap?!D.dsnap.includes(id):!isDum(d,id)}
 function calc(d,no){const f=finOf(d,false),g=S.games[d],D=S.days[d]||{};
-  const ids=[...new Set([...onIds(d),...(g&&g.ros?g.ros:[]),...Object.keys(f.paid).filter(k=>f.paid[k]),...Object.keys(D.att||{}).filter(k=>D.att[k].a)])].filter(id=>P(id));
+  const all=[...new Set([...onIds(d),...(g&&g.ros?g.ros:[]),...Object.keys(f.paid).filter(k=>f.paid[k]),...Object.keys(D.att||{}).filter(k=>D.att[k].a)])].filter(id=>P(id)),ids=all.filter(id=>cntd(d,f,id));
   const pk=pkgsFor(d).length>0,COURT=pk?pkgShare(d):num(f.court),FEE=num(f.fee),PER=shuttlePrice(d)||num(f.box)/12;
   const pdn=ids.filter(id=>f.paid[id]).length,shut=num(f.used)*PER,oth=f.oth.reduce((a,o)=>a+num(o.amt),0),inv=COURT+shut+oth,ret=pdn*FEE;
-  return{d,no,f,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
+  return{d,no,f,all,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
     st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:g&&g.st?((g.en||Date.now())-g.st)/1000:0,ng:g?g.hist.length:0}}
 const allCalc=()=>sessions().map((d,i)=>calc(d,i+1));
 /* who holds the fees: per organizer, cash / bank */
@@ -34,6 +36,12 @@ function selTips(list){const sum=k=>list.reduce((a,s)=>a+s[k],0),ti=sum('inv'),t
   tips.push(A0(due)+' still unpaid in this selection.'+(due?' Collect before the next session.':''));
   return tips}
 
+/* ---------- v10 court bookings: one row per scheduled session, price + paid by ---------- */
+function bkOf(d){const D=S.days[d],g=S.games[d],f=S.fin[d],t=TODAY(),pk=pkgsFor(d).length>0,post=pkgsFor(d).some(e=>e.post&&e.post[d]);
+  return{d,loc:D.loc||'',cs:courtsOf(d),ch:courtHrs(d),pk,amt:pk?pkgShare(d):f?num(f.court):0,by:f?f.cby:'',priced:pk||!!(f&&num(f.court)),
+    st:g&&g.st?'Played':post?'Postponed':d>=t?'Upcoming':'Not played'}}
+function bookings(p){const t=TODAY(),ds=Object.keys(S.days).filter(d=>isSched(d)&&(d>=t||inPer(d,p))).sort().reverse(),m={};
+  ds.forEach(d=>{const k=d.slice(0,7);(m[k]=m[k]||[]).push(bkOf(d))});return Object.keys(m).sort().reverse().map(k=>({m:k,rows:m[k]}))}
 /* ---------- Rebels: organisers' money ---------- */
 function inPer(d,p){if(!p||p.m==='all')return true;return p.m==='month'?d.slice(0,7)===p.v:d.slice(0,4)===p.v}
 function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent||[]),o={};
@@ -44,6 +52,7 @@ function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent
     else if(e.t==='pay'||e.t==='xfer'){org(e.from||'').pout+=a;org(e.to||'').pin+=a}});
   list.forEach(s=>{if(!s.pk&&s.COURT)org(s.f.cby||'').courts+=s.COURT;s.f.oth.forEach(x=>org(x.by||'').oth+=num(x.amt));
     if(!ENT('stock').length&&s.shut)org(s.f.cby||'').shut+=s.shut});
+  Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))org(S.fin[d].cby||'').courts+=num(S.fin[d].court)});
   const h=holds(list);Object.keys(h).forEach(k=>{org(k).cash+=h[k].cash;org(k).bank+=h[k].bank});
   Object.values(o).forEach(x=>{x.put=x.courts+x.shut+x.oth;x.hold=x.cash+x.bank+x.pin-x.pout;x.pos=x.hold-x.put});
   const spent=Object.values(o).reduce((a,x)=>a+x.put,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
@@ -53,6 +62,7 @@ function entries(p){const out=[];allCalc().filter(s=>inPer(s.d,p)).forEach(s=>{
     if(!s.pk&&s.COURT)out.push({d:s.d,k:'put',lab:'Court · '+dlab(s.d)+' · '+s.loc,who:s.f.cby,amt:s.COURT,auto:1});
     s.f.oth.forEach(x=>out.push({d:s.d,k:'put',lab:(x.lab||'Other')+' · '+dlab(s.d),who:x.by,amt:num(x.amt),auto:1}));
     const h=holds([s]);Object.keys(h).forEach(k=>{if(h[k].cash)out.push({d:s.d,k:'coll',lab:'Fees · '+dlab(s.d)+' · cash',who:k,amt:h[k].cash,auto:1});if(h[k].bank)out.push({d:s.d,k:'coll',lab:'Fees · '+dlab(s.d)+' · bank',who:k,amt:h[k].bank,auto:1})})});
+  Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))out.push({d,k:'put',lab:'Court booking · '+dlab(d)+' · '+(S.days[d].loc||''),who:S.fin[d].cby,amt:num(S.fin[d].court),auto:1})});
   (S.ent||[]).forEach(e=>{if(!inPer(e.d,p))return;const L={pkg:'Court package · '+(e.loc||'')+' · '+(e.dates||[]).length+' sessions',stock:'Shuttle stock · '+num(e.tubes)+' tubes',oth:'Other · '+(e.note||''),top:'Top-up'+(e.note?' · '+e.note:''),
     pay:'Payback '+nameOf(e.from)+' → '+nameOf(e.to),xfer:'Transfer '+nameOf(e.from)+' → '+nameOf(e.to)}[e.t];
     out.push({d:e.d,k:e.t==='pay'||e.t==='xfer'?'pb':'put',lab:L,who:e.t==='pay'||e.t==='xfer'?'':e.by,amt:num(e.amt),id:e.id})});

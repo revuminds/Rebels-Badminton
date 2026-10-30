@@ -133,6 +133,7 @@ function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(B
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
   const D=S.days[g.d];g.ros=[...new Set([...(g.ros||[]),...(D?Object.keys(D.on).filter(k=>D.on[k]):[]),...g.hist.flatMap(h=>h.ids)])];
   if(D&&D.att)Object.keys(D.att).forEach(id=>{const a=D.att[id];if(a.a&&!a.l)a.e=t});
+  if(D)D.dsnap=Object.keys(S.dum||{}).filter(k=>S.dum[k]);
   g.cur=g.cur.map(()=>NUL4());g.live=g.live.map(blankLive);g.en=t;if(D)D.on={}}
 
 /* ---------- learning from admin overrides ---------- */
