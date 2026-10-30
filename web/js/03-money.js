@@ -5,7 +5,7 @@ function sessions(){const t=TODAY(),ds=new Set();
   Object.keys(S.games).forEach(d=>{const g=S.games[d];if(d<=t&&(g.st||g.hist.length)&&!(S.days[d]&&S.days[d].x))ds.add(d)});
   return[...ds].sort()}
 function finOf(d,create){if(S.fin[d])return S.fin[d];const p=S.def;
-  const f={court:p.court||'',cby:S.lastBy||'',fee:p.fee||'',used:0,paid:{},oth:[]};if(create)S.fin[d]=f;return f}
+  const f={court:p.court||'',cby:S.lastBy||'',fee:p.fee||'',used:0,paid:{},oth:[]};if(create&&!(isDel(d)&&!S.days[d]))S.fin[d]=f;return f}
 const payOf=(f,id)=>{const v=f.paid[id];return !v?null:v===true?{m:'cash',by:''}:v};
 const ENT=t=>(S.ent||[]).filter(e=>e.t===t);
 const pkgsFor=d=>ENT('pkg').filter(e=>(e.dates||[]).includes(d));

@@ -347,7 +347,9 @@ const isOrg=id=>(S.orgs||[]).includes(id);
 /* ---------- scheduled sessions (one per date) ---------- */
 const D_=d=>S.days[d];
 const isSched=d=>{const D=S.days[d];return !!(D&&D.sch&&!D.x)};
-function mkDay(d,o){S.days[d]=Object.assign({sch:1,time:'20:00',loc:S.locs[0]||'',courts:[{n:'Court 1',h:2}],on:{},att:{}},o||{});return S.days[d]}
+/* v11: deleted dates (S.delD) are never re-created by views/getters – only by scheduling again */
+const isDel=d=>!!(S.delD&&S.delD[d]);
+function mkDay(d,o){if(!o&&isDel(d))return {sch:0,time:'20:00',loc:'',courts:[{n:'Court 1',h:2}],on:{},att:{}};S.days[d]=Object.assign({sch:1,time:'20:00',loc:S.locs[0]||'',courts:[{n:'Court 1',h:2}],on:{},att:{}},o||{});return S.days[d]}
 function day(d){return S.days[d]||mkDay(d)}
 const onIds=d=>{const D=S.days[d];return D?Object.keys(D.on).filter(k=>D.on[k]&&P(k)&&!P(k).gone):[]};
 const courtsOf=d=>{const D=S.days[d];return D&&D.courts&&D.courts.length?D.courts:[{n:'Court 1',h:2}]};
@@ -367,7 +369,7 @@ function topUp(){const t=TODAY();(S.series||[]).forEach(s=>{let d=s.from;while(d
   for(let k=0;k<5;k++){const x=addD(d,7*k);if(x>addD(t,28))break;if(!S.days[x]&&!(s.skip||[]).includes(x))mkDay(x,{time:s.time,loc:s.loc,courts:JSON.parse(JSON.stringify(s.courts)),ser:s.id})}})}
 
 /* the session the app works on: today, else the next upcoming one */
-function curDate(){const t=TODAY();if(ui.cur&&(isSched(ui.cur)||S.games[ui.cur]))return ui.cur;if(isSched(t))return t;return upcoming()[0]||''}
+function curDate(){const t=TODAY();if(ui.cur&&!isDel(ui.cur)&&(isSched(ui.cur)||S.games[ui.cur]))return ui.cur;if(isSched(t))return t;return upcoming()[0]||''}
 
 /* ---------- attendance ---------- */
 const att=(d,id)=>{const D=S.days[d];return D&&D.att?D.att[id]||null:null};
@@ -379,7 +381,8 @@ const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
-  (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];if(ui.cur===d)ui.cur=''}
+  (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];S.delD=S.delD||{};S.delD[d]=1;
+  if(ui.cur===d)ui.cur='';if(ui.fsel===d)ui.fsel='';if(ui.ks&&ui.ks.s===d)ui.ks.s='';['ge','se','pay','qr','bk'].forEach(k=>{if(ui[k]&&ui[k].d===d)ui[k]=null})}
 
 /* ===== games: mixing, planner, live auto-adapt, learning ===== */
 const blankLive=()=>({run:false,start:0,sa:0,sb:0,el:0,w:''});
@@ -389,7 +392,7 @@ const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
 const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
 function G(d){let g=S.games[d];
-  if(!g){g=S.games[d]={d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]}}
+  if(!g){g=(isDel(d)?{}:S.games[d]={});Object.assign(g,{d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]})}
   ['nman','log','pre','auto','plan','last','ros','nxt','cur','live'].forEach(k=>{if(!Array.isArray(g[k]))g[k]=[]});if(!g.strk)g.strk={};
   const n=courtsOf(d).length;g.courts=n;g.bh=sessLenH(d);
   while(g.cur.length<n){g.cur.push(NUL4());g.live.push(blankLive())}
@@ -541,7 +544,7 @@ function sessions(){const t=TODAY(),ds=new Set();
   Object.keys(S.games).forEach(d=>{const g=S.games[d];if(d<=t&&(g.st||g.hist.length)&&!(S.days[d]&&S.days[d].x))ds.add(d)});
   return[...ds].sort()}
 function finOf(d,create){if(S.fin[d])return S.fin[d];const p=S.def;
-  const f={court:p.court||'',cby:S.lastBy||'',fee:p.fee||'',used:0,paid:{},oth:[]};if(create)S.fin[d]=f;return f}
+  const f={court:p.court||'',cby:S.lastBy||'',fee:p.fee||'',used:0,paid:{},oth:[]};if(create&&!(isDel(d)&&!S.days[d]))S.fin[d]=f;return f}
 const payOf=(f,id)=>{const v=f.paid[id];return !v?null:v===true?{m:'cash',by:''}:v};
 const ENT=t=>(S.ent||[]).filter(e=>e.t===t);
 const pkgsFor=d=>ENT('pkg').filter(e=>(e.dates||[]).includes(d));
@@ -733,7 +736,7 @@ function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date
     else return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
-  const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
+  if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
   if(s.loc&&!S.locs.includes(s.loc))S.locs.push(s.loc);
   if(s.rep&&!D.ser){const id='w'+Date.now();S.series.push({id,from:s.d,time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts)),skip:[]});D.ser=id}
   else if(s.rep&&D.ser){const sr=S.series.find(x=>x.id===D.ser);if(sr)Object.assign(sr,{time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts))})}
@@ -1106,13 +1109,20 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
   return chips+tiles+cards+'<div class="lab">BULK BUYS</div>'+vBook(p)+pkC+stC+ent+fc+charts+
    '<section style="background:var(--y);color:var(--bg);border-radius:20px;padding:16px 20px;display:flex;flex-direction:column;gap:6px"><b style="letter-spacing:.12em;font-size:13px">TIPS</b>'+(tips.length?tips.map(x=>'<div>→ '+esc(x)+'</div>').join(''):'<div>Add a few sessions to see tips.</div>')+'</section>'}
 function vBook(p){const B=bookings(p);if(!B.length)return '<div class="pn"><b>Court bookings</b><div class="empty" style="padding:10px">Schedule a session – its court booking appears here.</div></div>';
-  return '<div class="pn" style="gap:10px"><div class="sb"><b>Court bookings</b><span style="font-size:13px;color:var(--mu)">From Schedule · enter price + paid by</span></div>'+B.map(M=>{const r=M.rows,tot=r.reduce((a,x)=>a+x.amt,0),ch=r.reduce((a,x)=>a+x.ch,0),pld=r.filter(x=>x.st==='Played').length,miss=r.filter(x=>!x.priced).length;
+  return '<div class="pn" style="gap:10px"><div class="sb"><b>Court bookings</b><span style="font-size:13px;color:var(--mu)">From Schedule · tap Edit to enter price + paid by</span></div>'+B.map(M=>{const r=M.rows,tot=r.reduce((a,x)=>a+x.amt,0),ch=r.reduce((a,x)=>a+x.ch,0),pld=r.filter(x=>x.st==='Played').length,miss=r.filter(x=>!x.priced).length;
     return '<div class="sb" style="border-top:1px solid rgba(143,176,204,.25);padding-top:8px"><span class="lab">'+esc(mlab(M.m).toUpperCase())+'</span><span style="font-size:14px;color:var(--mu)">'+pl(r.length,'session')+' · '+(ch%1?ch.toFixed(1):ch)+' court-h · <b style="color:var(--tx)">'+A0(tot)+'</b> · '+pld+' played'+(miss?' · <b style="color:var(--y)">'+miss+' price missing</b>':'')+'</span></div>'+
      r.map(x=>'<div class="row" style="flex-wrap:wrap;gap:8px;background:var(--bg);border-radius:12px;padding:8px 12px"><span style="min-width:220px;flex:1"><b>'+dshort(x.d)+'</b> · '+esc(x.loc)+'<br><small style="color:var(--mu)">'+x.cs.map(c=>esc(c.n)+' '+hrsL(num(c.h))).join(' + ')+' = '+hrsL(x.ch)+'</small></span>'+
       '<span class="badge'+(x.st==='Played'?' ok':'')+'">'+x.st+'</span>'+
-      (!x.pk&&!x.priced?'<span class="badge" style="background:var(--y);color:var(--bg)">Price missing</span>':'')+(x.pk?'<span style="font-size:14px">'+A(x.amt)+' <small style="color:var(--mu)">package</small></span>':
-       '<input class="fin" style="width:120px;height:44px;font-size:16px'+(x.priced?'':';border:2px solid var(--y)')+'" type="number" inputmode="decimal" min="0" step="0.01" placeholder="AED" value="'+(x.priced?esc(S.fin[x.d].court):'')+'" data-c="bkp" data-x="'+x.d+'" aria-label="Court price AED">'+
-       '<span class="row" style="gap:4px;flex-wrap:wrap">'+orgChips(x.by,'bkby',x.d)+'</span>')+'</div>').join('')}).join('')+'</div>'}
+      (x.pk?'<span style="font-size:14px">'+A(x.amt)+' <small style="color:var(--mu)">package</small></span>':x.priced?'<b style="font-size:15px">'+A(x.amt)+'</b>':'<span class="badge" style="background:var(--y);color:var(--bg)">Price missing</span>')+
+      (x.pk?'':'<button class="ol sm" data-a="bkedit" data-x="'+x.d+'">Edit</button>')+'</div>').join('')}).join('')+'</div>'}
+/* v11: edit one court booking (price + paid by), same pattern as Shuttle stock entries */
+function vBk(){const e=ui.bk,D=S.days[e.d]||{},g=S.games[e.d],pld=!!(g&&g.st);
+  return '<div class="modal" data-a="closebk"><div class="pn" data-a="noop" style="gap:14px"><div class="sb"><div class="laby">COURT BOOKING</div><button class="ib" data-a="closebk">×</button></div>'+
+   '<div style="font-size:15px"><b>'+dlab(e.d)+'</b> · '+esc(D.loc||'')+'<br><small style="color:var(--mu)">'+courtsOf(e.d).map(c=>esc(c.n)+' '+hrsL(num(c.h))).join(' + ')+' = '+hrsL(courtHrs(e.d))+'</small></div>'+
+   '<label class="fl">Court price (AED)<input class="gei" type="number" inputmode="decimal" min="0" step="0.01" value="'+esc(e.court)+'" data-i="bk_court" placeholder="AED"></label>'+
+   '<div class="lab">PAID BY</div><div class="row" style="flex-wrap:wrap;gap:6px">'+orgChips(e.by,'bkby')+'</div>'+
+   '<div class="sb"><button class="ol" style="color:var(--bad);border-color:var(--bad)" data-a="bkdel">Delete</button><button class="btn" data-a="bksave">Save</button></div>'+
+   '<div style="font-size:12px;color:var(--mu)">'+(pld?'Delete clears only this booking’s price and paid by – games and payments stay.':'Delete removes this unplayed session and its leftover data.')+'</div></div></div>'}
 function vEnt(){const e=ui.ent,t2=e.t,types=[...(e.t==='pkg'?[['pkg','Court package']]:[]),['stock','Shuttle stock'],['oth','Other expense'],['top','Top-up'],['pay','Payback'],['xfer','Transfer']];
   const fl=(l,h)=>'<label class="fl">'+l+h+'</label>',inp=(k,ty,ph)=>'<input class="gei" type="'+(ty||'number')+'" inputmode="decimal" value="'+esc(e[k]==null?'':e[k])+'" data-i="en_'+k+'"'+(ph?' placeholder="'+ph+'"':'')+'>';
   const ft=t2==='pay'||t2==='xfer';let body='';
@@ -1201,7 +1211,7 @@ function vReport(ds,title){const all=allCalc(),sel=all.filter(s=>ds.includes(s.d
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
@@ -1307,7 +1317,11 @@ const act={
  payun:()=>{const e=ui.pay;delete finOf(e.d,true).paid[e.id];ui.pay=null;fdone()},
  qr:(x,y)=>{ui.qr={id:x,ds:y?y.split(','):[ui.fsel]};render()},closeqr:()=>{ui.qr=null;render()},
  tube:x=>{const f=fin(),n=+x;f.used=n===num(f.used)?n-1:n;fdone()},
- cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:(d,o)=>{finOf(d,true).cby=o;S.lastBy=o;save();render()},
+ cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:x=>{ui.bk.by=x;render()},
+ bkedit:x=>{const f=S.fin[x];ui.bk={d:x,court:f&&num(f.court)?f.court:'',by:(f&&f.cby)||(S.lastBy&&isOrg(S.lastBy)?S.lastBy:(S.orgs[0]||''))};render()},closebk:()=>{ui.bk=null;render()},
+ bksave:()=>{const e=ui.bk;if(!num(e.court))return toast('Enter the court price');if(!e.by)return toast('Pick who paid');const f=finOf(e.d,true);f.court=e.court;f.cby=e.by;S.lastBy=e.by;S.def.court=e.court;ui.bk=null;save();render();toast('Booking saved')},
+ bkdel:()=>{const e=ui.bk,g=S.games[e.d],pld=!!(g&&(g.st||g.hist.length));if(!confirm(pld?'Clear the price and paid by of this booking?':'Delete this unplayed session booking ('+dlab(e.d)+')?'))return;
+   if(pld){const f=S.fin[e.d];if(f){f.court='';f.cby=''}}else delSess(e.d);ui.bk=null;save();render();toast('Booking deleted')},
  cnt:x=>{const s=calc(ui.fsel),f=fin();f.cnt=f.cnt||{};f.cnt[x]=!s.ids.includes(x);fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
  addoth:()=>{const l=($('#olab').value||'').trim(),a=num($('#oamt').value);if(!a)return toast('Enter an amount');fin().oth.push({lab:l||'Misc',amt:a,by:ui.oby||S.lastBy||''});fdone()},
  rmoth:x=>{fin().oth.splice(+x,1);fdone()},
@@ -1347,6 +1361,7 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='eph'){ui.pm.ph=el.value}
   else if(k==='sc_n'){ui.sc.courts[+el.dataset.x].n=el.value}
   else if(k.startsWith('am_')){ui.am[k.slice(3)]=el.value}
+  else if(k==='bk_court'){if(ui.bk)ui.bk.court=el.value}
   else if(k.startsWith('f_')){const f=k.slice(2);finOf(ui.fsel,true)[f]=el.value;S.def[f]=el.value;save();ui.saved='✓ Auto-saved';const s=$('#fsaved');if(s)s.textContent=ui.saved;clearTimeout(window.__fr);window.__fr=setTimeout(()=>{const a=document.activeElement,id=a&&a.dataset.i;render();if(id){const n=document.querySelector('[data-i="'+id+'"]');if(n){n.focus();const v=n.value;try{n.setSelectionRange(v.length,v.length)}catch(err){}}}},700)}
   else if(k.startsWith('ge_')){const e=ui.ge,f=k.slice(3);e[f]=el.value;if(f==='en'&&e.st&&el.value){let m=(tms(e.d,el.value)-tms(e.d,e.st))/60000;if(m<=0)m+=1440;e.du=Math.round(m);$('#ge_du').value=e.du}
     else if((f==='st'||f==='du')&&$('#ge_en'))$('#ge_en').value=e.st&&num(e.du)?hm(tms(e.d,e.st)+num(e.du)*60000):''}
@@ -1364,7 +1379,6 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
     if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
-  else if(c==='bkp'){const f=finOf(el.dataset.x,true);f.court=el.value;if(el.value)S.def.court=el.value;save();render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}
@@ -1390,6 +1404,14 @@ function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,d
     g.st=g.st||0;g.en=g.en||0;g.live=(g.live||[]).map(L=>L||blankLive());G(d);
     if(!g.st&&g.hist.length){const f=g.hist.map(h=>h.at-h.s*1000);g.st=Math.min(...f)}
     if(d<t&&g.st&&!g.en)endSession(g,g.hist.length?Math.max(...g.hist.map(h=>h.at)):g.st)});
+  S.delD=S.delD||{};
+  if((S.v||0)<4){/* v11 one-time cleanup: orphan / never-played leftovers */
+    const inPkg=new Set((S.ent||[]).filter(e=>e.t==='pkg').flatMap(e=>e.dates||[]));
+    Object.keys(S.games).forEach(d=>{const g=S.games[d];if(!S.days[d]&&!g.st&&!(g.hist||[]).length)delete S.games[d]});
+    Object.keys(S.days).forEach(d=>{const D=S.days[d],g=S.games[d],f=S.fin[d],played=!!(g&&(g.st||(g.hist||[]).length)),money=!!(f&&(num(f.court)||Object.keys(f.paid||{}).length||(f.oth||[]).length));
+      if(!played&&!money&&!inPkg.has(d)&&(!D.sch||d<t)){delete S.days[d];delete S.games[d];delete S.fin[d];S.delD[d]=1}});
+    Object.keys(S.fin).forEach(d=>{if(!S.days[d]&&!S.games[d])delete S.fin[d]});
+    S.v=4}
   topUp()}
 
 /* ---------- welcome → home: the logo glides into place ---------- */

@@ -53,7 +53,9 @@ const isOrg=id=>(S.orgs||[]).includes(id);
 /* ---------- scheduled sessions (one per date) ---------- */
 const D_=d=>S.days[d];
 const isSched=d=>{const D=S.days[d];return !!(D&&D.sch&&!D.x)};
-function mkDay(d,o){S.days[d]=Object.assign({sch:1,time:'20:00',loc:S.locs[0]||'',courts:[{n:'Court 1',h:2}],on:{},att:{}},o||{});return S.days[d]}
+/* v11: deleted dates (S.delD) are never re-created by views/getters – only by scheduling again */
+const isDel=d=>!!(S.delD&&S.delD[d]);
+function mkDay(d,o){if(!o&&isDel(d))return {sch:0,time:'20:00',loc:'',courts:[{n:'Court 1',h:2}],on:{},att:{}};S.days[d]=Object.assign({sch:1,time:'20:00',loc:S.locs[0]||'',courts:[{n:'Court 1',h:2}],on:{},att:{}},o||{});return S.days[d]}
 function day(d){return S.days[d]||mkDay(d)}
 const onIds=d=>{const D=S.days[d];return D?Object.keys(D.on).filter(k=>D.on[k]&&P(k)&&!P(k).gone):[]};
 const courtsOf=d=>{const D=S.days[d];return D&&D.courts&&D.courts.length?D.courts:[{n:'Court 1',h:2}]};
@@ -73,7 +75,7 @@ function topUp(){const t=TODAY();(S.series||[]).forEach(s=>{let d=s.from;while(d
   for(let k=0;k<5;k++){const x=addD(d,7*k);if(x>addD(t,28))break;if(!S.days[x]&&!(s.skip||[]).includes(x))mkDay(x,{time:s.time,loc:s.loc,courts:JSON.parse(JSON.stringify(s.courts)),ser:s.id})}})}
 
 /* the session the app works on: today, else the next upcoming one */
-function curDate(){const t=TODAY();if(ui.cur&&(isSched(ui.cur)||S.games[ui.cur]))return ui.cur;if(isSched(t))return t;return upcoming()[0]||''}
+function curDate(){const t=TODAY();if(ui.cur&&!isDel(ui.cur)&&(isSched(ui.cur)||S.games[ui.cur]))return ui.cur;if(isSched(t))return t;return upcoming()[0]||''}
 
 /* ---------- attendance ---------- */
 const att=(d,id)=>{const D=S.days[d];return D&&D.att?D.att[id]||null:null};
@@ -85,4 +87,5 @@ const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
 const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
-  (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];if(ui.cur===d)ui.cur=''}
+  (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];S.delD=S.delD||{};S.delD[d]=1;
+  if(ui.cur===d)ui.cur='';if(ui.fsel===d)ui.fsel='';if(ui.ks&&ui.ks.s===d)ui.ks.s='';['ge','se','pay','qr','bk'].forEach(k=>{if(ui[k]&&ui[k].d===d)ui[k]=null})}

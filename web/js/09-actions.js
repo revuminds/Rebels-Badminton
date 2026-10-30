@@ -2,7 +2,7 @@
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
@@ -108,7 +108,11 @@ const act={
  payun:()=>{const e=ui.pay;delete finOf(e.d,true).paid[e.id];ui.pay=null;fdone()},
  qr:(x,y)=>{ui.qr={id:x,ds:y?y.split(','):[ui.fsel]};render()},closeqr:()=>{ui.qr=null;render()},
  tube:x=>{const f=fin(),n=+x;f.used=n===num(f.used)?n-1:n;fdone()},
- cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:(d,o)=>{finOf(d,true).cby=o;S.lastBy=o;save();render()},
+ cby:x=>{fin().cby=x;S.lastBy=x;fdone()},bkby:x=>{ui.bk.by=x;render()},
+ bkedit:x=>{const f=S.fin[x];ui.bk={d:x,court:f&&num(f.court)?f.court:'',by:(f&&f.cby)||(S.lastBy&&isOrg(S.lastBy)?S.lastBy:(S.orgs[0]||''))};render()},closebk:()=>{ui.bk=null;render()},
+ bksave:()=>{const e=ui.bk;if(!num(e.court))return toast('Enter the court price');if(!e.by)return toast('Pick who paid');const f=finOf(e.d,true);f.court=e.court;f.cby=e.by;S.lastBy=e.by;S.def.court=e.court;ui.bk=null;save();render();toast('Booking saved')},
+ bkdel:()=>{const e=ui.bk,g=S.games[e.d],pld=!!(g&&(g.st||g.hist.length));if(!confirm(pld?'Clear the price and paid by of this booking?':'Delete this unplayed session booking ('+dlab(e.d)+')?'))return;
+   if(pld){const f=S.fin[e.d];if(f){f.court='';f.cby=''}}else delSess(e.d);ui.bk=null;save();render();toast('Booking deleted')},
  cnt:x=>{const s=calc(ui.fsel),f=fin();f.cnt=f.cnt||{};f.cnt[x]=!s.ids.includes(x);fdone()},oby:x=>{ui.oby=x;S.lastBy=x;render()},
  addoth:()=>{const l=($('#olab').value||'').trim(),a=num($('#oamt').value);if(!a)return toast('Enter an amount');fin().oth.push({lab:l||'Misc',amt:a,by:ui.oby||S.lastBy||''});fdone()},
  rmoth:x=>{fin().oth.splice(+x,1);fdone()},
@@ -148,6 +152,7 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='eph'){ui.pm.ph=el.value}
   else if(k==='sc_n'){ui.sc.courts[+el.dataset.x].n=el.value}
   else if(k.startsWith('am_')){ui.am[k.slice(3)]=el.value}
+  else if(k==='bk_court'){if(ui.bk)ui.bk.court=el.value}
   else if(k.startsWith('f_')){const f=k.slice(2);finOf(ui.fsel,true)[f]=el.value;S.def[f]=el.value;save();ui.saved='✓ Auto-saved';const s=$('#fsaved');if(s)s.textContent=ui.saved;clearTimeout(window.__fr);window.__fr=setTimeout(()=>{const a=document.activeElement,id=a&&a.dataset.i;render();if(id){const n=document.querySelector('[data-i="'+id+'"]');if(n){n.focus();const v=n.value;try{n.setSelectionRange(v.length,v.length)}catch(err){}}}},700)}
   else if(k.startsWith('ge_')){const e=ui.ge,f=k.slice(3);e[f]=el.value;if(f==='en'&&e.st&&el.value){let m=(tms(e.d,el.value)-tms(e.d,e.st))/60000;if(m<=0)m+=1440;e.du=Math.round(m);$('#ge_du').value=e.du}
     else if((f==='st'||f==='du')&&$('#ge_en'))$('#ge_en').value=e.st&&num(e.du)?hm(tms(e.d,e.st)+num(e.du)*60000):''}
@@ -165,7 +170,6 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
     if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
-  else if(c==='bkp'){const f=finOf(el.dataset.x,true);f.court=el.value;if(el.value)S.def.court=el.value;save();render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}
@@ -191,6 +195,14 @@ function migrate(){const t=TODAY();S.dum=S.dum||{};S.def=Object.assign({pts:21,d
     g.st=g.st||0;g.en=g.en||0;g.live=(g.live||[]).map(L=>L||blankLive());G(d);
     if(!g.st&&g.hist.length){const f=g.hist.map(h=>h.at-h.s*1000);g.st=Math.min(...f)}
     if(d<t&&g.st&&!g.en)endSession(g,g.hist.length?Math.max(...g.hist.map(h=>h.at)):g.st)});
+  S.delD=S.delD||{};
+  if((S.v||0)<4){/* v11 one-time cleanup: orphan / never-played leftovers */
+    const inPkg=new Set((S.ent||[]).filter(e=>e.t==='pkg').flatMap(e=>e.dates||[]));
+    Object.keys(S.games).forEach(d=>{const g=S.games[d];if(!S.days[d]&&!g.st&&!(g.hist||[]).length)delete S.games[d]});
+    Object.keys(S.days).forEach(d=>{const D=S.days[d],g=S.games[d],f=S.fin[d],played=!!(g&&(g.st||(g.hist||[]).length)),money=!!(f&&(num(f.court)||Object.keys(f.paid||{}).length||(f.oth||[]).length));
+      if(!played&&!money&&!inPkg.has(d)&&(!D.sch||d<t)){delete S.days[d];delete S.games[d];delete S.fin[d];S.delD[d]=1}});
+    Object.keys(S.fin).forEach(d=>{if(!S.days[d]&&!S.games[d])delete S.fin[d]});
+    S.v=4}
   topUp()}
 
 /* ---------- welcome → home: the logo glides into place ---------- */

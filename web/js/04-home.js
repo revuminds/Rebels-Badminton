@@ -70,7 +70,7 @@ function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date
     else return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
-  const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
+  if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
   if(s.loc&&!S.locs.includes(s.loc))S.locs.push(s.loc);
   if(s.rep&&!D.ser){const id='w'+Date.now();S.series.push({id,from:s.d,time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts)),skip:[]});D.ser=id}
   else if(s.rep&&D.ser){const sr=S.series.find(x=>x.id===D.ser);if(sr)Object.assign(sr,{time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts))})}

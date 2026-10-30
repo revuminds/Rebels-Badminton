@@ -6,7 +6,7 @@ const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
 const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
 function G(d){let g=S.games[d];
-  if(!g){g=S.games[d]={d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]}}
+  if(!g){g=(isDel(d)?{}:S.games[d]={});Object.assign(g,{d,courts:1,round:0,cur:[],live:[],nxt:[],nman:[],hist:[],since:{},btot:{},st:0,en:0,pts:S.def.pts,deuce:S.def.deuce,slot:S.def.slot,chg:S.def.chg,ros:[],last:[],plan:[],log:[],strk:{},pre:[],auto:[]})}
   ['nman','log','pre','auto','plan','last','ros','nxt','cur','live'].forEach(k=>{if(!Array.isArray(g[k]))g[k]=[]});if(!g.strk)g.strk={};
   const n=courtsOf(d).length;g.courts=n;g.bh=sessLenH(d);
   while(g.cur.length<n){g.cur.push(NUL4());g.live.push(blankLive())}
