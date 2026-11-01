@@ -1,5 +1,5 @@
 /* ===== Games ===== */
-function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
+function vSBar(g){const d=g.d,ps=playMs(g)/1000,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
    '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span></div>'}
@@ -67,13 +67,13 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th>NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
-  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
+  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(playMs(g,now)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
     else if(k==='pst'){const p2=pstat(g,el.dataset.id,now);if(el.innerHTML!==p2.t)el.innerHTML=p2.t;el.className='pst '+p2.c}
-    else if(k==='sess'){if(g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000)}
+    else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 

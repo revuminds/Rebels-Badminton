@@ -18,11 +18,11 @@ const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'
 
 /* ---------- HOME ---------- */
 function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d=>d<t||((S.games[d]||{}).en));const g=S.games[t];
-  let card='';if(isSched(t)&&!(g&&g.en)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
+  let card='';if(isSched(t)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
     const sub=esc(D.loc)+' · '+courtSum(t)+' · '+pl(n,'player');
-    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
-     '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended':'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run||ended?'Resume':'Open')+' →</span></button>'+
-     (g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
+    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':ended?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH(playMs(g)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
+     '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended · '+pl(g.hist.length,'game'):'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run?'Resume':ended?'View':'Open')+' →</span></button>'+
+     (ended?(canStart(t)?'<button class="btn sh tedit" style="padding:0 24px;font-size:18px" data-a="hstart">▶ Start again</button>':''):g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
   const rows=up.map(d=>{const D=S.days[d],n=onIds(d).length;return '<div class="uprow"><div class="udate"><b>'+DN[pd(d).getDay()].toUpperCase()+'</b><span>'+pd(d).getDate()+'</span></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:16px">'+dlab(d)+' · '+t12(D.time)+' · '+esc(D.loc)+(D.ser?' <span class="rep">WEEKLY</span>':'')+'</div><div style="font-size:13px;color:var(--mu)">'+pl(courtsOf(d).length,'court')+' · '+courtSum(d)+' · '+n+' players ON</div></div>'+
     '<button class="ol sm" data-a="sedit2" data-x="'+d+'">Edit</button><button class="ol sm" style="color:var(--bad)" data-a="cancelup" data-x="'+d+'">Cancel</button></div>'}).join('');
   return '<div class="home"><section class="hleft"><img id="homeLogo" src="'+LOGO_SRC()+'" alt="Rebels Badminton"><div class="d" style="font-size:40px;letter-spacing:.02em">REBELS <span style="color:var(--y)">BADMINTON</span></div><div style="font-size:15px;color:var(--mu)">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]+' '+new Date().getDate()+' '+MNF[new Date().getMonth()]+'</div></section>'+
@@ -66,8 +66,7 @@ function moveDate(a,b){['days','games','fin'].forEach(k=>{if(S[k][a]){S[k][b]=S[
 function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date');if(!s.orig&&s.d<t)return toast('Pick today or a future date');
   if(s.d!==s.orig&&(isSched(s.d)||S.games[s.d])){const g0=S.games[s.d];
     if(g0&&g0.st&&!g0.en)return toast('A session is running on '+dlab(s.d)+' – end it first');
-    if(g0&&g0.en){if(!confirm('There is a finished session on '+dlab(s.d)+'. Delete it (games and payments) and schedule this one instead?'))return;delSess(s.d)}
-    else return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
+    if(!(g0&&g0.en))return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
   if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};

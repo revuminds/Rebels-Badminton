@@ -22,7 +22,7 @@ function calc(d,no){const f=finOf(d,false),g=S.games[d],D=S.days[d]||{};
   const pk=pkgsFor(d).length>0,COURT=pk?pkgShare(d):num(f.court),FEE=num(f.fee),PER=shuttlePrice(d)||num(f.box)/12;
   const pdn=ids.filter(id=>f.paid[id]).length,shut=num(f.used)*PER,oth=f.oth.reduce((a,o)=>a+num(o.amt),0),inv=COURT+shut+oth,ret=pdn*FEE;
   return{d,no,f,all,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
-    st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:g&&g.st?((g.en||Date.now())-g.st)/1000:0,ng:g?g.hist.length:0}}
+    st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:playMs(g)/1000,ng:g?g.hist.length:0}}
 const allCalc=()=>sessions().map((d,i)=>calc(d,i+1));
 /* who holds the fees: per organizer, cash / bank */
 function holds(list){const h={};list.forEach(s=>s.ids.forEach(id=>{const p=payOf(s.f,id);if(!p)return;const k=p.by||'';h[k]=h[k]||{cash:0,bank:0};h[k][p.m==='bank'?'bank':'cash']+=s.FEE}));return h}

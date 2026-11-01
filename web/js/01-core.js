@@ -65,9 +65,9 @@ function avSvg(sx){const sk='#E8B98F',bg=sx==='f'?'#3B2A4A':'#1C3D63',hr=sx==='f
 function pav0(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':p&&p.sx?avSvg(p.sx):esc(ini(p?p.name:'?')))+'</span>'}
 /* v14 Games tab: yellow 5-segment progress ring (games played this session, target 5) around the level ring */
 let RING=null;
-function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const n=Math.min(5,RING[id]||0),W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
+function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const tg=RING[id]||0,lap=tg>5?Math.floor((tg-1)/5)+1:1,n=tg>5?(tg-1)%5+1:tg,W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
   let arcs='';for(let k=0;k<5;k++)arcs+='<circle cx="'+W/2+'" cy="'+W/2+'" r="'+r.toFixed(2)+'" fill="none" stroke="'+(k<n?'#FFD23F':'rgba(143,176,204,.28)')+'" stroke-width="3.5" stroke-dasharray="'+L.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate('+(-90+k*72+1.2)+' '+W/2+' '+W/2+')"/>';
-  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+'</span>'}
+  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+(lap>1?'<span class="lap">×'+lap+'</span>':'')+'</span>'}
 const pnm=(id,x)=>'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+(x||'')+'</small></span>';
 const pwho=(id,sz,x)=>'<span class="pwho">'+pav(id,sz)+pnm(id,x)+'</span>';
 
@@ -105,7 +105,7 @@ const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
 /* dummy = family/friend filler (tick box in Games → Players): no game target, plays only when no regular is free */
 const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
-const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
+const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st&&!g.en)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
   (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];S.delD=S.delD||{};S.delD[d]=1;

@@ -257,7 +257,7 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .pav{border-radius:50%;border:3px solid;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg);color:var(--tx);font-weight:700;flex:none}
 .pav img{width:100%;height:100%;object-fit:cover;display:block}
 .pav svg{display:block}
-.prg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.prg>svg{position:absolute;inset:0}
+.prg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.prg>svg{position:absolute;inset:0}.prg .lap{position:absolute;right:-4px;bottom:-3px;background:#FFD23F;color:#0B2440;font:800 11px/1 system-ui,sans-serif;padding:2px 4px;border-radius:8px;border:1.5px solid #0B2440;z-index:1}
 .pnm{display:flex;flex-direction:column;min-width:0;line-height:1.2;text-align:left}.pnm b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pnm small{font-size:11px;color:var(--mu);font-weight:600;white-space:nowrap}.pnm em{font-style:normal;font-size:12px;color:var(--y);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pwho{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
@@ -408,9 +408,9 @@ function avSvg(sx){const sk='#E8B98F',bg=sx==='f'?'#3B2A4A':'#1C3D63',hr=sx==='f
 function pav0(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':p&&p.sx?avSvg(p.sx):esc(ini(p?p.name:'?')))+'</span>'}
 /* v14 Games tab: yellow 5-segment progress ring (games played this session, target 5) around the level ring */
 let RING=null;
-function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const n=Math.min(5,RING[id]||0),W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
+function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const tg=RING[id]||0,lap=tg>5?Math.floor((tg-1)/5)+1:1,n=tg>5?(tg-1)%5+1:tg,W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
   let arcs='';for(let k=0;k<5;k++)arcs+='<circle cx="'+W/2+'" cy="'+W/2+'" r="'+r.toFixed(2)+'" fill="none" stroke="'+(k<n?'#FFD23F':'rgba(143,176,204,.28)')+'" stroke-width="3.5" stroke-dasharray="'+L.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate('+(-90+k*72+1.2)+' '+W/2+' '+W/2+')"/>';
-  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+'</span>'}
+  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+(lap>1?'<span class="lap">×'+lap+'</span>':'')+'</span>'}
 const pnm=(id,x)=>'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+(x||'')+'</small></span>';
 const pwho=(id,sz,x)=>'<span class="pwho">'+pav(id,sz)+pnm(id,x)+'</span>';
 
@@ -448,7 +448,7 @@ const leftAt=(d,id)=>{const a=att(d,id);return a&&a.l?a.l:0};
 const eligible=(d,id)=>arrived(d,id)&&!leftAt(d,id);
 /* dummy = family/friend filler (tick box in Games → Players): no game target, plays only when no regular is free */
 const isDum=(d,id)=>!!(S.dum&&S.dum[id]);
-const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st)&&Date.now()>=tms(d,D.time)-30*60e3};
+const canStart=d=>{const D=S.days[d],g=S.games[d];return d===TODAY()&&isSched(d)&&!(g&&g.st&&!g.en)&&Date.now()>=tms(d,D.time)-30*60e3};
 /* delete a session completely (sample / mistake) */
 function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];if(!sr.skip.includes(d))sr.skip.push(d)}}
   (S.ent||[]).forEach(e=>{if(e.t==='pkg'&&e.dates)e.dates=e.dates.filter(x=>x!==d)});delete S.days[d];delete S.games[d];delete S.fin[d];S.delD=S.delD||{};S.delD[d]=1;
@@ -458,6 +458,7 @@ function delSess(d){const D=S.days[d];if(D&&D.ser){const sr=S.series.find(s=>s.i
 const blankLive=()=>({run:false,start:0,sa:0,sb:0,el:0,w:''});
 const NUL4=()=>[null,null,null,null];
 const running=g=>!!(g&&g.st&&!g.en);
+const playMs=(g,now)=>g&&g.st?Math.max(0,((g.en||now||Date.now())-g.st)-(g.gap||0)):0;
 const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
 const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
@@ -578,7 +579,7 @@ const qref=(g,x)=>{const a=String(x).split('.').map(Number);return a[0]?g.plan[a
 /* ---------- bench time ---------- */
 function benchOn(g,id,t){if(!running(g)||!eligible(g.d,id))return;if(g.since[id]==null)g.since[id]=t}
 function benchOff(g,id,t){if(g.since[id]!=null){g.btot[id]=(g.btot[id]||0)+Math.max(0,t-g.since[id])/1000;delete g.since[id]}}
-function benchSec(g,id,t){if(g.man&&!running(g)&&g.st&&g.en&&!Object.keys(g.btot).length){const pl2=g.hist.filter(h=>h.ids.includes(id)).reduce((a,h)=>a+h.s,0);return Math.max(0,(g.en-g.st)/1000-pl2)}
+function benchSec(g,id,t){if(g.man&&!running(g)&&g.st&&g.en&&!Object.keys(g.btot).length){const pl2=g.hist.filter(h=>h.ids.includes(id)).reduce((a,h)=>a+h.s,0);return Math.max(0,playMs(g)/1000-pl2)}
   return(g.btot[id]||0)+(running(g)&&g.since[id]!=null?((t||Date.now())-g.since[id])/1000:0)}
 const tn=(h,k)=>{const n=h.ids.slice(k*2,k*2+2).map(nameOf);return n.every(x=>x!=='?')?n.join(' & '):((k?h.b:h.a)||[]).join(' & ')};
 const hlab=h=>(h.m?'Manual':'#'+(h.r||'–'))+(h.s!=null&&h.at?' · '+hm(h.at-h.s*1000):'');
@@ -598,9 +599,12 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.cur[i]=q.slice();g.live[i]=Object.assign(blankLive(),{run:true,start:t});g.round++;autoNext(g,'fill',null);save();render()}
-function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
+function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st&&!g.en)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
+  const now=Date.now();if(g.st&&g.en){g.gap=(g.gap||0)+Math.max(0,now-g.en);g.en=0;const A=day(d).att||{};Object.keys(A).forEach(id=>delete A[id].e);
+    g.nxt=g.nxt.map(()=>NUL4());g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.cur=g.cur.map(()=>NUL4());g.live=g.live.map(blankLive);
+    logIt(g,'Session continued · earlier games and payments kept');save();render();return}
   ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);
-  g.st=Date.now();g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.v12=1;
+  g.st=now;g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.v12=1;
   logIt(g,'Session started · check players in with the Players button – only checked-in players are auto-picked');save();render()}
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.run||L.el||L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
@@ -648,7 +652,7 @@ function calc(d,no){const f=finOf(d,false),g=S.games[d],D=S.days[d]||{};
   const pk=pkgsFor(d).length>0,COURT=pk?pkgShare(d):num(f.court),FEE=num(f.fee),PER=shuttlePrice(d)||num(f.box)/12;
   const pdn=ids.filter(id=>f.paid[id]).length,shut=num(f.used)*PER,oth=f.oth.reduce((a,o)=>a+num(o.amt),0),inv=COURT+shut+oth,ret=pdn*FEE;
   return{d,no,f,all,ids,pk,COURT,FEE,PER,pdn,pl:ids.length,shut,oth,inv,ret,sav:ret-inv,due:(ids.length-pdn)*FEE,loc:D.loc||'',c:courtsOf(d).length,ch:courtHrs(d),m:d.slice(0,7),
-    st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:g&&g.st?((g.en||Date.now())-g.st)/1000:0,ng:g?g.hist.length:0}}
+    st:g?g.st:0,en:g?g.en:0,bh:sessLenH(d),ps:playMs(g)/1000,ng:g?g.hist.length:0}}
 const allCalc=()=>sessions().map((d,i)=>calc(d,i+1));
 /* who holds the fees: per organizer, cash / bank */
 function holds(list){const h={};list.forEach(s=>s.ids.forEach(id=>{const p=payOf(s.f,id);if(!p)return;const k=p.by||'';h[k]=h[k]||{cash:0,bank:0};h[k][p.m==='bank'?'bank':'cash']+=s.FEE}));return h}
@@ -771,11 +775,11 @@ const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'
 
 /* ---------- HOME ---------- */
 function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d=>d<t||((S.games[d]||{}).en));const g=S.games[t];
-  let card='';if(isSched(t)&&!(g&&g.en)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
+  let card='';if(isSched(t)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
     const sub=esc(D.loc)+' · '+courtSum(t)+' · '+pl(n,'player');
-    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
-     '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended':'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run||ended?'Resume':'Open')+' →</span></button>'+
-     (g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
+    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':ended?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH(playMs(g)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
+     '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended · '+pl(g.hist.length,'game'):'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run?'Resume':ended?'View':'Open')+' →</span></button>'+
+     (ended?(canStart(t)?'<button class="btn sh tedit" style="padding:0 24px;font-size:18px" data-a="hstart">▶ Start again</button>':''):g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
   const rows=up.map(d=>{const D=S.days[d],n=onIds(d).length;return '<div class="uprow"><div class="udate"><b>'+DN[pd(d).getDay()].toUpperCase()+'</b><span>'+pd(d).getDate()+'</span></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:16px">'+dlab(d)+' · '+t12(D.time)+' · '+esc(D.loc)+(D.ser?' <span class="rep">WEEKLY</span>':'')+'</div><div style="font-size:13px;color:var(--mu)">'+pl(courtsOf(d).length,'court')+' · '+courtSum(d)+' · '+n+' players ON</div></div>'+
     '<button class="ol sm" data-a="sedit2" data-x="'+d+'">Edit</button><button class="ol sm" style="color:var(--bad)" data-a="cancelup" data-x="'+d+'">Cancel</button></div>'}).join('');
   return '<div class="home"><section class="hleft"><img id="homeLogo" src="'+LOGO_SRC()+'" alt="Rebels Badminton"><div class="d" style="font-size:40px;letter-spacing:.02em">REBELS <span style="color:var(--y)">BADMINTON</span></div><div style="font-size:15px;color:var(--mu)">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]+' '+new Date().getDate()+' '+MNF[new Date().getMonth()]+'</div></section>'+
@@ -819,8 +823,7 @@ function moveDate(a,b){['days','games','fin'].forEach(k=>{if(S[k][a]){S[k][b]=S[
 function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date');if(!s.orig&&s.d<t)return toast('Pick today or a future date');
   if(s.d!==s.orig&&(isSched(s.d)||S.games[s.d])){const g0=S.games[s.d];
     if(g0&&g0.st&&!g0.en)return toast('A session is running on '+dlab(s.d)+' – end it first');
-    if(g0&&g0.en){if(!confirm('There is a finished session on '+dlab(s.d)+'. Delete it (games and payments) and schedule this one instead?'))return;delSess(s.d)}
-    else return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
+    if(!(g0&&g0.en))return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
   if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
@@ -919,7 +922,7 @@ function attChanged(id,why){const d=curDate(),g=S.games[d];if(!g||!running(g))re
 function lvChanged(ids){const d=curDate(),g=S.games[d];if(!g)return;if(running(g)){if(autoNext(g,'all','Level change: '+ids.map(id=>nameOf(id)+' → '+LVN[lvOf(id)]).join(', ')+' · upcoming games re-picked'))toast('Upcoming games updated')}else g.psig=''}
 
 /* ===== Games ===== */
-function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
+function vSBar(g){const d=g.d,ps=playMs(g)/1000,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
    '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span></div>'}
@@ -987,13 +990,13 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th>NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
-  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
+  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(playMs(g,now)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
     else if(k==='pst'){const p2=pstat(g,el.dataset.id,now);if(el.innerHTML!==p2.t)el.innerHTML=p2.t;el.className='pst '+p2.c}
-    else if(k==='sess'){if(g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000)}
+    else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 

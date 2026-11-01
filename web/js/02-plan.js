@@ -2,6 +2,7 @@
 const blankLive=()=>({run:false,start:0,sa:0,sb:0,el:0,w:''});
 const NUL4=()=>[null,null,null,null];
 const running=g=>!!(g&&g.st&&!g.en);
+const playMs=(g,now)=>g&&g.st?Math.max(0,((g.en||now||Date.now())-g.st)-(g.gap||0)):0;
 const capOf=g=>g.deuce&&+g.pts<30?Math.max(+g.pts,Math.min(30,+g.pts+9)):+g.pts;
 const winOf=(g,l)=>g.deuce&&+g.pts<30?Math.min(capOf(g),Math.max(+g.pts,l+2)):+g.pts;
 const REST=8*60e3,TGT=5,TMIN=5;
@@ -122,7 +123,7 @@ const qref=(g,x)=>{const a=String(x).split('.').map(Number);return a[0]?g.plan[a
 /* ---------- bench time ---------- */
 function benchOn(g,id,t){if(!running(g)||!eligible(g.d,id))return;if(g.since[id]==null)g.since[id]=t}
 function benchOff(g,id,t){if(g.since[id]!=null){g.btot[id]=(g.btot[id]||0)+Math.max(0,t-g.since[id])/1000;delete g.since[id]}}
-function benchSec(g,id,t){if(g.man&&!running(g)&&g.st&&g.en&&!Object.keys(g.btot).length){const pl2=g.hist.filter(h=>h.ids.includes(id)).reduce((a,h)=>a+h.s,0);return Math.max(0,(g.en-g.st)/1000-pl2)}
+function benchSec(g,id,t){if(g.man&&!running(g)&&g.st&&g.en&&!Object.keys(g.btot).length){const pl2=g.hist.filter(h=>h.ids.includes(id)).reduce((a,h)=>a+h.s,0);return Math.max(0,playMs(g)/1000-pl2)}
   return(g.btot[id]||0)+(running(g)&&g.since[id]!=null?((t||Date.now())-g.since[id])/1000:0)}
 const tn=(h,k)=>{const n=h.ids.slice(k*2,k*2+2).map(nameOf);return n.every(x=>x!=='?')?n.join(' & '):((k?h.b:h.a)||[]).join(' & ')};
 const hlab=h=>(h.m?'Manual':'#'+(h.r||'–'))+(h.s!=null&&h.at?' · '+hm(h.at-h.s*1000):'');
@@ -142,9 +143,12 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.cur[i]=q.slice();g.live[i]=Object.assign(blankLive(),{run:true,start:t});g.round++;autoNext(g,'fill',null);save();render()}
-function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
+function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st&&!g.en)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
+  const now=Date.now();if(g.st&&g.en){g.gap=(g.gap||0)+Math.max(0,now-g.en);g.en=0;const A=day(d).att||{};Object.keys(A).forEach(id=>delete A[id].e);
+    g.nxt=g.nxt.map(()=>NUL4());g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.cur=g.cur.map(()=>NUL4());g.live=g.live.map(blankLive);
+    logIt(g,'Session continued · earlier games and payments kept');save();render();return}
   ['pts','deuce','slot','chg'].forEach(k=>g[k]=S.def[k]);
-  g.st=Date.now();g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.v12=1;
+  g.st=now;g.en=0;day(d).att={};g.nxt=g.nxt.map(()=>NUL4());g.nman=[];g.since={};g.up=[];g.qq=courtsOf(d).map(()=>[]);g.closed={};g.v12=1;
   logIt(g,'Session started · check players in with the Players button – only checked-in players are auto-picked');save();render()}
 function endSession(g,t){g.cur.forEach((q,i)=>{const L=g.live[i];if(q&&q.every(Boolean)&&L&&(L.run||L.el||L.sa||L.sb))saveGame(g,i,t)});
   Object.keys(g.since).forEach(id=>benchOff(g,id,t));
