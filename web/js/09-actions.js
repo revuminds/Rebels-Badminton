@@ -2,13 +2,13 @@
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
@@ -26,8 +26,7 @@ const act={
  ckback:x=>{const a=att(curDate(),x);if(a)a.l=0;attChanged(x,nameOf(x)+' is back');save();render()},
  ckdum:x=>{const d=curDate(),v=!isDum(d,x);S.dum=S.dum||{};if(v)S.dum[x]=1;else delete S.dum[x];const g=S.games[d];
    if(g){if(running(g))autoNext(g,'all','Up Next updated');else g.psig=''}save();render()},
- cfopen:x=>{const g=CG(),q=g.nxt[+x];if(!q||!q.every(Boolean))return toast('Fill all 4 players in Up Next first');ui.cf={i:+x};render()},
- closecf:()=>{ui.cf=null;render()},cfok:()=>{const i=ui.cf.i;ui.cf=null;sendCourt(CG(),i);render()},hist:()=>{ui.h=null;go('hist')},
+ hist:()=>{ui.h=null;go('hist')},
  cancelup:x=>{const D=S.days[x];if(!D)return;const pk=pkgsFor(x).length;
    if(!confirm('Cancel the session on '+dlab(x)+'?'+(pk?' It is part of a court package – to keep its share, use Edit and move it to the new date instead.':'')))return;
    if(D.ser){const sr=S.series.find(s=>s.id===D.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(x)}}
@@ -49,16 +48,20 @@ const act={
    const id='p'+(S.nid++);S.players.push({id,name:n,lv:ui.lv,j:Date.now()});ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
  clearq:()=>{ui.q='';$('#psearch').value='';$('#pgrid').innerHTML=vGrid()},
  alloff:()=>{const d=curDate(),D=day(d);if(!onIds(d).length)return;if(!confirm('Turn all players off for '+dlab(d)+'?'))return;
-   const ids=onIds(d);D.on={};const g=S.games[d];if(g){const t=Date.now();ids.forEach(id=>benchOff(g,id,t));g.nxt=g.nxt.map(()=>NUL4())}save();render()},
+   const ids=onIds(d);D.on={};const g=S.games[d];if(g){const t=Date.now();ids.forEach(id=>benchOff(g,id,t));g.nxt=g.nxt.map(()=>NUL4());autoNext(g,'fill',null)}save();render()},
  tog:x=>{const d=curDate();if(!d)return;const D=day(d);D.on[x]=!D.on[x];if(!D.on[x])delete D.on[x];const g=S.games[d];
-   if(g&&running(g)){const t=Date.now();if(!D.on[x]){benchOff(g,x,t);g.nxt=g.nxt.map(q=>q.map(y=>y===x?null:y));autoNext(g,'fill',nameOf(x)+' turned off · removed from Up Next')}}
+   if(g&&running(g)){const t=Date.now();if(!D.on[x]){benchOff(g,x,t);autoNext(g,'fill',nameOf(x)+' turned off · removed from upcoming games')}}
    save();render()},
- pmod:x=>{const p=P(x);if(!p)return;ui.pm={id:x,name:p.name,ph:p.ph||''};render()},
+ pmod:x=>{const p=P(x);if(!p)return;ui.pm={id:x,ed:0};render()},
+ pmedit:()=>{const p=P(ui.pm.id);if(!p)return;ui.pm={id:p.id,ed:1,name:p.name,ph:p.ph||'',lv:p.lv,img:p.img||''};render()},pmcancel:()=>{ui.pm={id:ui.pm.id,ed:0};render()},
+ pmlv:x=>{ui.pm.lv=+x;render()},phrm:()=>{ui.pm.img='';render()},
+ photo:x=>{if(!ui.pm)return;if(NB&&NB.photo){try{NB.photo(x);return}catch(err){}}const f=document.createElement('input');f.type='file';f.accept='image/*';if(x==='cam')f.setAttribute('capture','environment');
+   f.onchange=()=>{const r=new FileReader();r.onload=()=>window.__photo(String(r.result||''));if(f.files[0])r.readAsDataURL(f.files[0])};f.click()},
  closepm:()=>{ui.pm=null;render()},noop:()=>{},
  qlv:(x,y)=>{const p=P(x);if(!p||p.lv===+y)return;p.lv=+y;lvChanged([x]);save();render()},
  saveedit:()=>{const e=ui.pm,p=P(e.id),n=e.name.trim().replace(/\s+/g,' ');if(!n)return toast('Name cannot be empty');const d=dupInfo(n,p.id);if(d&&d.red)return toast('That name is already used');
-   p.name=n;p.ph=(e.ph||'').trim();ui.pm=null;save();render()},
- delplayer:()=>{const p=P(ui.pm.id);if(!confirm('Delete '+p.name+'? Past games and payments keep their record.'))return;p.gone=true;Object.values(S.days).forEach(D=>delete D.on[p.id]);S.orgs=S.orgs.filter(o=>o!==p.id);ui.pm=null;save();render()},
+   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
+ sdel:x=>{const p=P(x);if(!p)return;if(!confirm('Delete '+p.name+'? Past games and payments keep their record.'))return;p.gone=true;Object.values(S.days).forEach(D=>delete D.on[p.id]);S.orgs=S.orgs.filter(o=>o!==p.id);delete ui.lvE[p.id];save();render();toast(p.name+' deleted')},
  arrive:x=>{const d=curDate(),D=day(d),g=S.games[d],t=Date.now();D.att=D.att||{};D.att[x]={a:t};const late=g?(t-Math.max(bookStart(d),g.st||0))/60e3:0;
    attChanged(x,late>10?nameOf(x)+' arrived '+Math.round(late)+' min late – '+target(g,x)+' games realistic':nameOf(x)+' checked in');save();render()},
  attedit:x=>{const a=att(curDate(),x)||{};ui.am={id:x,a:a.a?hm(a.a):'',l:a.l?hm(a.l):''};render()},
@@ -69,8 +72,8 @@ const act={
  amback:()=>{const d=curDate(),e=ui.am,a=att(d,e.id);if(a)a.l=0;ui.am=null;attChanged(e.id,nameOf(e.id)+' is back');save();render()},
  amnot:()=>{const d=curDate(),e=ui.am;delete day(d).att[e.id];ui.am=null;attChanged(e.id,null);save();render()},
  /* games */
- reshuffle:()=>{const g=CG();autoNext(g,'all','Up Next re-shuffled');save();render();toast('Up Next re-shuffled')},
- remix:()=>{const g=CG();if(g.st)autoNext(g,'all','Up Next re-mixed');else{g.nman=[];buildPlan(g)}save();render()},
+ reshuffle:()=>{const g=CG();autoNext(g,'all','Upcoming games re-picked');save();render();toast('Upcoming games re-picked')},
+ remix:()=>{const g=CG();if(g.st)autoNext(g,'all','Upcoming games re-picked');else{g.nman=[];buildPlan(g)}save();render()},
  startsess:()=>{const d=curDate();startSession();if(running(S.games[d])){ui.ck=1;render()}},
  endsess:()=>{const g=CG();if(!confirm('End this session? All timers stop, scored games are saved and every player is turned off.'))return;endSession(g,Date.now());save();render();toast('Session saved')},
  reopen:()=>{const g=CG();if(!g.en||Date.now()-g.en>=REOPEN_MS)return render();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);
@@ -78,7 +81,6 @@ const act={
  gch:(x,y)=>{const d=curDate(),D=day(d),c=D.courts[+x];if(!c)return;c.h=Math.max(.5,Math.min(8,num(c.h)+ +y));const g=G(d);
    if(running(g))autoNext(g,'fill',c.n+' now '+hrsL(c.h)+' (ends '+hm(courtEnd(d,+x))+') · remaining games re-planned');else g.psig='';save();render()},
  shuffle:()=>{},
- send:x=>sendCourt(CG(),+x),
  rmslot:(x,y)=>{const g=CG();qref(g,x)[+y]=null;if(String(x)[0]==='0')g.nman[+String(x).split('.')[1]]=1;save();render()},
  gadd:()=>{const g=CG(),l=g.hist[0];ui.ge={d:g.d,i:-1,ids:NUL4(),sa:'',sb:'',w:'',c:1,st:l?hm(l.at+num(g.chg)*60000):g.st?hm(g.st):hm(Date.now()),du:Math.round(gameMin(g))};render()},
  gedit:x=>{const g=CG(),h=g.hist[+x];if(!h)return;ui.ge={d:g.d,i:+x,ids:h.ids.slice(),sa:h.sa,sb:h.sb,w:h.sa>h.sb?'a':h.sb>h.sa?'b':'',c:h.c,st:hm(h.at-h.s*1000),du:Math.round(h.s/60)};render()},
@@ -92,10 +94,6 @@ const act={
  won:(x,y)=>{const g=CG(),L=g.live[+x];if(!L)return;L.w=y;const wk=y==='a'?'sa':'sb',lk=y==='a'?'sb':'sa';L[lk]=Math.min(L[lk],capOf(g)-1);L[wk]=winOf(g,L[lk]);save();render()},
  sc:(x,y)=>{const g=CG(),L=g.live[+x];if(!L)return;const k=y[0]==='a'?'sa':'sb',o=k==='sa'?'sb':'sa',c=capOf(g);L[k]=Math.max(0,Math.min(c,L[k]+(y[1]==='+'?1:-1)));
    if(L.w&&L.w!==y[0]){L[k]=Math.min(L[k],c-1);L[o]=winOf(g,L[k])}save();render()},
- timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(!L.run&&!L.sa&&!L.sb){g.live[i]={...L,run:true,start:Date.now()};save();return render()}
-   if(!L.sa&&!L.sb){if(!confirm('No score entered. Discard this game timer?'))return;const q=g.cur[i],t=Date.now();g.cur[i]=NUL4();g.live[i]=blankLive();q.forEach(id=>id&&benchOn(g,id,t));save();return render()}
-   if(L.sa===L.sb&&!confirm('Scores are level. Save as a draw?'))return;
-   saveGame(g,i);save();render()},
  /* finance */
  fsub:x=>{ui.fsub=x;render()},lock:()=>{ui.unlocked=false;ui.pin='';render()},
  ksm:x=>{ui.ks=ui.ks||{};ui.ks.m=x;ui.open=null;render()},kopen:x=>{ui.ks.m='session';ui.ks.s=x;render();window.scrollTo(0,0)},
@@ -150,6 +148,7 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='q'){ui.q=el.value;$('#pgrid').innerHTML=vGrid()}
   else if(k==='ename'){ui.pm.name=el.value;const d=dupInfo(el.value,ui.pm.id);$('#edup').innerHTML=d?'<div class="warn '+(d.red?'red':'yel')+'">⚠ '+esc(d.msg)+'</div>':''}
   else if(k==='eph'){ui.pm.ph=el.value}
+  else if(k==='cn'){const D=S.days[curDate()],c=D&&D.courts[+el.dataset.x];if(c){c.n=el.value;clearTimeout(window.__cn);window.__cn=setTimeout(save,400)}}
   else if(k==='sc_n'){ui.sc.courts[+el.dataset.x].n=el.value}
   else if(k.startsWith('am_')){ui.am[k.slice(3)]=el.value}
   else if(k==='bk_court'){if(ui.bk)ui.bk.court=el.value}
@@ -165,9 +164,9 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='sctime'){ui.sc.time=el.value;render()}
   else if(c==='scloc'){if(el.value==='__new'){ui.scNew=true;render();setTimeout(()=>$('#nloc')&&$('#nloc').focus(),50)}else{ui.sc.loc=el.value;render()}}
   else if(c==='slot'){if(!el.value)return;const g=CG(),x=el.dataset.x;qref(g,x)[+el.dataset.y]=el.value;
-    if(String(x)[0]==='0'){const i=+String(x).split('.')[1];g.nman[i]=1;if(running(g)&&g.nxt[i].every(Boolean)){g.nxt[i]=orderQ(g.nxt[i],g);recordOverride(g,i)}}save();render()}
-  else if(c==='cfslot'){const g=CG(),i=ui.cf.i,k=+el.dataset.y,v=el.value||null;g.nxt.forEach((q,j)=>{if(j!==i)g.nxt[j]=q.map(x=>x===v?null:x)});g.nxt[i][k]=v;g.nman[i]=1;
-    if(g.nxt[i].every(Boolean))recordOverride(g,i);save();render()}
+    if(String(x)[0]==='0')g.nman[+String(x).split('.')[1]]=1;save();render()}
+  else if(c==='cfslot'){const g=CG(),x=cfGame(g);if(!x)return;const k=+el.dataset.y,v=el.value||null;x.q=x.q.map((id,j)=>j===k?v:id===v?null:id);x.m=1;
+    if(x.q.every(Boolean)&&x.a)recordOverride(g,x);save();render()}
   else if(c==='fsel'){ui.ks.s=el.value;ui.saved='';render()}
   else if(c==='ksmo'){ui.ks.mo=el.value;render()}else if(c==='ksy'){ui.ks.y=el.value;render()}else if(c==='ksa'){ui.ks.a=el.value;render()}else if(c==='ksb'){ui.ks.b=el.value;render()}
   else if(c==='rpv'){ui.rp.v=el.value;render()}

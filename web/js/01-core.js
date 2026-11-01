@@ -49,6 +49,16 @@ const lvOf=id=>{const p=P(id);return p?p.lv:0};
 const active=()=>S.players.filter(p=>!p.gone).sort((a,b)=>a.name.localeCompare(b.name));
 const pchip=id=>'box-shadow:inset 0 -3px 0 '+LVC[lvOf(id)];
 const isOrg=id=>(S.orgs||[]).includes(id);
+/* v12: photo (round, level-colour ring, initials if none) + name with "Level: X" below – used everywhere a player appears */
+const LVS=['B','B+','I','I+','A'];
+const ini=n=>String(n||'?').split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+const IMGC={};
+function imgOf(id){const p=P(id);if(!p||!p.img)return '';const c=IMGC[id];if(c&&c.s===p.img)return c.u;let u=p.img;
+  try{const b=atob(p.img.split(',')[1]),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);u=URL.createObjectURL(new Blob([a],{type:'image/jpeg'}));if(c&&c.u.startsWith('blob:'))URL.revokeObjectURL(c.u)}catch(e){u=p.img}
+  IMGC[id]={s:p.img,u};return u}
+function pav(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':esc(ini(p?p.name:'?')))+'</span>'}
+const pnm=(id,x)=>'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+(x||'')+'</small></span>';
+const pwho=(id,sz,x)=>'<span class="pwho">'+pav(id,sz)+pnm(id,x)+'</span>';
 
 /* ---------- scheduled sessions (one per date) ---------- */
 const D_=d=>S.days[d];
