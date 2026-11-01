@@ -1,5 +1,4 @@
 /* ===== Games ===== */
-const REOPEN_MS=15*60*1000;
 function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
@@ -10,7 +9,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
   const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
   const ctl=past?'':run?'<button class="ol sm2" data-a="reshuffle">↻ Re-pick upcoming</button><button class="ol" data-a="cts">Courts</button>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
-    ended?(d===t?(now-g.en<REOPEN_MS?'<button class="ol" data-a="reopen">Reopen session</button>':'<button class="ol" disabled style="opacity:.35">Reopen session</button>'):''):
+    ended?'':
     plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
   const benchE=on.filter(id=>!onC.has(id)&&(!run||eligible(d,id)));const pick=benchE.filter(id=>!inN.has(id));
@@ -68,9 +67,8 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th>NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
-  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(g&&g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="hreopen"]'))return render();if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
+  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
-  if(g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="reopen"]'))return render();
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
@@ -119,3 +117,8 @@ function geSave(){const e=ui.ge,g=G(e.d);if(e.ids.some(x=>!x)||new Set(e.ids).si
   else if(!running(g)&&g.en&&h.at>g.en)g.en=h.at;
   if(!isSched(e.d)){const D=day(e.d);D.sch=1}
   ui.ge=null;save();render();toast('Game saved')}
+/* End session confirm (v14) – once ended, the session lives in Previous sessions */
+function vEnd(){const g=CG();
+  return '<div class="modal" data-a="closeend"><div class="pn" data-a="noop" style="gap:16px;width:min(520px,92vw)"><div class="sb"><div class="laby">END SESSION?</div><button class="ib" data-a="closeend" aria-label="Close">×</button></div>'+
+   '<div style="font-size:16px;line-height:1.5">All timers stop, scored games are saved and every player is turned off. The session then moves to <b>Previous sessions</b>.</div>'+
+   '<div style="display:flex;gap:12px;justify-content:flex-end"><button class="ol" style="height:52px;padding:0 24px" data-a="closeend">Cancel</button><button class="btn" style="height:52px;padding:0 24px;background:var(--bad);color:#fff" data-a="endok">■ End session</button></div></div></div>'}

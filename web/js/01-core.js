@@ -56,7 +56,18 @@ const IMGC={};
 function imgOf(id){const p=P(id);if(!p||!p.img)return '';const c=IMGC[id];if(c&&c.s===p.img)return c.u;let u=p.img;
   try{const b=atob(p.img.split(',')[1]),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);u=URL.createObjectURL(new Blob([a],{type:'image/jpeg'}));if(c&&c.u.startsWith('blob:'))URL.revokeObjectURL(c.u)}catch(e){u=p.img}
   IMGC[id]={s:p.img,u};return u}
-function pav(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':esc(ini(p?p.name:'?')))+'</span>'}
+/* v14 default avatars (offline SVG) by gender: m = boy, f = girl */
+function avSvg(sx){const sk='#E8B98F',bg=sx==='f'?'#3B2A4A':'#1C3D63',hr=sx==='f'?'#4A2A1A':'#2B1A10',sh=sx==='f'?'#E0567A':'#3C8DDC';
+  return '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><rect width="64" height="64" fill="'+bg+'"/>'+
+   (sx==='f'?'<path d="M14 40c0-20 8-28 18-28s18 8 18 28c0 6-4 10-8 10H22c-4 0-8-4-8-10z" fill="'+hr+'"/>':'')+
+   '<path d="M10 64c0-12 10-18 22-18s22 6 22 18z" fill="'+sh+'"/><rect x="27" y="38" width="10" height="9" rx="3" fill="'+sk+'"/><circle cx="32" cy="28" r="12" fill="'+sk+'"/>'+
+   (sx==='f'?'<path d="M19 28c0-10 6-15 13-15s13 5 13 15c-5-1-10-4-12-8-3 4-8 7-14 8z" fill="'+hr+'"/>':'<path d="M20 27c-1-9 5-14 12-14s13 5 12 14c-2-3-5-6-12-6s-10 3-12 6z" fill="'+hr+'"/>')+'</svg>'}
+function pav0(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':p&&p.sx?avSvg(p.sx):esc(ini(p?p.name:'?')))+'</span>'}
+/* v14 Games tab: yellow 5-segment progress ring (games played this session, target 5) around the level ring */
+let RING=null;
+function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const n=Math.min(5,RING[id]||0),W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
+  let arcs='';for(let k=0;k<5;k++)arcs+='<circle cx="'+W/2+'" cy="'+W/2+'" r="'+r.toFixed(2)+'" fill="none" stroke="'+(k<n?'#FFD23F':'rgba(143,176,204,.28)')+'" stroke-width="3.5" stroke-dasharray="'+L.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate('+(-90+k*72+1.2)+' '+W/2+' '+W/2+')"/>';
+  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+'</span>'}
 const pnm=(id,x)=>'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+(x||'')+'</small></span>';
 const pwho=(id,sz,x)=>'<span class="pwho">'+pav(id,sz)+pnm(id,x)+'</span>';
 

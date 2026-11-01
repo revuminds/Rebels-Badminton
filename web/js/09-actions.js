@@ -1,17 +1,17 @@
 /* ===== render, actions, events, start-up ===== */
-function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
+function render(){const app=$('.app'),m=$('#main');RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.endc=0;ui.cne=null;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
- resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
+ resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
  newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
  hstart:()=>{ui.cur=TODAY();ui.flow='start';go('app','players');toast('Check who is playing, then tap Next')},
  pnext:()=>{const d=curDate();if(!d)return;ui.cur=d;const g=S.games[d],st=ui.flow==='start'&&canStart(d);ui.flow='';go('app','games');
@@ -43,9 +43,9 @@ const act={
  htab:x=>{ui.h.tab=x;render()},hgames:x=>{ui.cur=x;go('app','games')},hfin:x=>{const h=ui.hun;ui.fsub='kitty';ui.ks={m:'session',s:x};go('app','finance');if(h){ui.unlocked=true;render()}},
  /* players */
  devlock:()=>{if(!NB||!NB.pinScreen)return toast('Tablet lock works in the app only');if(pinned())NB.unlock();else{NB.pinScreen();setTimeout(render,800)}},
- lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},
+ lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},sx:x=>{ui.sx=ui.sx===x?'':x;$('#sxb').innerHTML=sxSeg(ui.sx,'sx',1)},pmsx:x=>{ui.pm.sx=ui.pm.sx===x?'':x;render()},
  add:()=>{const n=ui.nm.trim().replace(/\s+/g,' ');if(!n)return toast('Type a name first');const d=dupInfo(n);if(d&&d.red)return toast('Already in the list');
-   const id='p'+(S.nid++);S.players.push({id,name:n,lv:ui.lv,j:Date.now()});ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
+   const id='p'+(S.nid++);S.players.push(Object.assign({id,name:n,lv:ui.lv,j:Date.now()},ui.sx?{sx:ui.sx}:{}));ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
  clearq:()=>{ui.q='';$('#psearch').value='';$('#pgrid').innerHTML=vGrid()},
  alloff:()=>{const d=curDate(),D=day(d);if(!onIds(d).length)return;if(!confirm('Turn all players off for '+dlab(d)+'?'))return;
    const ids=onIds(d);D.on={};const g=S.games[d];if(g){const t=Date.now();ids.forEach(id=>benchOff(g,id,t));g.nxt=g.nxt.map(()=>NUL4());autoNext(g,'fill',null)}save();render()},
@@ -53,14 +53,14 @@ const act={
    if(g&&running(g)){const t=Date.now();if(!D.on[x]){benchOff(g,x,t);autoNext(g,'fill',nameOf(x)+' turned off · removed from upcoming games')}}
    save();render()},
  pmod:x=>{const p=P(x);if(!p)return;ui.pm={id:x,ed:0};render()},
- pmedit:()=>{const p=P(ui.pm.id);if(!p)return;ui.pm={id:p.id,ed:1,name:p.name,ph:p.ph||'',lv:p.lv,img:p.img||''};render()},pmcancel:()=>{ui.pm={id:ui.pm.id,ed:0};render()},
+ pmedit:()=>{const p=P(ui.pm.id);if(!p)return;ui.pm={id:p.id,ed:1,name:p.name,ph:p.ph||'',lv:p.lv,sx:p.sx||'',img:p.img||''};render()},pmcancel:()=>{ui.pm={id:ui.pm.id,ed:0};render()},
  pmlv:x=>{ui.pm.lv=+x;render()},phrm:()=>{ui.pm.img='';render()},
  photo:x=>{if(!ui.pm)return;if(NB&&NB.photo){try{NB.photo(x);return}catch(err){}}const f=document.createElement('input');f.type='file';f.accept='image/*';if(x==='cam')f.setAttribute('capture','environment');
    f.onchange=()=>{const r=new FileReader();r.onload=()=>window.__photo(String(r.result||''));if(f.files[0])r.readAsDataURL(f.files[0])};f.click()},
  closepm:()=>{ui.pm=null;render()},noop:()=>{},
  qlv:(x,y)=>{const p=P(x);if(!p||p.lv===+y)return;p.lv=+y;lvChanged([x]);save();render()},
  saveedit:()=>{const e=ui.pm,p=P(e.id),n=e.name.trim().replace(/\s+/g,' ');if(!n)return toast('Name cannot be empty');const d=dupInfo(n,p.id);if(d&&d.red)return toast('That name is already used');
-   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
+   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.sx)p.sx=e.sx;else delete p.sx;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
  sdel:x=>{const p=P(x);if(!p)return;if(!confirm('Delete '+p.name+'? Past games and payments keep their record.'))return;p.gone=true;Object.values(S.days).forEach(D=>delete D.on[p.id]);S.orgs=S.orgs.filter(o=>o!==p.id);delete ui.lvE[p.id];save();render();toast(p.name+' deleted')},
  arrive:x=>{const d=curDate(),D=day(d),g=S.games[d],t=Date.now();D.att=D.att||{};D.att[x]={a:t};const late=g?(t-Math.max(bookStart(d),g.st||0))/60e3:0;
    attChanged(x,late>10?nameOf(x)+' arrived '+Math.round(late)+' min late – '+target(g,x)+' games realistic':nameOf(x)+' checked in');save();render()},
@@ -72,12 +72,12 @@ const act={
  amback:()=>{const d=curDate(),e=ui.am,a=att(d,e.id);if(a)a.l=0;ui.am=null;attChanged(e.id,nameOf(e.id)+' is back');save();render()},
  amnot:()=>{const d=curDate(),e=ui.am;delete day(d).att[e.id];ui.am=null;attChanged(e.id,null);save();render()},
  /* games */
- reshuffle:()=>{const g=CG();autoNext(g,'all','Upcoming games re-picked');save();render();toast('Upcoming games re-picked')},
+ reshuffle:()=>{const g=CG();autoNext(g,'rp','Upcoming games re-picked · on-court / not-here / double-booked players replaced');save();render();toast('Upcoming games re-picked')},
  remix:()=>{const g=CG();if(g.st)autoNext(g,'all','Upcoming games re-picked');else{g.nman=[];buildPlan(g)}save();render()},
  startsess:()=>{const d=curDate();startSession();if(running(S.games[d])){ui.ck=1;render()}},
- endsess:()=>{const g=CG();if(!confirm('End this session? All timers stop, scored games are saved and every player is turned off.'))return;endSession(g,Date.now());save();render();toast('Session saved')},
- reopen:()=>{const g=CG();if(!g.en||Date.now()-g.en>=REOPEN_MS)return render();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);
-   g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();render()},
+ cnedit:x=>{ui.cne=+x;render();const el=$('#cnin');if(el){el.focus();el.select()}},
+ endsess:()=>{ui.endc=1;render()},closeend:()=>{ui.endc=0;render()},
+ endok:()=>{ui.endc=0;const g=CG();endSession(g,Date.now());save();render();toast('Session saved')},
  gch:(x,y)=>{const d=curDate(),D=day(d),c=D.courts[+x];if(!c)return;c.h=Math.max(.5,Math.min(8,num(c.h)+ +y));const g=G(d);
    if(running(g))autoNext(g,'fill',c.n+' now '+hrsL(c.h)+' (ends '+hm(courtEnd(d,+x))+') · remaining games re-planned');else g.psig='';save();render()},
  shuffle:()=>{},
@@ -158,7 +158,8 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k.startsWith('se_')){ui.se[k.slice(3)]=el.value}
   else if(k.startsWith('en_')){ui.ent[k.slice(3)]=el.value}
   else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
-document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
+document.addEventListener('focusout',e=>{if(e.target.id==='cnin'&&ui.cne!=null){ui.cne=null;save();setTimeout(()=>{if(ui.cne==null)render()},200)}});
 document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;
   if(c==='scdate'){if(el.value){ui.sc.d=el.value;render()}}
   else if(c==='sctime'){ui.sc.time=el.value;render()}

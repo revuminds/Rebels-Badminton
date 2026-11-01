@@ -19,7 +19,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>':
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
-    const head='<div class="chead'+(cl?' off':'')+'"><input class="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off"><span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
+    const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
     let body;
@@ -43,7 +43,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const w=id=>g.since[id]!=null?now-g.since[id]:-1,rk=id=>!arrived(d,id)?2:leftAt(d,id)?3:0;
   const L=ids.slice().sort((a,b)=>rk(a)-rk(b)||w(b)-w(a)||nameOf(a).localeCompare(nameOf(b)));
   const card=id=>{const r=rk(id),wh=r?'':where(id),st=r===2?'Not here yet':r===3?'Left '+hm(leftAt(d,id)):(wh||'Free')+((im[id]||0)>1?' · in '+im[id]+' games':'');
-    return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
+    return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+' · Games: '+((RING||{})[id]||0)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
   const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
   return courts+up+allp}
@@ -79,7 +79,7 @@ function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
   if(pk.t==='c'){const q=g.cur[pk.i];if(!q||!q[pk.s])return render();const old=q[pk.s];if(old===id)return render();
     const bi=g.cur.findIndex((c,j)=>c&&c.includes(id));if(bi>=0){render();return toast(nameOf(id)+' is on '+cname(d,bi))}
     q[pk.s]=id;benchOn(g,old,t);benchOff(g,id,t);const D=day(d);D.att=D.att||{};const a=D.att[id];if(!a||!a.a)D.att[id]={a:t};else if(a.l)a.l=0;
-    logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));autoNext(g,'fill',null)}
+    logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));if(clearFrom(g,[id]).length)logIt(g,nameOf(id)+' now on '+cname(d,pk.i)+' → replaced in later games');autoNext(g,'fill',null)}
   else{const x=gRef(g,pk.t+'.'+pk.i+'.'+pk.k);if(!x)return render();if(x.q.includes(id)){render();return toast(nameOf(id)+' is already in this game')}
     x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
   save();render();window.scrollTo(0,ui.pickY||0)}

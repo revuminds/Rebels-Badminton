@@ -256,6 +256,8 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 /* v12 */
 .pav{border-radius:50%;border:3px solid;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;background:var(--bg);color:var(--tx);font-weight:700;flex:none}
 .pav img{width:100%;height:100%;object-fit:cover;display:block}
+.pav svg{display:block}
+.prg{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}.prg>svg{position:absolute;inset:0}
 .pnm{display:flex;flex-direction:column;min-width:0;line-height:1.2;text-align:left}.pnm b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pnm small{font-size:11px;color:var(--mu);font-weight:600;white-space:nowrap}.pnm em{font-style:normal;font-size:12px;color:var(--y);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pwho{display:inline-flex;align-items:center;gap:8px;min-width:0;max-width:100%}
@@ -266,6 +268,7 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .lvtag{display:inline-block;margin-top:6px;padding:3px 12px;border-radius:99px;color:var(--bg);font-weight:800;font-size:15px}
 .btn.sm{height:44px;padding:0 16px;font-size:15px;border-radius:10px}
 .chead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--pn);border-radius:12px;padding:6px 8px 6px 8px}.chead.off{opacity:.6}
+.cntx{font:900 26px 'Big Shoulders Display',sans-serif;letter-spacing:.04em;white-space:nowrap}.cnp{width:44px;height:44px;border-radius:10px;border:2px solid var(--bd);background:transparent;color:var(--mu);font-size:20px;flex:none}
 .cnin{width:150px;height:44px;border-radius:10px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font:900 22px 'Big Shoulders Display',sans-serif;letter-spacing:.04em;padding:0 10px}
 .cinfo{font-size:14px;color:var(--mu)}.ctm{font-size:28px;min-width:72px}
 .cpill{padding:5px 12px;border-radius:99px;font-weight:700;font-size:13px;white-space:nowrap}.cpill.ok{background:#123F33;color:var(--ok)}.cpill.yel{background:#3A2F14;color:var(--y)}.cpill.bad,.cpill.over{background:var(--bad);color:var(--bg)}.cpill.shut{background:var(--bg);color:var(--mu)}
@@ -396,7 +399,18 @@ const IMGC={};
 function imgOf(id){const p=P(id);if(!p||!p.img)return '';const c=IMGC[id];if(c&&c.s===p.img)return c.u;let u=p.img;
   try{const b=atob(p.img.split(',')[1]),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);u=URL.createObjectURL(new Blob([a],{type:'image/jpeg'}));if(c&&c.u.startsWith('blob:'))URL.revokeObjectURL(c.u)}catch(e){u=p.img}
   IMGC[id]={s:p.img,u};return u}
-function pav(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':esc(ini(p?p.name:'?')))+'</span>'}
+/* v14 default avatars (offline SVG) by gender: m = boy, f = girl */
+function avSvg(sx){const sk='#E8B98F',bg=sx==='f'?'#3B2A4A':'#1C3D63',hr=sx==='f'?'#4A2A1A':'#2B1A10',sh=sx==='f'?'#E0567A':'#3C8DDC';
+  return '<svg viewBox="0 0 64 64" width="100%" height="100%" aria-hidden="true"><rect width="64" height="64" fill="'+bg+'"/>'+
+   (sx==='f'?'<path d="M14 40c0-20 8-28 18-28s18 8 18 28c0 6-4 10-8 10H22c-4 0-8-4-8-10z" fill="'+hr+'"/>':'')+
+   '<path d="M10 64c0-12 10-18 22-18s22 6 22 18z" fill="'+sh+'"/><rect x="27" y="38" width="10" height="9" rx="3" fill="'+sk+'"/><circle cx="32" cy="28" r="12" fill="'+sk+'"/>'+
+   (sx==='f'?'<path d="M19 28c0-10 6-15 13-15s13 5 13 15c-5-1-10-4-12-8-3 4-8 7-14 8z" fill="'+hr+'"/>':'<path d="M20 27c-1-9 5-14 12-14s13 5 12 14c-2-3-5-6-12-6s-10 3-12 6z" fill="'+hr+'"/>')+'</svg>'}
+function pav0(id,sz,src){sz=sz||36;const p=P(id),u=src!=null?src:imgOf(id);return '<span class="pav" style="width:'+sz+'px;height:'+sz+'px;border-color:'+LVC[p?p.lv:0]+';font-size:'+Math.round(sz*.36)+'px">'+(u?'<img src="'+u+'" alt="">':p&&p.sx?avSvg(p.sx):esc(ini(p?p.name:'?')))+'</span>'}
+/* v14 Games tab: yellow 5-segment progress ring (games played this session, target 5) around the level ring */
+let RING=null;
+function pav(id,sz,src){const a=pav0(id,sz,src);if(!RING)return a;sz=sz||36;const n=Math.min(5,RING[id]||0),W=sz+12,r=W/2-2.5,C=2*Math.PI*r,L=C/5-3;
+  let arcs='';for(let k=0;k<5;k++)arcs+='<circle cx="'+W/2+'" cy="'+W/2+'" r="'+r.toFixed(2)+'" fill="none" stroke="'+(k<n?'#FFD23F':'rgba(143,176,204,.28)')+'" stroke-width="3.5" stroke-dasharray="'+L.toFixed(2)+' '+C.toFixed(2)+'" transform="rotate('+(-90+k*72+1.2)+' '+W/2+' '+W/2+')"/>';
+  return '<span class="prg" style="width:'+W+'px;height:'+W+'px"><svg width="'+W+'" height="'+W+'" aria-hidden="true">'+arcs+'</svg>'+a+'</span>'}
 const pnm=(id,x)=>'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+(x||'')+'</small></span>';
 const pwho=(id,sz,x)=>'<span class="pwho">'+pav(id,sz)+pnm(id,x)+'</span>';
 
@@ -505,23 +519,28 @@ function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),
 function ctxAdd(c,q){q.forEach(id=>{if(id){c.proj[id]=(c.proj[id]||0)+1;c.inUp[id]=(c.inUp[id]||0)+1}});c.prev=new Set(q.filter(Boolean))}
 /* suggestion only: best players to fill `need` empty slots next to `keep` (fair share first, dummies last, levels mixed) */
 function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter(Boolean));
-  const c=onIds(d).filter(id=>eligible(d,id)&&!ex.has(id)).map(id=>{const tg=Math.max(1,target(g,id)),w=g.since[id]!=null?(t-g.since[id])/60e3:0;
+  const c=onIds(d).filter(id=>eligible(d,id)&&!ex.has(id)&&!(cx.noC&&cx.onC.has(id))).map(id=>{const tg=Math.max(1,target(g,id)),w=g.since[id]!=null?(t-g.since[id])/60e3:0;
     return{id,s:(cx.proj[id]||0)/tg*10+(isDum(d,id)?100:0)+(cx.inUp[id]||0)*6+(cx.onC.has(id)?3:0)+(cx.prev.has(id)?5:0)+(blocked(g,id,t)?5:0)-Math.min(w,40)/8+Math.random()*.5}}).sort((a,b)=>a.s-b.s);
   if(c.length<need)return null;const top=c.slice(0,need+4),e=effMap(g),pr=pairMaps(g),base=keep.filter(Boolean);let best=null;
   const rec=(st,ch)=>{if(ch.length===need){const q=base.concat(ch.map(x=>x.id)),sc=groupCost(q,e,pr).cost+ch.reduce((a,x)=>a+x.s,0)*1.5;if(!best||sc<best.sc)best={sc,ids:ch.map(x=>x.id)};return}
     for(let k=st;k<top.length;k++)rec(k+1,ch.concat(top[k]))};rec(0,[]);return best?best.ids:null}
 /* the app keeps ≥5 upcoming games: 'fill' tops up / refills slots it emptied, 'all' also re-picks every upcoming game the admin has not touched.
    Queued games and anything the admin placed are never changed – except players who left or were turned off. */
-function autoNext(g,mode,why){if(!running(g))return 0;const d=g.d,on=new Set(onIds(d));let ch=0;
-  const bad=id=>id&&(!on.has(id)||!!leftAt(d,id));
+/* v14: players who just went on court are taken out of every later game (incl. manual ones) and refilled */
+function clearFrom(g,ids,skip){const s=new Set(ids.filter(Boolean)),hit=new Set();[...g.qq.flat(),...g.up].forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
+function autoNext(g,mode,why){if(!running(g))return 0;const d=g.d,on=new Set(onIds(d));let ch=0;const rp=mode==='rp';if(rp)mode='all';
+  const oc=onCourt(g),bad0=id=>id&&(!on.has(id)||!!leftAt(d,id));
+  /* Re-pick button (rp): also clears on-court, not-checked-in and duplicate players – even in games the admin edited */
+  if(rp){const seen=new Set();[...g.qq.flat(),...g.up].forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
+  const bad=bad0;
   g.qq.forEach((L,i)=>{if(g.closed[i]&&L.length){g.up.unshift(...L);g.qq[i]=[];ch=1}});
   if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m);if(g.up.length!==n0)ch=1}
   const all=[...g.qq.flat(),...g.up];
   all.forEach(x=>{if(x.q.some(bad)){x.q=x.q.map(id=>bad(id)?null:id);x.rf=1;ch=1}else if(!x.m&&x.q.some(v=>!v))x.rf=1});
   g.up=g.up.filter(x=>x.q.some(Boolean)||!x.m);
   const cx=ctxOf(g);
-  all.forEach(x=>{if(!x.rf)return;delete x.rf;const need=x.q.filter(v=>!v).length;if(!need)return;const ids=pickFor(g,x.q,need,cx);if(!ids)return;
-    x.q=x.q.map(v=>v||ids.shift());if(!x.m){x.q=orderQ(x.q,g);x.a=x.q.slice()}ctxAdd(cx,x.q)});
+  cx.noC=1;all.forEach(x=>{if(!x.rf)return;delete x.rf;const need=x.q.filter(v=>!v).length;if(!need)return;const ids=pickFor(g,x.q,need,cx);if(!ids)return;
+    x.q=x.q.map(v=>v||ids.shift());if(!x.m){x.q=orderQ(x.q,g);x.a=x.q.slice()}ctxAdd(cx,x.q)});cx.noC=0;
   const lu=g.up[g.up.length-1];cx.prev=new Set(lu?lu.q.filter(Boolean):[]);
   for(let k=0;k<12&&g.up.length<5;k++){const ids=pickFor(g,NUL4(),4,cx);if(!ids)break;const q=orderQ(ids,g);g.up.push({q,m:0,a:q.slice()});ctxAdd(cx,q);ch=1}
   if(ch&&why)logIt(g,why);return ch}
@@ -576,6 +595,7 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   if(g.cur[i]&&g.cur[i].some(Boolean))return toast(cname(d,i)+' still has a game – Stop & save first');
   const D=day(d);D.att=D.att||{};q.forEach(id=>{const a=D.att[id];if(!a||!a.a){D.att[id]={a:t};logIt(g,nameOf(id)+' checked in (sent on court)')}else if(a.l)a.l=0});
   [g.up,...g.qq].forEach(L=>{const k=L.indexOf(x);if(k>=0)L.splice(k,1)});
+  const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.cur[i]=q.slice();g.live[i]=Object.assign(blankLive(),{run:true,start:t});g.round++;autoNext(g,'fill',null);save();render()}
 function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
@@ -751,9 +771,9 @@ const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'
 
 /* ---------- HOME ---------- */
 function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d=>d<t||((S.games[d]||{}).en));const g=S.games[t];
-  let card='';if(isSched(t)&&!(g&&g.en&&Date.now()-g.en>=REOPEN_MS)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
+  let card='';if(isSched(t)&&!(g&&g.en)){const D=S.days[t],run=running(g),ended=g&&g.en,n=onIds(t).length||(g?g.ros.length:0);
     const sub=esc(D.loc)+' · '+courtSum(t)+' · '+pl(n,'player');
-    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':ended?'hreopen':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
+    card='<div class="today'+(run?' run':'')+'"><button class="tgo" data-a="'+(run?'resume':'opentoday')+'"><span class="tplay"><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span><span style="flex:1;text-align:left"><span class="ttag">'+(run?'SESSION RUNNING · <span data-tk="sess">'+fmtH((Date.now()-g.st)/1000)+'</span>':ended?'TODAY · ENDED':canStart(t)?'TODAY · READY TO START':'TODAY · NOT STARTED')+'</span>'+
      '<span class="ttl">'+(run?'Resume today’s session':ended?'Today’s session ended':'Today '+t12(D.time)+' · '+esc(D.loc))+'</span><span class="tsub">'+sub+'</span></span><span class="tbtnl">'+(run||ended?'Resume':'Open')+' →</span></button>'+
      (g&&g.st?'':'<button class="ol tedit" data-a="sedit2" data-x="'+t+'">Edit</button>'+(canStart(t)?'<button class="btn sh tedit" style="padding:0 28px;font-size:19px" data-a="hstart">▶ Start</button>':''))+'</div>'}
   const rows=up.map(d=>{const D=S.days[d],n=onIds(d).length;return '<div class="uprow"><div class="udate"><b>'+DN[pd(d).getDay()].toUpperCase()+'</b><span>'+pd(d).getDate()+'</span></div><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:16px">'+dlab(d)+' · '+t12(D.time)+' · '+esc(D.loc)+(D.ser?' <span class="rep">WEEKLY</span>':'')+'</div><div style="font-size:13px;color:var(--mu)">'+pl(courtsOf(d).length,'court')+' · '+courtSum(d)+' · '+n+' players ON</div></div>'+
@@ -843,7 +863,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
    '<h1 style="margin-top:8px">WHO\'S ON <span>COURT</span></h1></div>'+
    (pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – tap to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>')+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat('+(st?4:3)+',minmax(0,1fr));gap:12px"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>Playing</i></div>'+(st?'<div class="tile"><b style="color:var(--ok)">'+nA+'</b><i>Arrived</i></div>':'')+'<div class="tile"><b style="color:var(--y)">'+courtsOf(d).length+'</b><i>Courts · '+hrsL(courtHrs(d))+'</i></div></div>'+
-   '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><button class="btn" data-a="add">+ Add</button></div>'+
+   '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><div class="lvb" id="sxb">'+sxSeg(ui.sx,'sx',1)+'</div><button class="btn" data-a="add">+ Add</button></div>'+
    '<div id="dup">'+vDup()+'</div>'+
    '<div class="row" style="gap:12px"><div class="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="psearch" placeholder="Search players, then tap to turn on" value="'+esc(ui.q)+'" data-i="q" autocomplete="off"><button class="ib" style="background:var(--pn);color:var(--mu)" data-a="clearq" aria-label="Clear search">×</button></div><button class="ol" data-a="alloff">Turn all off</button></div>'+
    (st&&!(g&&g.en)?'<div style="font-size:14px;color:var(--mu)">Check players in / out with the <b style="color:var(--tx)">Players</b> button on the Games page. Tap a photo or name for details.</div>':'<div style="font-size:14px;color:var(--mu)">Tap the switch to turn a player on · tap the photo or name for details.</div>')+
@@ -851,6 +871,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
    '<div class="row" style="justify-content:flex-end;padding-bottom:12px"><button class="btn sh" style="min-width:160px" data-a="pnext">Next → Games</button></div>'}
 const lvSeg=(cur,a,x)=>LVN.map((n,i)=>'<button'+(cur===i?' class="on"':'')+' data-a="'+a+'"'+(x!=null?' data-x="'+x+'" data-y="'+i+'"':' data-x="'+i+'"')+'>'+n+'</button>').join('');
 function vLv(){return lvSeg(ui.lv,'lv')}
+function sxSeg(v,a,short){return [['m',short?'M':'Male'],['f',short?'F':'Female']].map(([k,l])=>'<button class="'+(v===k?'on':'')+'" data-a="'+a+'" data-x="'+k+'"'+(short?' style="min-width:44px"':'')+'>'+l+'</button>').join('')}
 function lev(a,b){const m=a.length,n=b.length;if(Math.abs(m-n)>2)return 9;let p=Array.from({length:n+1},(_,j)=>j);for(let i=1;i<=m;i++){const c=[i];for(let j=1;j<=n;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}return p[n]}
 function dupInfo(nm,skip){nm=nm.trim().toLowerCase().replace(/\s+/g,' ');if(!nm)return null;const L=S.players.filter(p=>!p.gone&&p.id!==skip);
   const ex=L.find(p=>p.name.toLowerCase()===nm);if(ex)return{red:true,msg:ex.name+' is already in the list. Search below to turn them on.'};
@@ -873,9 +894,9 @@ function pStats(id){let ses=0,gm=0,w=0,first='';Object.keys(S.games).sort().forE
 /* player pop-up: view (photo, stats) → Edit (level, name, phone, photo). Delete lives in Settings. */
 function vPMod(){const e=ui.pm,p=P(e.id);if(!p)return '';const s=pStats(p.id),ed=!!e.ed,lv=ed?e.lv:p.lv,img=ed?e.img:imgOf(p.id),d=ed?dupInfo(e.name,p.id):null;
   const pb='<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn sm" data-a="photo" data-x="cam">Camera</button><button class="ol sm" data-a="photo" data-x="gal">Gallery</button>'+(ed&&img?'<button class="ol sm" style="color:var(--bad)" data-a="phrm">Remove</button>':'')+'</div>';
-  const photo='<div class="phbox" style="border-color:'+LVC[lv]+'">'+(img?'<img src="'+img+'" alt="">':ed?'<span class="phini">'+esc(ini(e.name||p.name))+'</span>':'<span style="font-weight:700;color:var(--mu)">Add photo</span>'+pb)+'</div>'+(ed&&img?pb:ed?'':'');
+  const photo='<div class="phbox" style="border-color:'+LVC[lv]+'">'+(img?'<img src="'+img+'" alt="">':ed?(e.sx?avSvg(e.sx):'<span class="phini">'+esc(ini(e.name||p.name))+'</span>'):'<span style="font-weight:700;color:var(--mu)">Add photo</span>'+pb)+'</div>'+(ed&&img?pb:ed?'':'');
   const left='<div style="display:flex;flex-direction:column;gap:12px;align-items:center;width:240px;flex:none"><div style="text-align:center;min-width:0;max-width:100%"><div class="d" style="font-size:30px;line-height:1.1;overflow-wrap:anywhere">'+esc(ed?(e.name||p.name):p.name)+'</div><span class="lvtag" style="background:'+LVC[lv]+'">'+LVS[lv]+'</span></div>'+photo+(ed&&!img?pb:'')+'</div>';
-  const right=ed?'<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px"><div class="lab">LEVEL</div><div class="lvb">'+lvSeg(lv,'pmlv')+'</div>'+
+  const right=ed?'<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px"><div class="lab">LEVEL</div><div class="lvb">'+lvSeg(lv,'pmlv')+'</div><div class="lab">GENDER</div><div class="lvb" style="align-self:flex-start">'+sxSeg(e.sx,'pmsx')+'</div>'+
      '<label class="fl">Name<input id="ename" class="gei" value="'+esc(e.name)+'" data-i="ename" autocomplete="off"></label><label class="fl">Phone (optional, for WhatsApp reminders)<input class="gei" type="tel" inputmode="tel" value="'+esc(e.ph)+'" data-i="eph" placeholder="+971…"></label>'+
      '<div id="edup">'+(d?'<div class="warn '+(d.red?'red':'yel')+'">⚠ '+esc(d.msg)+'</div>':'')+'</div></div>':
     '<div style="flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start"><div class="tile"><b>'+s.ses+'</b><i>Sessions attended</i></div><div class="tile"><b>'+s.gm+'</b><i>Total games</i></div><div class="tile"><b style="color:var(--ok)">'+s.wp+'%</b><i>Win rate</i></div><div class="tile"><b style="font-size:24px;line-height:1.4">'+(s.j?dshort(s.j)+' '+s.j.slice(2,4):'—')+'</b><i>Joined</i></div>'+(p.ph?'<div style="grid-column:1/-1;font-size:14px;color:var(--mu)">Phone: '+esc(p.ph)+'</div>':'')+'</div>';
@@ -898,7 +919,6 @@ function attChanged(id,why){const d=curDate(),g=S.games[d];if(!g||!running(g))re
 function lvChanged(ids){const d=curDate(),g=S.games[d];if(!g)return;if(running(g)){if(autoNext(g,'all','Level change: '+ids.map(id=>nameOf(id)+' → '+LVN[lvOf(id)]).join(', ')+' · upcoming games re-picked'))toast('Upcoming games updated')}else g.psig=''}
 
 /* ===== Games ===== */
-const REOPEN_MS=15*60*1000;
 function vSBar(g){const d=g.d,ps=g.st?((g.en||Date.now())-g.st)/1000:0,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><span>'+g.pts+' PTS · DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+Math.round(gameMin(g))+'+'+num(g.chg)+' MIN</span>'+cs+
@@ -909,7 +929,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
   const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
   const ctl=past?'':run?'<button class="ol sm2" data-a="reshuffle">↻ Re-pick upcoming</button><button class="ol" data-a="cts">Courts</button>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
-    ended?(d===t?(now-g.en<REOPEN_MS?'<button class="ol" data-a="reopen">Reopen session</button>':'<button class="ol" disabled style="opacity:.35">Reopen session</button>'):''):
+    ended?'':
     plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
   const benchE=on.filter(id=>!onC.has(id)&&(!run||eligible(d,id)));const pick=benchE.filter(id=>!inN.has(id));
@@ -967,9 +987,8 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (ppl.length?'<table style="width:640px;max-width:100%"><thead><tr><th>NAME</th><th style="text-align:center">GAMES</th><th style="text-align:center">TOTAL BENCH TIME</th></tr></thead><tbody>'+prow+'</tbody></table>':'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>')+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
 function tick(){const now=Date.now();
-  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(g&&g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="hreopen"]'))return render();if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
+  if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
-  if(g.en&&now-g.en>=REOPEN_MS&&document.querySelector('[data-a="reopen"]'))return render();
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
@@ -1018,6 +1037,11 @@ function geSave(){const e=ui.ge,g=G(e.d);if(e.ids.some(x=>!x)||new Set(e.ids).si
   else if(!running(g)&&g.en&&h.at>g.en)g.en=h.at;
   if(!isSched(e.d)){const D=day(e.d);D.sch=1}
   ui.ge=null;save();render();toast('Game saved')}
+/* End session confirm (v14) – once ended, the session lives in Previous sessions */
+function vEnd(){const g=CG();
+  return '<div class="modal" data-a="closeend"><div class="pn" data-a="noop" style="gap:16px;width:min(520px,92vw)"><div class="sb"><div class="laby">END SESSION?</div><button class="ib" data-a="closeend" aria-label="Close">×</button></div>'+
+   '<div style="font-size:16px;line-height:1.5">All timers stop, scored games are saved and every player is turned off. The session then moves to <b>Previous sessions</b>.</div>'+
+   '<div style="display:flex;gap:12px;justify-content:flex-end"><button class="ol" style="height:52px;padding:0 24px" data-a="closeend">Cancel</button><button class="btn" style="height:52px;padding:0 24px;background:var(--bad);color:#fff" data-a="endok">■ End session</button></div></div></div>'}
 
 /* ===== Finance: The Kitty | Rebels (PIN-locked) ===== */
 const orgName=id=>id?nameOf(id):'—';
@@ -1257,19 +1281,19 @@ function vReport(ds,title){const all=allCalc(),sel=all.filter(s=>ds.includes(s.d
   return '<div class="rhead"><b>REBELS BADMINTON</b><span>Report · '+esc(title)+' · made '+dlab(TODAY())+' '+hm(Date.now())+'</span></div>'+secs+per}
 
 /* ===== render, actions, events, start-up ===== */
-function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
+function render(){const app=$('.app'),m=$('#main');RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.endc=0;ui.cne=null;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
- resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
+ resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
  newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
  hstart:()=>{ui.cur=TODAY();ui.flow='start';go('app','players');toast('Check who is playing, then tap Next')},
  pnext:()=>{const d=curDate();if(!d)return;ui.cur=d;const g=S.games[d],st=ui.flow==='start'&&canStart(d);ui.flow='';go('app','games');
@@ -1301,9 +1325,9 @@ const act={
  htab:x=>{ui.h.tab=x;render()},hgames:x=>{ui.cur=x;go('app','games')},hfin:x=>{const h=ui.hun;ui.fsub='kitty';ui.ks={m:'session',s:x};go('app','finance');if(h){ui.unlocked=true;render()}},
  /* players */
  devlock:()=>{if(!NB||!NB.pinScreen)return toast('Tablet lock works in the app only');if(pinned())NB.unlock();else{NB.pinScreen();setTimeout(render,800)}},
- lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},
+ lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},sx:x=>{ui.sx=ui.sx===x?'':x;$('#sxb').innerHTML=sxSeg(ui.sx,'sx',1)},pmsx:x=>{ui.pm.sx=ui.pm.sx===x?'':x;render()},
  add:()=>{const n=ui.nm.trim().replace(/\s+/g,' ');if(!n)return toast('Type a name first');const d=dupInfo(n);if(d&&d.red)return toast('Already in the list');
-   const id='p'+(S.nid++);S.players.push({id,name:n,lv:ui.lv,j:Date.now()});ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
+   const id='p'+(S.nid++);S.players.push(Object.assign({id,name:n,lv:ui.lv,j:Date.now()},ui.sx?{sx:ui.sx}:{}));ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
  clearq:()=>{ui.q='';$('#psearch').value='';$('#pgrid').innerHTML=vGrid()},
  alloff:()=>{const d=curDate(),D=day(d);if(!onIds(d).length)return;if(!confirm('Turn all players off for '+dlab(d)+'?'))return;
    const ids=onIds(d);D.on={};const g=S.games[d];if(g){const t=Date.now();ids.forEach(id=>benchOff(g,id,t));g.nxt=g.nxt.map(()=>NUL4());autoNext(g,'fill',null)}save();render()},
@@ -1311,14 +1335,14 @@ const act={
    if(g&&running(g)){const t=Date.now();if(!D.on[x]){benchOff(g,x,t);autoNext(g,'fill',nameOf(x)+' turned off · removed from upcoming games')}}
    save();render()},
  pmod:x=>{const p=P(x);if(!p)return;ui.pm={id:x,ed:0};render()},
- pmedit:()=>{const p=P(ui.pm.id);if(!p)return;ui.pm={id:p.id,ed:1,name:p.name,ph:p.ph||'',lv:p.lv,img:p.img||''};render()},pmcancel:()=>{ui.pm={id:ui.pm.id,ed:0};render()},
+ pmedit:()=>{const p=P(ui.pm.id);if(!p)return;ui.pm={id:p.id,ed:1,name:p.name,ph:p.ph||'',lv:p.lv,sx:p.sx||'',img:p.img||''};render()},pmcancel:()=>{ui.pm={id:ui.pm.id,ed:0};render()},
  pmlv:x=>{ui.pm.lv=+x;render()},phrm:()=>{ui.pm.img='';render()},
  photo:x=>{if(!ui.pm)return;if(NB&&NB.photo){try{NB.photo(x);return}catch(err){}}const f=document.createElement('input');f.type='file';f.accept='image/*';if(x==='cam')f.setAttribute('capture','environment');
    f.onchange=()=>{const r=new FileReader();r.onload=()=>window.__photo(String(r.result||''));if(f.files[0])r.readAsDataURL(f.files[0])};f.click()},
  closepm:()=>{ui.pm=null;render()},noop:()=>{},
  qlv:(x,y)=>{const p=P(x);if(!p||p.lv===+y)return;p.lv=+y;lvChanged([x]);save();render()},
  saveedit:()=>{const e=ui.pm,p=P(e.id),n=e.name.trim().replace(/\s+/g,' ');if(!n)return toast('Name cannot be empty');const d=dupInfo(n,p.id);if(d&&d.red)return toast('That name is already used');
-   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
+   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.sx)p.sx=e.sx;else delete p.sx;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
  sdel:x=>{const p=P(x);if(!p)return;if(!confirm('Delete '+p.name+'? Past games and payments keep their record.'))return;p.gone=true;Object.values(S.days).forEach(D=>delete D.on[p.id]);S.orgs=S.orgs.filter(o=>o!==p.id);delete ui.lvE[p.id];save();render();toast(p.name+' deleted')},
  arrive:x=>{const d=curDate(),D=day(d),g=S.games[d],t=Date.now();D.att=D.att||{};D.att[x]={a:t};const late=g?(t-Math.max(bookStart(d),g.st||0))/60e3:0;
    attChanged(x,late>10?nameOf(x)+' arrived '+Math.round(late)+' min late – '+target(g,x)+' games realistic':nameOf(x)+' checked in');save();render()},
@@ -1330,12 +1354,12 @@ const act={
  amback:()=>{const d=curDate(),e=ui.am,a=att(d,e.id);if(a)a.l=0;ui.am=null;attChanged(e.id,nameOf(e.id)+' is back');save();render()},
  amnot:()=>{const d=curDate(),e=ui.am;delete day(d).att[e.id];ui.am=null;attChanged(e.id,null);save();render()},
  /* games */
- reshuffle:()=>{const g=CG();autoNext(g,'all','Upcoming games re-picked');save();render();toast('Upcoming games re-picked')},
+ reshuffle:()=>{const g=CG();autoNext(g,'rp','Upcoming games re-picked · on-court / not-here / double-booked players replaced');save();render();toast('Upcoming games re-picked')},
  remix:()=>{const g=CG();if(g.st)autoNext(g,'all','Upcoming games re-picked');else{g.nman=[];buildPlan(g)}save();render()},
  startsess:()=>{const d=curDate();startSession();if(running(S.games[d])){ui.ck=1;render()}},
- endsess:()=>{const g=CG();if(!confirm('End this session? All timers stop, scored games are saved and every player is turned off.'))return;endSession(g,Date.now());save();render();toast('Session saved')},
- reopen:()=>{const g=CG();if(!g.en||Date.now()-g.en>=REOPEN_MS)return render();if(!confirm('Reopen this session? Players come back on and timers run again.'))return;const D=day(g.d);
-   g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();render()},
+ cnedit:x=>{ui.cne=+x;render();const el=$('#cnin');if(el){el.focus();el.select()}},
+ endsess:()=>{ui.endc=1;render()},closeend:()=>{ui.endc=0;render()},
+ endok:()=>{ui.endc=0;const g=CG();endSession(g,Date.now());save();render();toast('Session saved')},
  gch:(x,y)=>{const d=curDate(),D=day(d),c=D.courts[+x];if(!c)return;c.h=Math.max(.5,Math.min(8,num(c.h)+ +y));const g=G(d);
    if(running(g))autoNext(g,'fill',c.n+' now '+hrsL(c.h)+' (ends '+hm(courtEnd(d,+x))+') · remaining games re-planned');else g.psig='';save();render()},
  shuffle:()=>{},
@@ -1416,7 +1440,8 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k.startsWith('se_')){ui.se[k.slice(3)]=el.value}
   else if(k.startsWith('en_')){ui.ent[k.slice(3)]=el.value}
   else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
-document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
+document.addEventListener('focusout',e=>{if(e.target.id==='cnin'&&ui.cne!=null){ui.cne=null;save();setTimeout(()=>{if(ui.cne==null)render()},200)}});
 document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;
   if(c==='scdate'){if(el.value){ui.sc.d=el.value;render()}}
   else if(c==='sctime'){ui.sc.time=el.value;render()}
@@ -1497,7 +1522,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>':
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
-    const head='<div class="chead'+(cl?' off':'')+'"><input class="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off"><span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
+    const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
     let body;
@@ -1521,7 +1546,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const w=id=>g.since[id]!=null?now-g.since[id]:-1,rk=id=>!arrived(d,id)?2:leftAt(d,id)?3:0;
   const L=ids.slice().sort((a,b)=>rk(a)-rk(b)||w(b)-w(a)||nameOf(a).localeCompare(nameOf(b)));
   const card=id=>{const r=rk(id),wh=r?'':where(id),st=r===2?'Not here yet':r===3?'Left '+hm(leftAt(d,id)):(wh||'Free')+((im[id]||0)>1?' · in '+im[id]+' games':'');
-    return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
+    return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+' · Games: '+((RING||{})[id]||0)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
   const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
   return courts+up+allp}
@@ -1557,7 +1582,7 @@ function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
   if(pk.t==='c'){const q=g.cur[pk.i];if(!q||!q[pk.s])return render();const old=q[pk.s];if(old===id)return render();
     const bi=g.cur.findIndex((c,j)=>c&&c.includes(id));if(bi>=0){render();return toast(nameOf(id)+' is on '+cname(d,bi))}
     q[pk.s]=id;benchOn(g,old,t);benchOff(g,id,t);const D=day(d);D.att=D.att||{};const a=D.att[id];if(!a||!a.a)D.att[id]={a:t};else if(a.l)a.l=0;
-    logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));autoNext(g,'fill',null)}
+    logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));if(clearFrom(g,[id]).length)logIt(g,nameOf(id)+' now on '+cname(d,pk.i)+' → replaced in later games');autoNext(g,'fill',null)}
   else{const x=gRef(g,pk.t+'.'+pk.i+'.'+pk.k);if(!x)return render();if(x.q.includes(id)){render();return toast(nameOf(id)+' is already in this game')}
     x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
   save();render();window.scrollTo(0,ui.pickY||0)}

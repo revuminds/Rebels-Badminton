@@ -63,23 +63,28 @@ function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),
 function ctxAdd(c,q){q.forEach(id=>{if(id){c.proj[id]=(c.proj[id]||0)+1;c.inUp[id]=(c.inUp[id]||0)+1}});c.prev=new Set(q.filter(Boolean))}
 /* suggestion only: best players to fill `need` empty slots next to `keep` (fair share first, dummies last, levels mixed) */
 function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter(Boolean));
-  const c=onIds(d).filter(id=>eligible(d,id)&&!ex.has(id)).map(id=>{const tg=Math.max(1,target(g,id)),w=g.since[id]!=null?(t-g.since[id])/60e3:0;
+  const c=onIds(d).filter(id=>eligible(d,id)&&!ex.has(id)&&!(cx.noC&&cx.onC.has(id))).map(id=>{const tg=Math.max(1,target(g,id)),w=g.since[id]!=null?(t-g.since[id])/60e3:0;
     return{id,s:(cx.proj[id]||0)/tg*10+(isDum(d,id)?100:0)+(cx.inUp[id]||0)*6+(cx.onC.has(id)?3:0)+(cx.prev.has(id)?5:0)+(blocked(g,id,t)?5:0)-Math.min(w,40)/8+Math.random()*.5}}).sort((a,b)=>a.s-b.s);
   if(c.length<need)return null;const top=c.slice(0,need+4),e=effMap(g),pr=pairMaps(g),base=keep.filter(Boolean);let best=null;
   const rec=(st,ch)=>{if(ch.length===need){const q=base.concat(ch.map(x=>x.id)),sc=groupCost(q,e,pr).cost+ch.reduce((a,x)=>a+x.s,0)*1.5;if(!best||sc<best.sc)best={sc,ids:ch.map(x=>x.id)};return}
     for(let k=st;k<top.length;k++)rec(k+1,ch.concat(top[k]))};rec(0,[]);return best?best.ids:null}
 /* the app keeps ≥5 upcoming games: 'fill' tops up / refills slots it emptied, 'all' also re-picks every upcoming game the admin has not touched.
    Queued games and anything the admin placed are never changed – except players who left or were turned off. */
-function autoNext(g,mode,why){if(!running(g))return 0;const d=g.d,on=new Set(onIds(d));let ch=0;
-  const bad=id=>id&&(!on.has(id)||!!leftAt(d,id));
+/* v14: players who just went on court are taken out of every later game (incl. manual ones) and refilled */
+function clearFrom(g,ids,skip){const s=new Set(ids.filter(Boolean)),hit=new Set();[...g.qq.flat(),...g.up].forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
+function autoNext(g,mode,why){if(!running(g))return 0;const d=g.d,on=new Set(onIds(d));let ch=0;const rp=mode==='rp';if(rp)mode='all';
+  const oc=onCourt(g),bad0=id=>id&&(!on.has(id)||!!leftAt(d,id));
+  /* Re-pick button (rp): also clears on-court, not-checked-in and duplicate players – even in games the admin edited */
+  if(rp){const seen=new Set();[...g.qq.flat(),...g.up].forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
+  const bad=bad0;
   g.qq.forEach((L,i)=>{if(g.closed[i]&&L.length){g.up.unshift(...L);g.qq[i]=[];ch=1}});
   if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m);if(g.up.length!==n0)ch=1}
   const all=[...g.qq.flat(),...g.up];
   all.forEach(x=>{if(x.q.some(bad)){x.q=x.q.map(id=>bad(id)?null:id);x.rf=1;ch=1}else if(!x.m&&x.q.some(v=>!v))x.rf=1});
   g.up=g.up.filter(x=>x.q.some(Boolean)||!x.m);
   const cx=ctxOf(g);
-  all.forEach(x=>{if(!x.rf)return;delete x.rf;const need=x.q.filter(v=>!v).length;if(!need)return;const ids=pickFor(g,x.q,need,cx);if(!ids)return;
-    x.q=x.q.map(v=>v||ids.shift());if(!x.m){x.q=orderQ(x.q,g);x.a=x.q.slice()}ctxAdd(cx,x.q)});
+  cx.noC=1;all.forEach(x=>{if(!x.rf)return;delete x.rf;const need=x.q.filter(v=>!v).length;if(!need)return;const ids=pickFor(g,x.q,need,cx);if(!ids)return;
+    x.q=x.q.map(v=>v||ids.shift());if(!x.m){x.q=orderQ(x.q,g);x.a=x.q.slice()}ctxAdd(cx,x.q)});cx.noC=0;
   const lu=g.up[g.up.length-1];cx.prev=new Set(lu?lu.q.filter(Boolean):[]);
   for(let k=0;k<12&&g.up.length<5;k++){const ids=pickFor(g,NUL4(),4,cx);if(!ids)break;const q=orderQ(ids,g);g.up.push({q,m:0,a:q.slice()});ctxAdd(cx,q);ch=1}
   if(ch&&why)logIt(g,why);return ch}
@@ -134,6 +139,7 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   if(g.cur[i]&&g.cur[i].some(Boolean))return toast(cname(d,i)+' still has a game – Stop & save first');
   const D=day(d);D.att=D.att||{};q.forEach(id=>{const a=D.att[id];if(!a||!a.a){D.att[id]={a:t};logIt(g,nameOf(id)+' checked in (sent on court)')}else if(a.l)a.l=0});
   [g.up,...g.qq].forEach(L=>{const k=L.indexOf(x);if(k>=0)L.splice(k,1)});
+  const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.cur[i]=q.slice();g.live[i]=Object.assign(blankLive(),{run:true,start:t});g.round++;autoNext(g,'fill',null);save();render()}
 function startSession(){const d=curDate(),g=G(d);if(d!==TODAY())return toast('Only today’s session can be started');if(g.st)return;if(onIds(d).length<4)return toast('Turn on at least 4 players first');
