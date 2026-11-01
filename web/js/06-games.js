@@ -74,6 +74,7 @@ function tick(){const now=Date.now();
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
+    else if(k==='pst'){const p2=pstat(g,el.dataset.id,now);if(el.innerHTML!==p2.t)el.innerHTML=p2.t;el.className='pst '+p2.c}
     else if(k==='sess'){if(g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}

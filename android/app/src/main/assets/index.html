@@ -286,6 +286,8 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .gn .pnm b{font-size:14px}.gx{width:30px;height:36px;border:0;border-radius:8px;background:transparent;color:var(--mu);font-size:18px;flex:none}
 .gadd{height:46px;border-radius:10px;border:2px dashed var(--y);background:transparent;color:var(--y);font-weight:700;font-size:13px;min-width:0;white-space:nowrap}.gadd.on{background:var(--y);color:var(--bg);border-style:solid}
 .vs{border:2px solid var(--y);color:var(--y);border-radius:8px;padding:2px 6px;font:900 15px 'Big Shoulders Display',sans-serif}
+.pst{display:flex;align-items:center;gap:5px}.pst.ston{color:var(--ok,#3DDC97);font-weight:700}.pst.stno{color:var(--mu)}.pst.stid{color:var(--mu)}.pst.stid.red{color:var(--bad);font-weight:700;animation:bl1 1s steps(2,start) infinite}
+.gdot{width:9px;height:9px;border-radius:50%;background:#3DDC97;display:inline-block;animation:bl1 1s steps(2,start) infinite}@keyframes bl1{to{visibility:hidden}}
 .gcb{height:44px;padding:0 12px;border-radius:10px;border:2px solid var(--y);background:transparent;color:var(--y);font-weight:700;font-size:13px;white-space:nowrap}
 .mvw{position:relative;flex:none}.mvm{position:absolute;right:0;top:48px;z-index:10;background:var(--rail);border:2px solid var(--bd);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;min-width:200px}
 .mvm button{height:44px;border:0;border-radius:9px;background:var(--pn);color:var(--tx);font-weight:600;font-size:14px;text-align:left;padding:0 12px}
@@ -971,6 +973,7 @@ function tick(){const now=Date.now();
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
     if(k==='court'){const L=g.live[+el.dataset.i];if(L&&L.run)el.textContent=fmt((now-L.start)/1000)}
     else if(k==='bench'){const s=run&&g.since[el.dataset.id]!=null?(now-g.since[el.dataset.id])/1000:0;el.textContent=s?fmt(s):'';el.classList.toggle('red',s>900)}
+    else if(k==='pst'){const p2=pstat(g,el.dataset.id,now);if(el.innerHTML!==p2.t)el.innerHTML=p2.t;el.className='pst '+p2.c}
     else if(k==='sess'){if(g.st)el.textContent=fmtH(((g.en||now)-g.st)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
@@ -1257,13 +1260,13 @@ function vReport(ds,title){const all=allCalc(),sel=all.filter(s=>ds.includes(s.d
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
@@ -1476,9 +1479,15 @@ migrate();save();render();const H0=document.querySelector('.home');if(H0)H0.clas
 /* ===== v12 live Games: courts stacked, per-court queues (max 3), Upcoming games pool, All players ===== */
 /* booked hours are a guide only: after the booked end the court stays fully usable until closed in Courts */
 function cpill(d,i,t){const l=courtEnd(d,i)-t;return l>0?{t:Math.ceil(l/60e3)+' min left',c:l<10*60e3?'bad':l<20*60e3?'yel':'ok'}:{t:'+'+Math.max(1,Math.floor(-l/60e3))+' min over · still open',c:'over'}}
+/* v13: live status under names in Upcoming / queue cards (instead of Level) */
+function cno(d,i){const m=String(cname(d,i)).match(/\d+/);return m?m[0]:String(i+1)}
+function pstat(g,id,now){const d=g.d;for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id)&&g.cur[i].every(Boolean))return{t:'<i class="gdot"></i>C:'+esc(cno(d,i)),c:'ston'};
+  if(!arrived(d,id))return{t:'Not here',c:'stno'};if(leftAt(d,id))return{t:'Left '+hm(leftAt(d,id)),c:'stno'};
+  const m=g.since[id]!=null&&running(g)?Math.floor((now-g.since[id])/60e3):0;return{t:'Idle '+m+' min',c:m>15?'stid red':'stid'}}
+const pstw=(g,id,sz,now)=>{const s=pstat(g,id,now);return '<span class="pwho">'+pav(id,sz)+'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small class="pst '+s.c+'" data-tk="pst" data-id="'+id+'">'+s.t+'</small></span></span>'};
 function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf(d);
   const isSel=(t,i,k,s)=>!!(pk&&pk.t===t&&pk.i==i&&pk.k==k&&pk.s==s);
-  const slot=(t,i,k,s,id)=>id?'<span class="gn">'+pwho(id,30)+'<button class="gx" data-a="gx" data-x="'+t+'.'+i+'.'+k+'" data-y="'+s+'" aria-label="Remove '+esc(nameOf(id))+'">×</button></span>':
+  const slot=(t,i,k,s,id)=>id?'<span class="gn">'+pstw(g,id,30,now)+'<button class="gx" data-a="gx" data-x="'+t+'.'+i+'.'+k+'" data-y="'+s+'" aria-label="Remove '+esc(nameOf(id))+'">×</button></span>':
     '<button class="gadd'+(isSel(t,i,k,s)?' on':'')+'" data-a="gpick" data-x="'+t+'.'+i+'.'+k+'" data-y="'+s+'">'+(isSel(t,i,k,s)?'Pick below ↓':'+ Add player')+'</button>';
   const row=(t,i,k,q)=>'<div class="grow">'+slot(t,i,k,0,q[0])+slot(t,i,k,1,q[1])+'<span class="vs">VS</span>'+slot(t,i,k,2,q[2])+slot(t,i,k,3,q[3])+'</div>';
   const dup=q=>q.some(id=>id&&(im[id]||0)>1);
@@ -1501,11 +1510,11 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
       (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+'</span>'+row('q',i,k,x.q)+
         '<div class="mvw"><button class="ol sm" data-a="mv" data-x="'+i+'.'+k+'">Move ▾</button>'+(ui.mv===i+'.'+k?'<div class="mvm"><button data-a="mvup" data-x="'+i+'.'+k+'">↩ Back to Upcoming</button>'+openC.filter(j=>j!==i).map(j=>'<button data-a="mvc" data-x="'+i+'.'+k+'" data-y="'+j+'">To '+esc(cname(d,j))+'</button>').join('')+'<button data-a="mvx" aria-label="Close">×</button></div>':'')+'</div></div>').join(''):
-       '<div class="qempty">Empty · tap + '+esc(c.n)+' on an upcoming game, or drag one here</div>')+'</div>';
+       '<div class="qempty">Empty · tap Assign on an upcoming game, or drag one here</div>')+'</div>';
     return '<section class="cblock" data-drop="c" data-i="'+i+'">'+head+body+qb+'</section>'}).join('');
   const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+' · auto-picked · × removes a player, then tap a name in All players</div>'+
-    (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span><span class="gno">'+(k+1)+'</span>'+row('u',0,k,x.q)+
-      '<div class="row" style="gap:6px;flex:none">'+openC.map(i=>'<button class="gcb" data-a="ucourt" data-x="'+k+'" data-y="'+i+'"'+((g.qq[i]||[]).length>=3?' disabled':'')+'>+ '+esc(cname(d,i))+'</button>').join('')+'</div></div>').join(''):
+    (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+row('u',0,k,x.q)+
+      '<button class="gcb" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>Assign ▾</button></div>').join(''):
      '<div class="qempty">Upcoming games appear once 4 players are checked in (Players button).</div>')+'</section>';
   const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.qq.length;i++){const k=(g.qq[i]||[]).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
     const k=g.up.findIndex(x=>x.q.includes(id));return k>=0?'Upcoming #'+(k+1):''};
@@ -1532,6 +1541,9 @@ function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=
 
 /* ---------- Courts pop-up: the only place a court is closed (reopen within 10 min) ---------- */
 const CLOSE_MS=10*60e3;
+function vAsg(){const g=CG(),d=g.d,k=ui.asg-1,now=Date.now();if(!g||!g.up[k]){ui.asg=0;return ''}
+  return '<div class="modal" data-a="asgx"><div class="pn" data-a="noop" style="gap:12px;width:min(520px,92vw)"><div class="sb"><div class="laby">ASSIGN TO COURT</div><button class="ib" data-a="asgx" aria-label="Close">×</button></div>'+
+   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=(g.qq[i]||[]).length,f=n>=3;return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(f?' · full':'')+'</small></span></button>'}).join('')+'</div></div>'}
 function vCts(){const g=CG(),d=g.d,now=Date.now();
   return '<div class="modal" data-a="closects"><div class="pn" data-a="noop" style="gap:12px;width:min(620px,92vw)"><div class="sb"><div class="laby">COURTS</div><button class="ib" data-a="closects">×</button></div>'+
    courtsOf(d).map((c,i)=>{const cl=g.closed[i],pi=cpill(d,i,now);return '<div class="ckr" style="padding:10px 14px"><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">'+(cl?'Closed at '+hm(cl):'Open · '+pi.t)+'</small></span>'+
@@ -1565,6 +1577,7 @@ Object.assign(act,{
  gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
  ucourt:(x,y)=>moveGame(CG(),'u.0.'+x,'q',+y,-1),
+ asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const k=ui.asg-1;ui.asg=0;moveGame(CG(),'u.0.'+k,'q',+x,-1)},
  mv:x=>{ui.mv=ui.mv===x?null:x;render()},mvx:()=>{ui.mv=null;render()},
  mvup:x=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'u',0,0)},
  mvc:(x,y)=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'q',+y,-1)},

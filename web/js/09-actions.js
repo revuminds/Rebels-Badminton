@@ -2,13 +2,13 @@
 function render(){const app=$('.app'),m=$('#main');app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},hreopen:()=>{ui.cur=TODAY();const g=S.games[TODAY()];if(!g||!g.en||Date.now()-g.en>=REOPEN_MS)return render();const D=day(g.d);g.ros.forEach(id=>{if(P(id)&&!P(id).gone)D.on[id]=true});Object.values(D.att||{}).forEach(a=>{if(a.e){delete a.e}});g.en=0;G(g.d);save();go('app','games');toast('Session resumed')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
