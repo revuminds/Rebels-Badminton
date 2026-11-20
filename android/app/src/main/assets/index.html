@@ -2325,12 +2325,12 @@ async function lgChange(){const L=ui.lg,n1=L.n1||'',n2=L.n2||'';if(n1.length<5)r
 function lgAfter(u,role,first){if(bioOK()&&ACC[u]&&ACC[u].face==null){ui.lg={step:'face',u,role};return lgRender()}enterAs(u,role)}
 function lgBio(u){if(!bioOK())return;ui.lg={step:'bio',u};lgRender();try{NB.bioAuth(u)}catch(e){ui.lg={step:'pw',u};lgRender()}}
 window.__bio=(u,ok)=>{const L=ui.lg;if(!L||L.u!==u)return;if(ok&&ACC[u]){if(L.step==='faceset'){ACC[u].face=1;accSave();return enterAs(u,L.role||ACC[u].role)}return enterAs(u,ACC[u].role,navigator.onLine===false)}
-  if(L.step==='faceset'){ACC[u].face=0;accSave();return enterAs(u,L.role||ACC[u].role)}ui.lg={step:'pw',u,err:'Face not recognised – use the password'};lgRender()};
+  if(L.step==='faceset'){ACC[u].face=0;accSave();return enterAs(u,L.role||ACC[u].role)}ui.lg={step:'pw',u,err:'Not unlocked – use the password'};lgRender()};
 function lgErr(m){if(ui.lg){ui.lg.err=m;ui.lg.busy=0}lgRender()}
 
 /* ---------- login screen ---------- */
 function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u]);
-  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(ACC[u].face&&bioOK()?'Face unlock':'Password')+'</i></button>';
+  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(ACC[u].face&&bioOK()?'Tablet unlock':'Password')+'</i></button>';
   const err=L.err?'<div class="note amb" style="width:100%">'+esc(L.err)+'</div>':'';const busy=L.busy?' disabled':'';
   let body='';
   if(L.step==='pick')body='<div class="lgh">Who is using the app?</div><div class="lgtiles">'+ks.map(tile).join('')+'<button class="lgt oth" data-a="lgother"><span class="lgi">+</span><b>Other account</b><i>Username &amp; password</i></button></div>'+
@@ -2339,13 +2339,13 @@ function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u
     (L.step==='other'?'<input class="inp lgin" id="lgu" placeholder="Username (admin · organizer · games)" autocomplete="username" autocapitalize="off" data-i="lg_u" value="'+esc(L.uu||'')+'">':'')+
     '<input class="inp lgin" id="lgp" type="password" placeholder="Password" autocomplete="current-password" data-i="lg_p">'+
     '<div class="row" style="width:100%"><button class="gh" data-a="lgback">Back</button><button class="btn" style="flex:1" data-a="lgpw"'+busy+'>'+(L.busy?'Checking…':'Log in')+'</button></div>'+
-    (L.step==='pw'&&ACC[L.u]&&ACC[L.u].face&&bioOK()?'<button class="lnk" data-a="lgbio" data-x="'+L.u+'">Use face unlock</button>':'');
+    (L.step==='pw'&&ACC[L.u]&&ACC[L.u].face&&bioOK()?'<button class="lnk" data-a="lgbio" data-x="'+L.u+'">Use tablet unlock</button>':'');
   else if(L.step==='chg')body='<div class="lgh">Choose a new password</div><div class="lgs">'+(L.local?'No internet – the new password is kept on this device and sent to the cloud the first time you log in online.':'The default password must be changed on first login.')+'</div>'+err+
     '<input class="inp lgin" type="password" placeholder="New password (5+ characters)" autocomplete="new-password" data-i="lg_n1"><input class="inp lgin" type="password" placeholder="New password again" autocomplete="new-password" data-i="lg_n2">'+
     '<div class="row" style="width:100%"><button class="gh" data-a="lgback">Cancel</button><button class="btn" style="flex:1" data-a="lgchg"'+busy+'>'+(L.busy?'Saving…':'Save &amp; continue')+'</button></div>';
-  else if(L.step==='face')body='<div class="lgh">Use face unlock?</div><div class="lgs">Next time on this tablet, '+ACN[L.u]+' opens with your face instead of the password. Note: Android accepts ANY face or fingerprint enrolled on this tablet – only yours should be enrolled.</div>'+
+  else if(L.step==='face')body='<div class="lgh">Use tablet unlock?</div><div class="lgs">Next time on this tablet, '+ACN[L.u]+' opens with the tablet’s own unlock (face, PIN or pattern) instead of the password. Anyone who can unlock this tablet can then open '+ACN[L.u]+' – keep the tablet PIN private.</div>'+
     '<div class="row" style="width:100%"><button class="gh" style="flex:1" data-a="lgnoface">Not now</button><button class="btn" style="flex:1" data-a="lgface">Turn on</button></div>';
-  else if(L.step==='bio'||L.step==='faceset')body='<div class="lgh">Look at the tablet…</div><div class="lgs">'+ACN[L.u]+'</div><button class="gh" data-a="lgback">Use password</button>';
+  else if(L.step==='bio'||L.step==='faceset')body='<div class="lgh">Unlock with the tablet…</div><div class="lgs">'+ACN[L.u]+'</div><button class="gh" data-a="lgback">Use password</button>';
   return '<div class="lgbox"><img src="'+$('#lg').src+'" alt="" class="lglogo"><div class="d lgtt">REBELS <span>BADMINTON</span></div>'+body+
    '<div class="lgs" style="margin-top:6px">'+(navigator.onLine===false?'Offline – remembered accounts still unlock':'')+'</div></div>'}
 function lgRender(){const el=$('#login');if(!el)return;if(!ui.lg){el.innerHTML='';el.hidden=true;document.body.classList.remove('locked');return}
@@ -2360,7 +2360,7 @@ function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">AC
   return '<section class="pn"><div class="laby">ACCOUNT &amp; PASSWORDS</div><div style="font-size:14px;color:var(--mu)">3 accounts: <b>admin</b> (everything) · <b>organizer</b> (sees everything incl. Finance, changes nothing) · <b>games</b> = game manager (sessions, players, check-in, games, scores, print – no Finance, Settings or backup). Passwords are checked by the cloud; 5 wrong tries lock the account for 15 min.</div>'+
    '<div class="lab">MY PASSWORD (ADMIN)</div><div class="row" style="flex-wrap:wrap"><input class="inp" type="password" style="width:200px" placeholder="Current password" data-i="acc_old" autocomplete="current-password"><input class="inp" type="password" style="width:200px" placeholder="New password" data-i="acc_new" autocomplete="new-password"><button class="btn sm" data-a="accpw">Change</button></div>'+
    '<div class="sb"><div class="lab">ORGANIZER &amp; GAME MANAGER</div><button class="gh" data-a="acclist">'+(L?'Refresh':'Show status')+'</button></div>'+row('organizer')+row('games')+
-   '<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Face unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
+   '<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Tablet unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
    '<div class="row" style="gap:10px;flex-wrap:wrap"><label class="fl" style="max-width:260px">Lock after app in background (min)<input class="fin" type="number" inputmode="numeric" min="1" value="'+lockMin()+'" data-i="acc_lock"></label><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>'}
 async function accList(){const r=await req('GET','/api/accounts');if(r.s!==200)return toast(r.s===0?'No internet':'Could not load accounts');ui.acc.list=r.j.list;render()}
 

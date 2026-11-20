@@ -92,7 +92,7 @@ public class MainActivity extends Activity {
     // Back button never closes the app by accident (data is saved anyway).
     @Override public void onBackPressed() { moveTaskToBack(true); }
 
-    private static final int REQ_CRED = 41, REQ_SAVE = 42, REQ_OPEN = 43, REQ_GAL = 44, REQ_CAM = 45;
+    private static final int REQ_CRED = 41, REQ_SAVE = 42, REQ_OPEN = 43, REQ_GAL = 44, REQ_CAM = 45, REQ_BIO = 46;
     private Uri camUri;
 
     /** v12 player photo: decode, fix rotation, shrink to ≤800 px and hand a JPEG data URL to the page (the page crops it small). */
@@ -141,16 +141,23 @@ public class MainActivity extends Activity {
     private void bioResult(String tag, boolean ok) {
         web.evaluateJavascript("window.__bio&&__bio(" + JSONObject.quote(tag) + "," + ok + ")", null);
     }
+    /** v17 H3: tablet's own unlock (face / fingerprint / PIN / pattern) – Xiaomi face unlock is not allowed for apps on its own. */
+    private String bioTag = "";
     private void askBio(String tag) {
-        if (Build.VERSION.SDK_INT < 29) { bioResult(tag, false); return; }
+        bioTag = tag;
         try {
-            BiometricPrompt.Builder b = new BiometricPrompt.Builder(this).setTitle("Rebels Badminton").setSubtitle("Unlock " + tag)
-                    .setNegativeButton("Use password", getMainExecutor(), (d, w) -> bioResult(tag, false));
-            if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK);
-            b.build().authenticate(new CancellationSignal(), getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
-                @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult r) { bioResult(tag, true); }
-                @Override public void onAuthenticationError(int code, CharSequence msg) { bioResult(tag, false); }
-            });
+            if (Build.VERSION.SDK_INT >= 28) {
+                BiometricPrompt.Builder b = new BiometricPrompt.Builder(this).setTitle("Rebels Badminton").setSubtitle("Unlock " + tag);
+                if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.DEVICE_CREDENTIAL);
+                else b.setDeviceCredentialAllowed(true);
+                b.build().authenticate(new CancellationSignal(), getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
+                    @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult r) { bioResult(tag, true); }
+                    @Override public void onAuthenticationError(int code, CharSequence msg) { bioResult(tag, false); }
+                });
+                return;
+            }
+            Intent i = ((KeyguardManager) getSystemService(KEYGUARD_SERVICE)).createConfirmDeviceCredentialIntent("Rebels Badminton", "Unlock " + tag);
+            if (i == null) bioResult(tag, false); else startActivityForResult(i, REQ_BIO);
         } catch (Exception e) { bioResult(tag, false); }
     }
 
@@ -178,6 +185,7 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int req, int res, Intent data) {
         super.onActivityResult(req, res, data);
         if (req == REQ_CRED && res == RESULT_OK) unpinNow();
+        if (req == REQ_BIO) bioResult(bioTag, res == RESULT_OK);
         if (req == REQ_GAL && res == RESULT_OK && data != null && data.getData() != null) sendPhoto(data.getData(), null);
         if (req == REQ_CAM) {
             if (res == RESULT_OK) {
@@ -266,11 +274,7 @@ public class MainActivity extends Activity {
         }
         /** v17 H3: face / fingerprint unlock for a remembered account. Biometrics only (no tablet PIN). Result → window.__bio(tag, ok). */
         @JavascriptInterface public boolean bioAvailable() {
-            try {
-                if (Build.VERSION.SDK_INT >= 30) return getSystemService(BiometricManager.class).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS;
-                if (Build.VERSION.SDK_INT == 29) return getSystemService(BiometricManager.class).canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
-            } catch (Exception ignored) { }
-            return false;
+            try { return ((KeyguardManager) getSystemService(KEYGUARD_SERVICE)).isDeviceSecure(); } catch (Exception e) { return false; }
         }
         @JavascriptInterface public void bioAuth(String tag) { runOnUiThread(() -> askBio(tag)); }
         @JavascriptInterface public boolean isPinned() { return isPinnedNow(); }
