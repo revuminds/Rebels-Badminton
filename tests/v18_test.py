@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v18 checks + screenshots. Usage: python3 tests/v18_test.py <copy-of-backup.txt> <out-dir>
+"""v18 checks + screenshots (v19: sender = picked name; screenshots skipped with --noshots). Usage: python3 tests/v18_test.py <copy-of-backup.txt> <out-dir>
 A) app (headless Chrome, COPY of the backup, fake clock 22 Nov 10:35): Games lock button, A/B won buttons, running game ✎ Edit,
    Stop & save colours, court grid 1/2/3/4 courts + portrait + phone, ⏻ power button, tablet-pin hint.
 B) local Worker (Miniflare): /live order, Up next without plan, one-line results, phone layout, player score → tablet review
@@ -40,7 +40,9 @@ def app_ctx(b, w=1194, h=834, light=False, store='', net=None, clock=True):
 def local_admin(pg):
     pg.evaluate("()=>{if(!RB.ACC.admin)RB.remember('admin','admin','testpw1','');RB.enterAs('admin','admin')}"); pg.wait_for_timeout(200)
 
+NOSHOT = '--noshots' in sys.argv
 def shot(pg, name, full=False):
+    if NOSHOT: return None
     p = OUT / (name + '.png'); pg.screenshot(path=str(p), full_page=full); return p
 
 def bg(pg, sel):
@@ -150,6 +152,9 @@ with sync_playwright() as p:
             c = b.new_context(viewport={'width': w, 'height': h}, timezone_id='Asia/Dubai', device_scale_factor=2 if nm == 'phone' else 1, is_mobile=nm == 'phone', has_touch=nm == 'phone')
             pg = c.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
             pg.goto(U + '/live'); pg.wait_for_timeout(1500)
+            # v19: first visit asks Guest / Player – the phone plays as Saif (p11), the tablet watches as guest
+            if nm == 'phone': pg.click('[data-a="player"]'); pg.click('.pk button:has-text("Saif")'); pg.wait_for_timeout(1200)
+            else: pg.click('[data-a="guest"]'); pg.wait_for_timeout(800)
             if nm == 'phone':
                 hs = pg.eval_on_selector_all('h2', 'e=>e.map(x=>x.textContent)')
                 rec('Live page order: On court → Up next → Results → Games & wins', hs == ['ON COURT NOW', 'UP NEXT', 'RESULTS · NEWEST FIRST', 'TODAY · GAMES & WINS'], str(hs))
@@ -162,16 +167,14 @@ with sync_playwright() as p:
                 rec('Results line format "Court 6 · Kris & Lee (21) vs Kia & Hasir (15)"', any(x[2].startswith('Court 6 · Kris & Lee (21) vs Kia & Hasir (15)') for x in ln), ln[3][2] if len(ln) > 3 else '')
                 w = pg.evaluate("()=>{const e=document.querySelector('.ln .w');const c=getComputedStyle(e);return [e.textContent,c.color,c.fontWeight]}")
                 rec('Winner team + score bold blue', w[1] == 'rgb(76, 154, 255)' and int(w[2]) >= 700, str(w))
-                rec('Send score: big tap target (≥ 48 px), only on finished games without a score', pg.evaluate("()=>[...document.querySelectorAll('[data-a=open]')].every(b=>b.getBoundingClientRect().height>=48)") and pg.locator('[data-a="open"]').count() == 4)
+                rec('Send score: big tap target (≥ 48 px), only on finished games without a score (v19: only Saif\'s 2 games)', pg.evaluate("()=>[...document.querySelectorAll('[data-a=open]')].every(b=>b.getBoundingClientRect().height>=48)") and pg.locator('[data-a="open"]').count() == 2)
                 shot(pg, 'live_phone_top')
                 shot(pg, 'live_phone_full', True)
                 # send a score as a player
                 k0 = L['results'][0]['k']
                 pg.click('[data-a="open"][data-k="%s"]' % k0); pg.wait_for_timeout(200)
-                names = pg.eval_on_selector_all('.who button', 'e=>e.map(x=>x.textContent)')
-                rec('Send score: sender picks themselves from the 4 players (no Other / typing)', len(names) == 4 and pg.locator('.sh input[type=text]').count() == 0, str(names))
-                rec('Send score: disabled until a name is picked', pg.is_disabled('[data-a="send"]'))
-                pg.click('.who button >> nth=2'); pg.fill('#insa', '21'); pg.fill('#insb', '25'); pg.click('[data-a="send"]'); pg.wait_for_timeout(300)
+                rec('Send score (v19): sender = picked name, no who-picker, no typing', pg.locator('.who').count() == 0 and 'Saif' in pg.inner_text('#sas') and pg.locator('.sh input[type=text]').count() == 0, pg.inner_text('#sas'))
+                pg.fill('#insa', '21'); pg.fill('#insb', '25'); pg.click('[data-a="send"]'); pg.wait_for_timeout(300)
                 rec('Send score: invalid score refused on the phone (vs game points)', 'Max 21' in pg.inner_text('#er'), pg.inner_text('#er'))
                 pg.fill('#insb', '17'); shot(pg, 'live_phone_send')
                 pg.click('[data-a="send"]'); pg.wait_for_timeout(1200)
@@ -182,14 +185,17 @@ with sync_playwright() as p:
                 rec('Tablet live page: 3 on-court cards in one row (thirds)', pg.evaluate("()=>{const c=[...document.querySelector('.cg').children].map(e=>e.getBoundingClientRect());return c.length===3&&new Set(c.map(r=>Math.round(r.top))).size===1}"))
                 shot(pg, 'live_tablet', True)
             c.close()
-        # API rules
+        # API rules (v19: sender = claim token of a player of that game)
+        LP = json.loads(subprocess.run(['curl', '-s', U + '/api/live'], capture_output=True, text=True).stdout)
+        claim = lambda name: post('/api/live/claim', {'k': [x['k'] for x in LP['pick'] if x['name'] == name][0]}).get('t')
+        tA, tK, tKia = claim('Annie'), claim('Kris'), claim('Kia')
         ks = [r['k'] for r in L['results']]; u = [r['k'] for r in L['results'] if not r['sc']]; ksc = [r['k'] for r in L['results'] if r['sc']][0]
-        rec('API: same game sent again → 409 (one score per game)', code('POST', '/api/live/score', {'k': u[0], 'who': 0, 'sa': 21, 'sb': 10}) == 409)
-        rec('API: game that already has a score → 409', code('POST', '/api/live/score', {'k': ksc, 'who': 0, 'sa': 21, 'sb': 10}) == 409)
-        rec('API: unknown / on-court game → 404', code('POST', '/api/live/score', {'k': '123-1', 'who': 0, 'sa': 21, 'sb': 10}) == 404)
-        rec('API: unfinished score (15–10) / over the cap (30–28) → 400', code('POST', '/api/live/score', {'k': u[1], 'who': 0, 'sa': 15, 'sb': 10}) == 400 and code('POST', '/api/live/score', {'k': u[1], 'who': 0, 'sa': 30, 'sb': 28}) == 400)
-        rec('API: sender must be one of the 4 players (who 0–3)', code('POST', '/api/live/score', {'k': u[1], 'who': 4, 'sa': 21, 'sb': 10}) == 400)
-        rec('API: 2nd and 3rd unscored games sent', code('POST', '/api/live/score', {'k': u[1], 'who': 1, 'sa': 21, 'sb': 12}) == 200 and code('POST', '/api/live/score', {'k': u[2], 'who': 3, 'sa': 18, 'sb': 21}) == 200)
+        rec('API: same game sent again → 409 (one score per game)', code('POST', '/api/live/score', {'k': u[0], 't': tA, 'sa': 21, 'sb': 10}) == 409)
+        rec('API: game that already has a score → 409', code('POST', '/api/live/score', {'k': ksc, 't': tA, 'sa': 21, 'sb': 10}) == 409)
+        rec('API: unknown / on-court game → 404', code('POST', '/api/live/score', {'k': '123-1', 't': tA, 'sa': 21, 'sb': 10}) == 404)
+        rec('API: unfinished score (15–10) / over the cap (30–28) → 400', code('POST', '/api/live/score', {'k': u[1], 't': tA, 'sa': 15, 'sb': 10}) == 400 and code('POST', '/api/live/score', {'k': u[1], 't': tA, 'sa': 30, 'sb': 28}) == 400)
+        rec('API: sender must be one of the 4 players (v19: not in game → 403, no name → 401)', code('POST', '/api/live/score', {'k': u[1], 't': tK, 'sa': 21, 'sb': 10}) == 403 and code('POST', '/api/live/score', {'k': u[1], 'who': 1, 'sa': 21, 'sb': 10}) == 401)
+        rec('API: 2nd and 3rd unscored games sent', code('POST', '/api/live/score', {'k': u[1], 't': tA, 'sa': 21, 'sb': 12}) == 200 and code('POST', '/api/live/score', {'k': u[2], 't': tKia, 'sa': 18, 'sb': 21}) == 200)
         O = post('/api/login', {'u': 'organizer', 'p': PW['organizer']})['token']
         rec('API: review list – no login 401, organizer 403', code('GET', '/api/subs') == 401 and code('GET', '/api/subs', None, O) == 403 and code('POST', '/api/subs/1', {'st': 'a'}, O) == 403)
 
@@ -232,7 +238,7 @@ with sync_playwright() as p:
         rec('After sync the live page shows the accepted scores', [(r['sa'], r['sb']) for r in L2['results']][:4] == [(21, 17), (21, 14), (19, 21), (21, 19)], str([(r['sa'], r['sb']) for r in L2['results']]))
         # reject reopens: send a score for the last unscored game, reject it
         k4 = [r['k'] for r in L2['results'] if r['send']]
-        ok4 = bool(k4) and code('POST', '/api/live/score', {'k': k4[0], 'who': 2, 'sa': 21, 'sb': 3}) == 200
+        ok4 = bool(k4) and code('POST', '/api/live/score', {'k': k4[0], 't': tK, 'sa': 21, 'sb': 3}) == 200
         for _ in range(10):
             pg.evaluate("RB.subsPoll(true)"); pg.wait_for_timeout(700)
             if pg.locator('[data-a="subsopen"]').count(): break
@@ -264,9 +270,9 @@ def sheet(files, out, th=520, cols=None):
         for f, i in r: d.text((x, y), f, fill=(230, 230, 230), font=fnt); s.paste(i, (x, y + 26)); x += i.width + 16
         y += th + 44
     s.save(OUT / out, optimize=True)
-sheet(['games_dark', 'games_light'], 'v18_games_light_dark.png', 640)
-sheet(['courts_1', 'courts_2', 'courts_3', 'courts_4', 'courts_3_portrait', 'courts_3_phone'], 'v18_court_layouts.png', 520, 4)
-sheet(['live_phone_top', 'live_phone_send', 'live_phone_sent'], 'v18_live_phone.png', 900)
-sheet(['review_button', 'review_list', 'games_edit_running'], 'v18_review_edit.png', 560)
+if not NOSHOT: sheet(['games_dark', 'games_light'], 'v18_games_light_dark.png', 640)
+if not NOSHOT: sheet(['courts_1', 'courts_2', 'courts_3', 'courts_4', 'courts_3_portrait', 'courts_3_phone'], 'v18_court_layouts.png', 520, 4)
+if not NOSHOT: sheet(['live_phone_top', 'live_phone_send', 'live_phone_sent'], 'v18_live_phone.png', 900)
+if not NOSHOT: sheet(['review_button', 'review_list', 'games_edit_running'], 'v18_review_edit.png', 560)
 n = sum(ok for _, ok, _ in R); print('\n%d passed, %d failed' % (n, len(R) - n))
 sys.exit(0 if n == len(R) else 1)

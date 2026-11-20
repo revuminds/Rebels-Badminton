@@ -37,6 +37,9 @@ async function schema(env) {
     /* v18: scores sent from the live page – one open (pending/accepted) score per game, enforced by the unique index */
     db.prepare('CREATE TABLE IF NOT EXISTS subs(id INTEGER PRIMARY KEY AUTOINCREMENT, d TEXT NOT NULL, k TEXT NOT NULL, st TEXT NOT NULL, who INTEGER, byn TEXT, sa INTEGER, sb INTEGER, at INTEGER, ip TEXT, rv INTEGER, rby TEXT)'),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS subs_open ON subs(d,k) WHERE st IN ('p','a')"),
+    /* v19: names picked on the live page – one phone per name per session (off=1 = freed / reset); th = SHA-256 of the phone's claim token */
+    db.prepare('CREATE TABLE IF NOT EXISTS claims(id INTEGER PRIMARY KEY AUTOINCREMENT, d TEXT NOT NULL, pid TEXT NOT NULL, th TEXT NOT NULL, nm TEXT, at INTEGER, ip TEXT, off INTEGER DEFAULT 0)'),
+    db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS claims_on ON claims(d,pid) WHERE off=0'),
   ]);
   if (!(await db.prepare("SELECT u FROM acct WHERE u='admin'").first())) {
     const salt = rand(16);
@@ -62,6 +65,7 @@ async function prune(env) {
     env.DB.prepare('DELETE FROM snaps WHERE day < ?').bind(dubaiDay(Date.now() - KEEP_DAYS * DAY)),
     env.DB.prepare('DELETE FROM audit WHERE at < ?').bind(Date.now() - 365 * DAY),
     env.DB.prepare('DELETE FROM tok WHERE at < ?').bind(Date.now() - 400 * DAY),
+    env.DB.prepare('DELETE FROM claims WHERE d < ?').bind(dubaiDay()),
   ]);
 }
 
@@ -86,7 +90,7 @@ const TYN = { MD: "Men's doubles", WD: "Women's doubles", XD: 'Mixed doubles' };
 
 /* ---------- H4 live session: only during the session window; names, courts, scores, schedule – nothing else ---------- */
 const tms = (d, hhmm) => Date.parse(d + 'T' + (/^\d\d:\d\d$/.test(hhmm || '') ? hhmm : '20:00') + ':00+04:00');
-function liveData(S, now = Date.now(), subs = []) {
+function liveData(S, now = Date.now(), subs = [], mePid = null) {
   S = S || {};
   const P = {}; (S.players || []).forEach(p => P[p.id] = p);
   const nm = id => !id ? '' : P[id] && !P[id].hidePub ? String(P[id].name || '') : 'Guest';
@@ -128,7 +132,7 @@ function liveData(S, now = Date.now(), subs = []) {
   up.forEach(x => { if (full(x.q) && next.length < 8) add(x.q, x.n, x.c == null || !fp.length ? null : x.c); });
   const res = hist.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map(h => {
     const k = hKey(h), sc = !!(+h.sa || +h.sb), ok = !sc && Array.isArray(h.ids) && h.ids.length === 4 && h.ids.every(Boolean);
-    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: ok && !lock[k], sent: !sc && !!lock[k] };
+    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: ok && !lock[k], sent: !sc && !!lock[k], me: !!mePid && Array.isArray(h.ids) && h.ids.includes(mePid) };
   });
   const st = {};
   hist.forEach(h => { if (!h.ids) return; const aw = h.sa > h.sb, tie = h.sa === h.sb; h.ids.forEach((id, i) => { if (!id || !P[id] || P[id].hidePub) return; const s = st[id] = st[id] || { name: nm(id), g: 0, w: 0 }; s.g++; if (!tie && (i < 2) === aw) s.w++; }); });
@@ -137,7 +141,13 @@ function liveData(S, now = Date.now(), subs = []) {
     const h = hist.find(o => o.n === x.n);
     return { n: x.n, court: cn(x.c), ty: ty(x.q), a: team(x.q, 0), b: team(x.q, 1), st: h ? 'done' : curN.includes(x.n) ? 'now' : 'plan', sa: h ? +h.sa || 0 : null, sb: h ? +h.sb || 0 : null };
   });
-  return { live: true, date: today, time: D.time || '', loc: D.loc || '', started: !!(g && g.st), courts: courts(today).map((c, i) => cn(i)), now: now_, next, results: res, stats, sched, at: now };
+  /* v19: names that can be picked on the live page = players on / checked in / playing today; hidden players never (they show as Guest).
+     _p (the id) is replaced by a per-day hash key before anything leaves the Worker (livePublic). */
+  const pk = new Set();
+  Object.keys(D.on || {}).forEach(id => D.on[id] && pk.add(id)); Object.keys(D.att || {}).forEach(id => pk.add(id));
+  ((g && g.ros) || []).concat(...((g && g.cur) || []), ...hist.map(h => h.ids || [])).forEach(id => id && pk.add(id));
+  const pick = [...pk].filter(id => P[id] && !P[id].hidePub && String(P[id].name || '').trim()).map(id => ({ _p: id, name: String(P[id].name) })).sort((a, b) => a.name.localeCompare(b.name));
+  return { live: true, date: today, time: D.time || '', loc: D.loc || '', started: !!(g && g.st), courts: courts(today).map((c, i) => cn(i)), now: now_, next, results: res, stats, sched, pick, at: now };
 }
 const LIVE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#16181D"><title>Rebels Badminton · Live</title>
 <style>
@@ -189,11 +199,17 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-top:1px s
 .err{color:var(--amb);font-weight:700;min-height:20px}
 .btns{display:flex;gap:10px}.btns button{flex:1;min-height:54px;border-radius:12px;font:700 17px Outfit,system-ui,sans-serif}
 .cx{border:2px solid var(--bd);background:transparent;color:var(--tx)}.ok{border:0;background:var(--ok);color:#06210F}.ok:disabled{opacity:.4}
+/* v19: Guest / Player */
+.me{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:14px;color:var(--mu)}.me b{color:var(--tx)}
+.lk{background:none;border:0;color:var(--win);font:700 14px Outfit,system-ui,sans-serif;padding:8px 4px;min-height:40px;text-decoration:underline}
+.gp{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gp button{min-height:84px;border-radius:14px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font:700 19px Outfit,system-ui,sans-serif;padding:8px}.gp button small{display:block;font-weight:400;font-size:13px;color:var(--mu);margin-top:4px}
+.pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.pk button{min-height:52px;border-radius:12px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font:700 16px Outfit,system-ui,sans-serif;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk button:disabled{opacity:.35;text-decoration:line-through}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ok);color:#06210F;font-weight:700;padding:12px 18px;border-radius:12px;display:none;z-index:10}
 @media (max-width:640px){.cg{grid-template-columns:1fr}.sc{font-size:40px;min-width:56px}.pc{font-size:16px;padding:6px 10px}}
 @media (orientation:portrait) and (max-width:1000px){.cg{grid-template-columns:1fr}}
 </style></head>
-<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div id="v"></div></main><div id="m"></div><div id="toast"></div>
+<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div class="me" id="me"></div><div id="v"></div></main><div id="m"></div><div id="toast"></div>
 <script>
 const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const t2=x=>{const z=n=>String(n).padStart(2,'0'),s=Math.max(0,Math.floor(x));return z(Math.floor(s/60))+':'+z(s%60)};
@@ -202,7 +218,11 @@ const TYN={MD:"Men's doubles",WD:"Women's doubles",XD:'Mixed doubles'};
 const cap=P=>P.deuce&&+P.pts<30?Math.max(+P.pts,Math.min(30,+P.pts+9)):+P.pts;
 function sErr(a,b,P){const p=+P.pts,c=cap(P),hi=Math.max(a,b),lo=Math.min(a,b);if(hi>c)return 'Max '+c+' in a game to '+p;if(hi<p)return 'Not finished – one side must reach '+p;
  if(!P.deuce||p>=30)return lo>=p?'Only one side can reach '+p:'';if(hi===p)return lo>p-2?'At '+(p-1)+'–'+(p-1)+' deuce: win by 2':'';if(hi===c)return lo<c-2?'Above '+p+' the winner leads by exactly 2':'';return hi-lo!==2?'Above '+p+' the winner leads by exactly 2':''}
-let L=null,off=0,M=null;
+let L=null,off=0,M=null,ME=null;
+/* v19: Guest or Player – remembered on this phone for the whole session (rb.live = {d,m:'g'|'p',t,name}) */
+try{ME=JSON.parse(localStorage.getItem('rb.live')||'null')}catch(x){}
+const meSave=v=>{ME=v;try{v?localStorage.setItem('rb.live',JSON.stringify(v)):localStorage.removeItem('rb.live')}catch(x){}};
+const PL=()=>!!(ME&&ME.m==='p'&&ME.t);
 const T=a=>e(a.join(' & ')),chips=a=>'<div class="nms">'+a.map(n=>'<span class="pc">'+e(n)+'</span>').join('')+'</div>';
 const fh=t=>'<div class="fh"><span class="fmt f'+t+'">'+t+'</span>'+TYN[t]+'</div>';
 const cols=n=>n<=3?n:Math.ceil(n/2);
@@ -213,9 +233,11 @@ function upNext(c){return '<div class="cc"><div class="ch"><b>'+(c.court?e(c.cou
   '<div class="ut">'+chips(c.a)+'<span class="vs">VS</span>'+chips(c.b)+'</div></div>'}
 function res(r){const aw=r.sc&&r.sa>r.sb,bw=r.sc&&r.sb>r.sa,A=T(r.a)+(r.sc?' ('+r.sa+')':''),B=T(r.b)+(r.sc?' ('+r.sb+')':'');
  return '<div class="rl"><span class="ln">'+e(r.court)+' · '+(aw?'<b class="w">'+A+'</b>':A)+' vs '+(bw?'<b class="w">'+B+'</b>':B)+(r.sc?'':' <span class="mu">· no score yet</span>')+'</span>'+
-  (r.send?'<div class="ra"><button class="sbtn" data-a="open" data-k="'+e(r.k)+'">Send score</button></div>':r.sent?'<div class="ra"><span class="pill">Score sent · waiting for approval</span></div>':'')+'</div>'}
+  (r.send&&r.me&&PL()?'<div class="ra"><button class="sbtn" data-a="open" data-k="'+e(r.k)+'">Send score</button></div>':r.sent?'<div class="ra"><span class="pill">Score sent · waiting for approval</span></div>':'')+'</div>'}
 function fit(){document.querySelectorAll('.ln').forEach(el=>{let f=16;el.style.fontSize='';while(el.scrollWidth>el.clientWidth+1&&f>9){f-=.5;el.style.fontSize=f+'px'}})}
-function draw(){const v=document.getElementById('v'),sub=document.getElementById('sub');if(!L)return;
+function drawMe(){const el=document.getElementById('me');if(!L||!L.live||!ME){el.innerHTML='';return}
+ el.innerHTML=PL()?'<span>Playing as <b>'+e(ME.name)+'</b></span>·<button class="lk" data-a="toguest">Change to guest</button>':'<span>Watching as <b>guest</b></span>·<button class="lk" data-a="choose">I’m playing – pick my name</button>'}
+function draw(){const v=document.getElementById('v'),sub=document.getElementById('sub');if(!L)return;drawMe();
  if(!L.live){sub.textContent='';v.innerHTML='<div class="card" style="margin-top:18px"><b>No live session</b>'+(L.next?' · next: '+e(dl(L.next.date))+' '+e(L.next.time)+' · '+e(L.next.loc):'')+'</div>';return}
  sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · <span class="live">● '+(L.started?'LIVE':'STARTING SOON')+'</span>';
  let h='<h2>ON COURT NOW</h2>'+(L.now.length?'<div class="cg" style="--c:'+cols(L.now.length)+'">'+L.now.map(onCourt).join('')+'</div>':'<div class="card mu">No game on court right now.</div>');
@@ -225,24 +247,40 @@ function draw(){const v=document.getElementById('v'),sub=document.getElementById
  if(L.stats.length)h+='<h2>TODAY · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>';
  v.innerHTML=h;fit()}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',3000)}
-/* send score: pick yourself from the 4 players, then the score */
-function drawM(){const m=document.getElementById('m');const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!r.send&&!M.busy){M=null;m.className='';m.innerHTML='';return}
- const ps=r.a.concat(r.b),row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="number" inputmode="numeric" min="0" max="'+cap(r)+'" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
+/* chooser: Guest or Player → tap your own name (names picked on another phone are greyed out) */
+function drawC(m){const P=L.pick||[];
+ m.className='on';m.innerHTML='<div class="sh">'+(M.step===1?'<div class="lab" style="color:var(--tx)">WELCOME · WHO IS WATCHING?</div><div class="gp"><button data-a="guest">Guest<small>Just watching</small></button><button data-a="player">Player<small>Pick my name · send scores</small></button></div>':
+  '<div class="lab" style="color:var(--tx)">TAP YOUR NAME</div>'+(P.length?'<div class="pk">'+P.map(x=>'<button data-a="pick" data-k="'+e(x.k)+'"'+(x.taken||M.busy?' disabled':'')+(x.taken?' title="Picked on another phone"':'')+'>'+e(x.name)+'</button>').join('')+'</div>':'<div class="mu">No players checked in yet.</div>')+
+  '<div class="err">'+e(M.err)+'</div><div class="mu" style="font-size:13px">Greyed out = already picked on another phone. Wrong name taken? Ask the organiser to free it.</div><div class="btns"><button class="cx" data-a="guest">Watch as guest</button></div>')+'</div>'}
+/* send score: sender = the picked name */
+function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live){M=null}else return drawC(m)}
+ const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!(r.send&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
+ const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="number" inputmode="numeric" min="0" max="'+cap(r)+'" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
  m.className='on';m.innerHTML='<div class="sh"><div class="lab">SEND SCORE · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
-  '<div class="lab" style="color:var(--tx)">1 · WHO ARE YOU?</div><div class="who">'+ps.map((n,i)=>'<button data-a="who" data-i="'+i+'" class="'+(M.who===i?'on':'')+'">'+(M.who===i?'✓ ':'')+e(n)+'</button>').join('')+'</div>'+
-  '<div class="lab" style="color:var(--tx)">2 · FINAL SCORE</div>'+row('sa',r.a)+row('sb',r.b)+'<div class="err" id="er">'+e(M.err)+'</div>'+
-  '<div class="btns"><button class="cx" data-a="close">Cancel</button><button class="ok" data-a="send"'+(M.who<0||M.busy?' disabled':'')+'>'+(M.busy?'Sending…':'Send score')+'</button></div>'+
+  '<div class="mu" id="sas">Sending as <b style="color:var(--tx)">'+e(ME.name)+'</b></div>'+
+  '<div class="lab" style="color:var(--tx)">FINAL SCORE</div>'+row('sa',r.a)+row('sb',r.b)+'<div class="err" id="er">'+e(M.err)+'</div>'+
+  '<div class="btns"><button class="cx" data-a="close">Cancel</button><button class="ok" data-a="send"'+(M.busy?' disabled':'')+'>'+(M.busy?'Sending…':'Send score')+'</button></div>'+
   '<div class="mu" style="font-size:13px">The organiser checks it on the tablet before it counts. One score per game.</div></div>'}
+async function post(u,b){const x=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return{s:x.status,j:await x.json().catch(()=>({}))}}
 async function send(){const r=L.results.find(x=>x.k===M.k);if(!r)return;const sa=parseInt(M.sa,10),sb=parseInt(M.sb,10);
- M.err=M.who<0?'Pick your name':isNaN(sa)||isNaN(sb)?'Enter both scores':sErr(sa,sb,r);if(M.err)return drawM();
- M.busy=1;drawM();try{const x=await fetch('/api/live/score',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({k:M.k,who:M.who,sa,sb})}),j=await x.json().catch(()=>({}));
-  if(x.ok){M=null;drawM();toast('Score sent · waiting for approval');load();return}M.busy=0;M.err=j.error||'Not sent – try again';if(x.status===409)load()}catch(err){M.busy=0;M.err='No internet – try again'}drawM()}
-document.addEventListener('click',ev=>{const b=ev.target.closest('[data-a]');if(!b){if(ev.target.id==='m'){M=null;drawM()}return}const a=b.dataset.a;
- if(a==='open'){M={k:b.dataset.k,who:-1,sa:'',sb:'',err:''};drawM()}else if(!M)return;
- else if(a==='close'){M=null;drawM()}else if(a==='who'){M.who=+b.dataset.i;M.err='';drawM()}
+ M.err=isNaN(sa)||isNaN(sb)?'Enter both scores':sErr(sa,sb,r);if(M.err)return drawM();
+ M.busy=1;drawM();try{const x=await post('/api/live/score',{k:M.k,t:ME.t,sa,sb});
+  if(x.s===200){M=null;drawM();toast('Score sent · waiting for approval');load();return}M.busy=0;M.err=x.j.error||'Not sent – try again';
+  if(x.s===401){meSave(null);M=null;drawM();toast('Your name was freed – pick it again');load();return}if(x.s===409)load()}catch(err){M.busy=0;M.err='No internet – try again'}drawM()}
+async function pick(k){M.busy=1;M.err='';drawM();try{const x=await post('/api/live/claim',{k,old:ME&&ME.t});M.busy=0;
+  if(x.s===200){meSave({d:x.j.d,m:'p',t:x.j.t,name:x.j.name});M=null;drawM();toast('Playing as '+x.j.name);load();return}M.err=x.j.error||'Not picked – try again';load()}catch(err){M.busy=0;M.err='No internet – try again'}drawM()}
+async function toGuest(){const t=ME&&ME.t;meSave({d:L.date,m:'g'});draw();if(t)try{await post('/api/live/release',{t})}catch(x){}load()}
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-a]');if(!b){if(ev.target.id==='m'&&M&&!M.c){M=null;drawM()}return}const a=b.dataset.a;
+ if(a==='toguest')return toGuest();if(a==='choose'){M={c:1,step:2,err:''};return drawM()}
+ if(a==='open'){M={k:b.dataset.k,sa:'',sb:'',err:''};drawM()}else if(!M)return;
+ else if(a==='guest'){if(M.busy)return;M=null;drawM();toGuest()}else if(a==='player'){M.step=2;drawM()}else if(a==='pick'){if(!M.busy)pick(b.dataset.k)}
+ else if(a==='close'){M=null;drawM()}
  else if(a==='up'||a==='dn'){const s=b.dataset.s;M[s]=String(Math.max(0,(parseInt(M[s],10)||0)+(a==='up'?1:-1)));M.err='';drawM()}else if(a==='send')send()});
 document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){M[ev.target.id.slice(2)]=ev.target.value;M.err='';document.getElementById('er').textContent=''}});
-async function load(){try{const r=await fetch('/api/live',{cache:'no-store'});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());draw();if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!r2.send){M=null;drawM()}}}}catch(x){}}
+async function load(){try{const r=await fetch('/api/live',{cache:'no-store',headers:PL()?{'X-Claim':ME.t}:{}});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());
+ /* session over or a new session → forget the choice; name freed on the tablet → ask again */
+ if(ME&&(!L.live||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}
+ draw();if(L.live&&!ME&&!M)M={c:1,step:1,err:''};if(M&&M.c)drawM();else if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!r2.send||!r2.me){M=null;drawM()}}}}catch(x){}}
 load();setInterval(load,10000);
 setInterval(()=>{const now=Date.now()-off;document.querySelectorAll('[data-t]').forEach(el=>{const s=+el.dataset.t;if(s)el.textContent=t2((now-s)/1000)})},1000);
 addEventListener('resize',fit);
@@ -265,26 +303,69 @@ function mergeGM(curTxt, inc) {      /* game manager upload: only game keys chan
 async function liveState(env) {
   const d = await getDoc(env); let S = {}; try { S = JSON.parse(d ? d.data : '{}'); } catch (e) {}
   const subs = (await env.DB.prepare("SELECT k,st FROM subs WHERE d=? AND st IN ('p','a')").bind(dubaiDay()).all()).results;
-  return { S, subs };
+  const claims = (await env.DB.prepare('SELECT d,pid,th,nm,at FROM claims WHERE off=0').all()).results;
+  return { S, subs, claims };
+}
+/* v19: picked names reset when the live window closes (End session or auto-off) and on a new day */
+const CLAIM_CAP = 20;
+const pkey = async pid => (await sha('pk|' + dubaiDay() + '|' + pid)).slice(0, 16);
+async function claimsReset(env, claims, live) {
+  const today = dubaiDay();
+  if (claims.some(c => c.d !== today || !live)) await env.DB.prepare('UPDATE claims SET off=1 WHERE off=0 AND (d<>? OR ?)').bind(today, live ? 0 : 1).run();
+  return live ? claims.filter(c => c.d === today) : [];
+}
+async function myClaim(tok, claims) {
+  if (!tok || typeof tok !== 'string' || tok.length > 100) return null;
+  const th = await sha('claim|' + tok); return claims.find(c => c.th === th) || null;
+}
+/* the live data as sent to phones: pick list with hash keys (no ids), the phone's own name, results it may send */
+async function livePublic(env, tok) {
+  const st = await liveState(env), probe = liveData(st.S, Date.now(), st.subs);
+  const claims = await claimsReset(env, st.claims, probe.live), mine = await myClaim(tok, claims);
+  const L = mine ? liveData(st.S, Date.now(), st.subs, mine.pid) : probe;
+  if (!L.live) return { L, claims, mine: null, S: st.S, keys: {} };
+  const taken = new Set(claims.map(c => c.pid)), keys = {};
+  L.pick = await Promise.all(L.pick.map(async x => { const k = await pkey(x._p); keys[k] = x._p; return { k, name: x.name, taken: taken.has(x._p) && !(mine && mine.pid === x._p) }; }));
+  L.me = mine ? { name: ((st.S.players || []).find(p => p.id === mine.pid) || {}).name || mine.nm || '' } : null;
+  if (tok && !mine) L.claimGone = true;
+  return { L, claims, mine, S: st.S, keys };
+}
+async function liveClaim(req, env) {
+  const b = await req.json().catch(() => ({})), { L, claims, mine, keys } = await livePublic(env, b.old);
+  if (!L.live) return J({ error: 'No live session right now' }, 409);
+  const x = L.pick.find(o => o.k === String(b.k || ''));
+  if (!x) return J({ error: 'Name not found' }, 404);
+  const pid = keys[x.k];
+  if (mine && mine.pid === pid) return J({ error: 'Already playing as ' + x.name }, 409);
+  if (claims.some(c => c.pid === pid)) return J({ error: x.name + ' is already picked on another phone' }, 409);
+  const ip = await sha('ip|' + (req.headers.get('CF-Connecting-IP') || '') + '|' + dubaiDay());
+  if (((await env.DB.prepare('SELECT COUNT(*) AS n FROM claims WHERE d=? AND ip=?').bind(dubaiDay(), ip).first()) || {}).n >= CLAIM_CAP) return J({ error: 'Too many name picks from this phone today' }, 429);
+  const tok = rand(24);
+  try { await env.DB.prepare('INSERT INTO claims(d,pid,th,nm,at,ip,off) VALUES(?,?,?,?,?,?,0)').bind(dubaiDay(), pid, await sha('claim|' + tok), x.name, Date.now(), ip).run(); }
+  catch (e) { return J({ error: x.name + ' is already picked on another phone' }, 409); }
+  if (mine) await env.DB.prepare('UPDATE claims SET off=1 WHERE th=? AND off=0').bind(mine.th).run();   /* one name per phone */
+  return J({ t: tok, name: x.name, d: L.date });
 }
 /* v18: a player sends the score of a FINISHED game (not on court) from /live. No code: the sender picks themselves from the game's 4 players.
    One score per game: pending or accepted locks it; a rejected score reopens it. Nothing changes the data until the tablet accepts it. */
 async function liveScore(req, env) {
-  const b = await req.json().catch(() => ({})), { S, subs } = await liveState(env), L = liveData(S, Date.now(), subs);
+  const b = await req.json().catch(() => ({})), { L, mine, S } = await livePublic(env, b.t);
   if (!L.live) return J({ error: 'No live session right now' }, 409);
   const r = L.results.find(x => x.k === String(b.k || ''));
   if (!r) return J({ error: 'Game not found' }, 404);
   if (r.sc) return J({ error: 'This game already has a score' }, 409);
   if (!r.send) return J({ error: 'Score already sent · waiting for approval' }, 409);
-  const who = +b.who, sa = +b.sa, sb = +b.sb;
-  if (!(who >= 0 && who <= 3 && Number.isInteger(who))) return J({ error: 'Pick your name' }, 400);
+  /* v19: the sender is the phone's picked name (claim token checked on every score) and must have played in this game */
+  if (!mine) return J({ error: 'Pick your name first', claim: 1 }, 401);
+  const h = (((S.games || {})[L.date] || {}).hist || []).find(o => hKey(o) === r.k), who = h ? h.ids.indexOf(mine.pid) : -1, sa = +b.sa, sb = +b.sb;
+  if (who < 0) return J({ error: 'Only the 4 players of this game can send its score' }, 403);
   if (!Number.isInteger(sa) || !Number.isInteger(sb) || sa < 0 || sb < 0) return J({ error: 'Enter both scores' }, 400);
   const P = { pts: r.pts, deuce: r.deuce }, e = scoreErr(sa, sb, P);
   if (e) return J({ error: e }, 400);
   if (!gameWon(sa, sb, P)) return J({ error: 'Not a finished game – one side must reach ' + r.pts }, 400);
   const ip = await sha('ip|' + (req.headers.get('CF-Connecting-IP') || '') + '|' + dubaiDay());
   if (((await env.DB.prepare('SELECT COUNT(*) AS n FROM subs WHERE d=? AND ip=?').bind(dubaiDay(), ip).first()) || {}).n >= 30) return J({ error: 'Too many scores from this phone today' }, 429);
-  const byn = r.a.concat(r.b)[who] || '';
+  const byn = L.me.name || r.a.concat(r.b)[who] || '';
   try { await env.DB.prepare("INSERT INTO subs(d,k,st,who,byn,sa,sb,at,ip) VALUES(?,?,'p',?,?,?,?,?,?)").bind(dubaiDay(), r.k, who, byn, sa, sb, Date.now(), ip).run(); }
   catch (x) { return J({ error: 'Score already sent · waiting for approval' }, 409); }
   return J({ ok: 1 });
@@ -292,8 +373,14 @@ async function liveScore(req, env) {
 
 async function api(req, env, ctx, url) {
   const path = url.pathname, m = req.method;
-  if (path === '/api/live' && m === 'GET') { const { S, subs } = await liveState(env); return J(liveData(S, Date.now(), subs)); }
+  if (path === '/api/live' && m === 'GET') return J((await livePublic(env, req.headers.get('X-Claim'))).L);
   if (path === '/api/live/score' && m === 'POST') return liveScore(req, env);
+  if (path === '/api/live/claim' && m === 'POST') return liveClaim(req, env);
+  if (path === '/api/live/release' && m === 'POST') {          /* "Change to guest" frees the phone's name */
+    const b = await req.json().catch(() => ({})), { mine } = await livePublic(env, b.t);
+    if (mine) await env.DB.prepare('UPDATE claims SET off=1 WHERE th=? AND off=0').bind(mine.th).run();
+    return J({ ok: 1 });
+  }
   if (path === '/api/ping') return J({ ok: 1 });
   if (path === '/api/login' && m === 'POST') {
     const b = await req.json().catch(() => ({})), u = normU(b.u), now = Date.now();
@@ -391,6 +478,21 @@ async function api(req, env, ctx, url) {
     const sa = st === 'a' && Number.isInteger(b.sa) ? b.sa : x.sa, sb = st === 'a' && Number.isInteger(b.sb) ? b.sb : x.sb;
     await env.DB.prepare('UPDATE subs SET st=?,sa=?,sb=?,rv=?,rby=? WHERE id=? AND st=?').bind(st, sa, sb, Date.now(), me.u, x.id, 'p').run();
     await audit(env, me.u, 'Live score ' + (st === 'a' ? 'accepted' : 'rejected') + ': ' + sa + '–' + sb + ' from ' + (x.byn || '?') + ' (game ' + x.k + ')' + (st === 'a' && (sa !== x.sa || sb !== x.sb) ? ' · sent as ' + x.sa + '–' + x.sb : ''));
+    return J({ ok: 1 });
+  }
+  /* v19: names picked on the live page – admin + game manager see them and can free a wrongly picked one */
+  if (path === '/api/claims' && m === 'GET') {
+    if (!admin && !gm) return deny();
+    const { claims, S } = await livePublic(env, null), P = {}; (S.players || []).forEach(p => P[p.id] = p);
+    return J({ d: dubaiDay(), list: claims.map(c => ({ id: c.pid, name: (P[c.pid] && P[c.pid].name) || c.nm || '?', at: c.at })).sort((a, b) => a.name.localeCompare(b.name)) });
+  }
+  mm = path.match(/^\/api\/claims\/([\w-]{1,40})$/);
+  if (mm && m === 'DELETE') {
+    if (!admin && !gm) return deny();
+    const c = await env.DB.prepare('SELECT nm FROM claims WHERE d=? AND pid=? AND off=0').bind(dubaiDay(), mm[1]).first();
+    if (!c) return J({ error: 'not picked' }, 404);
+    await env.DB.prepare('UPDATE claims SET off=1 WHERE d=? AND pid=? AND off=0').bind(dubaiDay(), mm[1]).run();
+    await audit(env, me.u, 'Live page name freed: ' + (c.nm || mm[1]));
     return J({ ok: 1 });
   }
   if (path === '/api/snapshots' && m === 'GET') {

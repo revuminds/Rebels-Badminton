@@ -4,7 +4,7 @@ function render(){const app=$('.app'),m=$('#main');/* H3: no Finance PIN – the
   if(ui.scr==='app'||ui.scr==='home')$('#nav').innerHTML=vNav();
   if(ui.scr==='app'){m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{if(ui.scr!=='home')$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
-  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():ui.subm&&ui.scr==='app'&&ui.tab==='games'?vSubs():'';tick()}
+  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():ui.subm&&ui.scr==='app'&&ui.tab==='games'?vSubs():ui.lclm&&ui.scr==='app'&&ui.tab==='games'?vLcl():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance')&&scr!=='home')ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
