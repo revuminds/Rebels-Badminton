@@ -11,7 +11,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
    '<div id="dup">'+vDup()+'</div>'+vNoSx()+
    '<div class="row" style="gap:12px"><div class="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="psearch" placeholder="Search players, then tap to turn on" value="'+esc(ui.q)+'" data-i="q" autocomplete="off"><button class="ib" style="background:var(--pn);color:var(--mu)" data-a="clearq" aria-label="Clear search">×</button></div><button class="ol" data-a="alloff">Turn all off</button></div>'+
    (st&&!(g&&g.en)?'<div style="font-size:14px;color:var(--mu)">Check players in / out with the <b style="color:var(--tx)">Players</b> button on the Games page. Tap a photo or name for details.</div>':'<div style="font-size:14px;color:var(--mu)">Tap the switch to turn a player on · tap the photo or name for details.</div>')+
-   '<div id="pgrid">'+vGrid()+'</div>'+
+   '<div class="pfl" id="pfl">'+vPfl()+'</div><div id="pgrid">'+vGrid()+'</div>'+
    '<div class="row" style="justify-content:flex-end;padding-bottom:12px"><button class="btn sh" style="min-width:160px" data-a="pnext">Next → Games</button></div>'}
 const lvSeg=(cur,a,x)=>LVN.map((n,i)=>'<button'+(cur===i?' class="on"':'')+' data-a="'+a+'"'+(x!=null?' data-x="'+x+'" data-y="'+i+'"':' data-x="'+i+'"')+'>'+n+'</button>').join('');
 function vLv(){return lvSeg(ui.lv,'lv')}
@@ -30,11 +30,13 @@ function vDup(){const d=dupInfo(ui.nm);return d?'<div class="warn '+(d.red?'red'
 function attChip(d,id){const a=att(d,id),g=S.games[d];if(!g||!g.st)return '';
   if(!a||!a.a)return '<span class="att no">'+(g.en?'Did not come':'Not here yet')+'</span>';
   return '<span class="att '+(a.l?'left':'in')+'">'+(a.l?'Left '+hm(a.l):'Arrived '+hm(a.a))+'</span>'}
-function vGrid(){const d=curDate(),q=ui.q.trim().toLowerCase(),D=day(d),L=active().filter(p=>!q||p.name.toLowerCase().includes(q));
+function vPfl(){const f=ui.pf||{},b=(k,v,l)=>'<button class="fc'+(f[k]===v?' on':'')+'" data-a="pf" data-x="'+k+'" data-y="'+v+'">'+l+'</button>';
+  return '<span class="lab">FILTER</span>'+b('sx','m','M')+b('sx','f','F')+LVS.map((l,i)=>b('lv',''+i,l)).join('')+b('on','1','Attending')}
+function vGrid(){const d=curDate(),q=ui.q.trim().toLowerCase(),D=day(d),f=ui.pf||{},g=S.games[d],gc=g?counts(g,false):{},L=active().filter(p=>(!q||p.name.toLowerCase().includes(q))&&(!f.sx||p.sx===f.sx)&&(!f.lv||p.lv===+f.lv)&&(!f.on||D.on[p.id]));
   if(!active().length)return '<div class="empty">No players yet. Add your first player above.</div>';
   if(!L.length)return '<div class="empty">No player with that name. Add them above.</div>';
   return '<div class="grid3">'+L.map(p=>{const on=!!D.on[p.id];
-    return '<div class="pc'+(on?'':' off')+'"><button class="pcm" data-a="pmod" data-x="'+p.id+'">'+pav(p.id,48)+'<span class="pnm" style="flex:1"><b style="font-size:17px">'+esc(p.name)+(isOrg(p.id)?' <span style="color:var(--y)">★</span>':'')+'</b><small style="font-size:13px">Level: '+LVS[p.lv]+' · '+(p.sx?'<b class="sxt'+(p.sx==='f'?' f':'')+'">'+(p.sx==='f'?'F':'M')+'</b>':'<b class="sxt no">Set gender</b>')+'</small>'+(on?attChip(d,p.id):'')+'</span></button>'+
+    return '<div class="pc'+(on?'':' off')+'"><button class="pcm" data-a="pmod" data-x="'+p.id+'">'+pav(p.id,48)+'<span class="pnm" style="flex:1"><b style="font-size:17px">'+esc(p.name)+(isOrg(p.id)?' <span style="color:var(--y)">★</span>':'')+(gc[p.id]?'<span class="gtd">'+pl(gc[p.id],'game')+' today</span>':'')+'</b><small style="font-size:13px">Level: '+LVS[p.lv]+' · '+(p.sx?'<b class="sxt'+(p.sx==='f'?' f':'')+'">'+(p.sx==='f'?'F':'M')+'</b>':'<b class="sxt no">Set gender</b>')+'</small>'+(on?attChip(d,p.id):'')+'</span></button>'+
       '<button class="swb" data-a="tog" data-x="'+p.id+'" aria-label="'+(on?'Turn off':'Turn on')+' '+esc(p.name)+'"><span class="sw'+(on?' on':'')+'"><span></span></span></button></div>'}).join('')+'</div>'}
 function pStats(id){let ses=0,gm=0,w=0,first='';Object.keys(S.games).sort().forEach(d=>{const g=S.games[d];const inS=(g.ros||[]).includes(id)||arrived(d,id)||g.hist.some(h=>h.ids.includes(id));
   if(inS&&(g.st||g.hist.length)){ses++;if(!first)first=d}g.hist.forEach(h=>{const k=h.ids.indexOf(id);if(k<0)return;gm++;if((k<2&&h.sa>h.sb)||(k>=2&&h.sb>h.sa))w++})});

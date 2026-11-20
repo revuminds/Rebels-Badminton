@@ -1,9 +1,10 @@
 /* ===== render, actions, events, start-up ===== */
-function render(){const app=$('.app'),m=$('#main');if(VIEW()){ui.unlocked=true;ui.hun=true;ui.bun=false}document.body.classList.toggle('viewer',VIEW());stRender();RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app');
-  if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
-  else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
+function render(){const app=$('.app'),m=$('#main');if(VIEW()){ui.unlocked=true;ui.hun=true;ui.bun=false}document.body.classList.toggle('viewer',VIEW());stRender();RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app'&&ui.scr!=='home');app.classList.toggle('onhome',ui.scr==='home');
+  if(ui.scr==='app'||ui.scr==='home')$('#nav').innerHTML=vNav();
+  if(ui.scr==='app'){m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
+  else{if(ui.scr!=='home')$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
   $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
-const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
+const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance')&&scr!=='home')ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
@@ -129,6 +130,8 @@ const act={
    if(L.w&&L.w!==y[0]){L[k]=Math.min(L[k],c-1);L[o]=winOf(P,L[k])}save();render()},
  /* finance */
  dstrong:x=>{S.def.strong=+x;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},dpwr:x=>{S.def.pwr=+x;save();render()},
+ theme:()=>{const l=!document.body.classList.contains('light');document.body.classList.toggle('light',l);try{localStorage.setItem('rebels.theme',l?'light':'dark')}catch(e){}render()},
+ pf:(x,y)=>{ui.pf=ui.pf||{};ui.pf[x]=ui.pf[x]===y?'':y;$('#pgrid').innerHTML=vGrid();$('#pfl').innerHTML=vPfl()},
  gpo:()=>{ui.gpo=ui.gpo===0?1:0;render()},
  fsub:x=>{ui.fsub=x;render()},lock:()=>{ui.unlocked=false;ui.pin='';render()},
  ksm:x=>{ui.ks=ui.ks||{};ui.ks.m=x;ui.open=null;render()},kopen:x=>{ui.ks.m='session';ui.ks.s=x;render();window.scrollTo(0,0)},

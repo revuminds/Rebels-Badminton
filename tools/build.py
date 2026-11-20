@@ -6,8 +6,9 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 b64 = lambda p: base64.b64encode(p.read_bytes()).decode()
 
-FONTS = [("Big Shoulders Display", 700, "big-shoulders-display-latin-700-normal"),
-         ("Big Shoulders Display", 900, "big-shoulders-display-latin-900-normal"),
+# v17: one font. The old display face name is mapped onto Outfit Bold, so every heading/numeral uses Outfit.
+FONTS = [("Big Shoulders Display", 700, "outfit-latin-700-normal"),
+         ("Big Shoulders Display", 900, "outfit-latin-700-normal"),
          ("Outfit", 400, "outfit-latin-400-normal"), ("Outfit", 500, "outfit-latin-500-normal"),
          ("Outfit", 600, "outfit-latin-600-normal"), ("Outfit", 700, "outfit-latin-700-normal")]
 css = "".join(

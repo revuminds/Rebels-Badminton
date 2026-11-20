@@ -44,9 +44,9 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const L=ids.slice().sort((a,b)=>rk(a)-rk(b)||w(b)-w(a)||nameOf(a).localeCompare(nameOf(b)));
   const card=id=>{const r=rk(id),wh=r?'':where(id),st=r===2?'Not here yet':r===3?'Left '+hm(leftAt(d,id)):(wh||'Free')+((im[id]||0)>1?' · in '+im[id]+' games':'');
     return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+' · Games: '+((RING||{})[id]||0)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
-  const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
+  const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">WAITING · ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
-  return courts+up+allp}
+  return '<div class="cgrid">'+courts+'</div>'+up+allp}
 
 /* ---------- check the 4 players before the game starts ---------- */
 function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}

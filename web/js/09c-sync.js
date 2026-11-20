@@ -23,7 +23,7 @@ function snapTake(why){const L=snapList();L.unshift({t:Date.now(),why,v:S.v,n:S.
   while(L.length){try{localStorage.setItem(SNKEY,JSON.stringify(L));return L[0].t}catch(e){L.pop()}}return 0}
 /* replace all data with `txt` (backup / snapshot / cloud); photos on this device are kept for the same players */
 function replaceAll(txt,why){const s=parse(txt);if(!s)return toast('Not valid Rebels data'),false;const m=photoMap(),u=snapTake('Before '+why);
-  try{localStorage.setItem(UNKEY,JSON.stringify({t:u,why}))}catch(e){}S=s;reattach(m);migrate();audit(why);markDirty();save();return true}
+  try{localStorage.setItem(UNKEY,JSON.stringify({t:u,why}))}catch(e){}S=s;reattach(m);APPLY=true;try{migrate()}finally{APPLY=false}audit(why);markDirty();save();return true}
 function snapRestore(k){const s=snapList()[k];if(!s)return;if(!confirm('Restore the safety snapshot from '+new Date(s.t).toLocaleString()+' ('+s.why+')?\n\nALL current data on this device is replaced. A snapshot of the current data is taken first, so you can undo.'))return;
   if(replaceAll(s.d,'Restored snapshot from '+new Date(s.t).toLocaleString()))toast('Snapshot restored · Undo is in Settings → Backup');render()}
 function undoRestore(){let u=null;try{u=JSON.parse(localStorage.getItem(UNKEY))}catch(e){}const s=u&&snapList().find(x=>x.t===u.t);if(!s)return toast('Nothing to undo');
@@ -94,9 +94,9 @@ setInterval(()=>{if(SY.token&&(SY.dirty||VIEW())&&!syBusy&&navigator.onLine!==fa
 
 /* ---------- top status bar: sync · role · session clock ---------- */
 function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g);
-  return '<span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
+  return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
    '<span class="strole '+(VIEW()?'v':'a')+'">'+(VIEW()?'VIEWER':SY.token?'ADMIN':'ADMIN · LOCAL')+'</span>'+
-   (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')}
+   (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')+'<button class="stbtn" data-a="theme" aria-label="Light / dark">'+(document.body.classList.contains('light')?'☾':'☀')+'</button>'}
 function stRender(){const el=$('#stat');if(el)el.innerHTML=vStat()}
 
 /* ---------- Settings sections: Sync & Account, Backup ---------- */
@@ -126,7 +126,7 @@ function vBackup(){if(VIEW())return '<section class="pn"><div class="laby">BACKU
    (L.length?L.map((s,k)=>'<div class="erow"><b style="flex:1">'+new Date(s.t).toLocaleString()+'</b><span style="color:var(--mu)">'+esc(s.why)+' · '+pl(s.n||0,'player')+'</span><button class="ol sm" data-a="snrest" data-x="'+k+'">Restore</button></div>').join(''):'<div class="empty" style="padding:8px">None yet.</div>')+
    ((S.audit||[]).length?'<div class="lab">AUDIT LOG</div><div class="snl">'+S.audit.slice(0,25).map(a=>'<div class="tip"><span style="color:var(--mu);min-width:120px">'+new Date(a.t).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span><span>'+esc(a.m)+' <small style="color:var(--mu)">· '+esc(a.by||'')+'</small></span></div>').join('')+'</div>':''):'')+'</section>'}
 /* viewer: read-only – only looking around is allowed */
-const VIEW_OK=new Set('tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow sylogin sylogout syopen sycancel syopenpub pickx mv mvx'.split(' '));
+const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow sylogin sylogout syopen sycancel syopenpub pickx mv mvx'.split(' '));
 const viewBlock=a=>VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a);
 const SYACT=({
  synow:()=>syncNow(true),sylogin:()=>syLogin(),sylogout:()=>syLogout(),syopen:()=>ui.syl&&openUrl(ui.syl.link),sycancel:()=>{ui.syl=null;render()},

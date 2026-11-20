@@ -13,7 +13,7 @@ const BACK_SVG='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stro
 const pinned=()=>{try{return !!(NB&&NB.isPinned&&NB.isPinned())}catch(e){return false}};
 window.__dl=()=>render();
 const LOGO_SRC=()=>$('#lg').src;
-function vNav(){return '<img class="logo" src="'+$('#sk').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].map(t=>'<button class="tab'+(ui.tab===t&&ui.scr==='app'?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+t[0].toUpperCase()+t.slice(1)+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
+function vNav(){return '<img class="logo" src="'+$('#sk').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].map(t=>'<button class="tab'+((t==='home'?ui.scr==='home':ui.tab===t&&ui.scr==='app')?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+'<span class="tlb" data-m="'+(t==='settings'?'More':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
 const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'+BACK_SVG+'</button>';
 
 /* ---------- HOME ---------- */
@@ -27,7 +27,7 @@ function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d
     '<button class="ol sm" data-a="sedit2" data-x="'+d+'">Edit</button><button class="ol sm" style="color:var(--bad)" data-a="cancelup" data-x="'+d+'">Cancel</button></div>'}).join('');
   return '<div class="home"><section class="hleft"><img id="homeLogo" src="'+LOGO_SRC()+'" alt="Rebels Badminton"><div class="d" style="font-size:40px;letter-spacing:.02em">REBELS <span style="color:var(--y)">BADMINTON</span></div><div style="font-size:15px;color:var(--mu)">'+['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]+' '+new Date().getDate()+' '+MNF[new Date().getMonth()]+'</div></section>'+
    '<div class="hright"><div class="sb hin"><h1>WHAT\'S <span>NEXT?</span></h1><button class="ib gearb" data-a="tab" data-x="settings" aria-label="Settings">'+ICON.settings+(S.newRules?'<i class="ndot"></i>':'')+'</button></div>'+
-   (card?'<div class="hin">'+card+'</div>':'')+
+   (card?'<div class="hin">'+card+'</div>':vHero())+(expDue()&&!VIEW()?'<div class="hin note amb">No backup exported in over 30 days · Settings → Backup</div>':'')+'<div class="hin h2col">'+vLastRes()+vMonthFin()+'</div>'+
    '<div class="hin hbtns"><button class="hbig y" data-a="newsched"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg><span><b class="d">SCHEDULE SESSION</b><i>Date, time, courts &amp; hours</i></span></button>'+
    '<button class="hbig" data-a="hist"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#FFD23F" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><b class="d">PREVIOUS SESSIONS</b><i>'+(ps.length?pl(ps.length,'session')+' · last: '+dlab(ps[ps.length-1]):'No sessions yet')+'</i></span></button></div>'+
    '<div class="pn hin"><div class="sb"><b style="font-size:16px">Upcoming</b><span style="font-size:13px;color:var(--mu)">Edit to change time, venue, courts or hours</span></div>'+(rows||'<div style="color:var(--mu);font-size:14px;padding:6px 2px">No upcoming sessions. Tap Schedule session.</div>')+'</div></div></div>'}
@@ -133,3 +133,22 @@ function vAP(){const a=ui.ap,y=addD(TODAY(),-1),locs=[...new Set([...S.locs,a.lo
     '<div id="aplist" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-height:52vh;overflow:auto">'+vAPList()+'</div></section></div></div>'}
 function vAPList(){const a=ui.ap,q=(a.q||'').trim().toLowerCase(),L=active().filter(p=>!q||p.name.toLowerCase().includes(q));
   return L.map(p=>{const on=a.ids.includes(p.id);return '<button class="ckr" style="padding:6px 10px;text-align:left'+(on?';outline:2px solid var(--y)':'')+'" data-a="aptick" data-x="'+p.id+'"><span style="flex:1;min-width:0">'+pwho(p.id,30)+'</span><span class="dbx'+(on?' on':'')+'">'+(on?'✓':'')+'</span></button>'}).join('')||'<div style="color:var(--mu)">No players found.</div>'}
+
+/* ---------- v17 Home: next-session hero, last session results, this month's finance ---------- */
+function vHero(){const d=upcoming()[0];if(!d)return '<div class="hero"><div><div class="hk">NEXT SESSION</div><div class="ht">Nothing scheduled</div><div class="hs">Tap Schedule session to plan the next one.</div></div></div>';
+  const D=S.days[d],n=onIds(d).length,g=S.games[d],np=g&&g.fp?g.fp.filter(x=>!x.x&&x.q.every(Boolean)).length:0;
+  return '<div class="hero"><div><div class="hk">NEXT SESSION</div><div class="ht">'+esc(dlab(d))+' · '+t12(D.time)+'</div><div class="hs">'+esc(D.loc||'')+' · '+courtSum(d)+'</div>'+
+   '<div class="hstats"><div><b>'+n+'</b><i>players on</i></div><div><b>'+courtsOf(d).length+'</b><i>courts</i></div><div><b>'+(np||'–')+'</b><i>games planned</i></div></div></div>'+
+   '<div class="row" style="flex-direction:column;align-items:stretch"><button class="btn" data-a="hgames" data-x="'+d+'">Open plan →</button>'+(VIEW()?'':'<button class="ol sm" data-a="sedit2" data-x="'+d+'">Edit</button>')+'</div></div>'}
+function vLastRes(){const t=TODAY(),ds=sessions().filter(d=>(d<t||(S.games[d]||{}).en)&&(S.games[d]||{hist:[]}).hist.length);const d=ds[ds.length-1];
+  if(!d)return '<section class="pn"><div class="lab">LAST SESSION</div><div class="empty" style="padding:8px">No results yet.</div></section>';
+  const g=S.games[d],w={};g.hist.forEach(h=>{if(h.sa===h.sb)return;(h.sa>h.sb?h.ids.slice(0,2):h.ids.slice(2)).forEach(id=>w[id]=(w[id]||0)+1)});
+  const top=Object.keys(w).sort((a,b)=>w[b]-w[a]).slice(0,3),hs=g.hist.slice(0,4);
+  return '<section class="pn" style="gap:6px"><div class="sb"><span class="lab">LAST SESSION · '+esc(dlab(d).toUpperCase())+'</span><button class="lnk" data-a="hgames" data-x="'+d+'">All '+g.hist.length+' →</button></div>'+
+   (top.length?'<div style="font-size:14px;color:var(--mu)">Most wins: '+top.map(id=>'<b style="color:var(--tx)">'+esc(nameOf(id))+'</b> '+w[id]).join(' · ')+'</div>':'')+
+   hs.map(h=>{const aw=h.sa>h.sb,tie=h.sa===h.sb;return '<div class="lres"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" class="'+(aw&&!tie?'w':'')+'">'+esc(tn(h,0))+'</span><b>'+h.sa+' – '+h.sb+'</b><span style="flex:1;min-width:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" class="'+(!aw&&!tie?'w':'')+'">'+esc(tn(h,1))+'</span></div>'}).join('')+'</section>'}
+function vMonthFin(){const m=TODAY().slice(0,7),L=allCalc().filter(s=>s.d.slice(0,7)===m),sum=k=>L.reduce((a,s)=>a+s[k],0);
+  const head='<div class="sb"><span class="lab">FINANCE · '+esc(mlab(m).toUpperCase())+'</span><button class="lnk" data-a="tab" data-x="finance">Open →</button></div>';
+  if(S.pin&&!ui.unlocked&&!VIEW())return '<section class="pn" style="gap:8px">'+head+'<div class="note mu">🔒 Locked · open Finance with the PIN to see this month’s totals here.</div></section>';
+  const inc=sum('ret'),ex=sum('inv');
+  return '<section class="pn" style="gap:8px">'+head+'<div class="mini"><div><i>Income</i><b style="color:var(--ok)">'+A0(inc)+'</b></div><div><i>Expenses</i><b>'+A0(ex)+'</b></div><div><i>Balance</i><b style="color:'+(inc-ex<0?'var(--amb)':'var(--ok)')+'">'+(inc-ex<0?'−':'')+A0(Math.abs(inc-ex))+'</b></div></div><div style="font-size:12px;color:var(--mu)">'+pl(L.length,'session')+' this month</div></section>'}

@@ -9,6 +9,7 @@ const NB=window.Android||null;
 function blank(){return{v:3,nid:1,players:[],locs:['Venue A','Venue B'],days:{},games:{},fin:{},pin:'',
   def:{pts:21,deuce:false,slot:15,chg:2,court:'',fee:'',spt:12},orgs:[],series:[],ent:[],rules:[],ovr:[],eid:1,lastBy:'',lastM:'cash',newRules:0,savedAt:0}}
 function parse(t){try{const s=JSON.parse(t);if(s&&s.v&&Array.isArray(s.players))return Object.assign(blank(),s)}catch(e){}return null}
+try{if(localStorage.getItem('rebels.theme')==='light')document.body.classList.add('light')}catch(e){}
 let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}

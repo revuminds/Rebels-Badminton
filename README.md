@@ -13,3 +13,9 @@ Every push to `main` builds a signed APK: **Releases → Build N → rebels-badm
 
 ## Laptop
 `dist/RebelsBadminton.html` (also attached to each release) runs in any browser, offline.
+
+## v17 cloud sync (optional)
+`worker/` is a free-tier Cloudflare Worker (D1 data + daily copies kept 90 days, R2 photos, Access email login, public club page). Setup: `worker/README.md`. Without it the app stays fully offline as before.
+
+## Tests
+`python3 tests/run_all.py <copy-of-backup.txt>` (headless Chrome + local Worker) · `python3 tests/shots.py <backup> out.png` (contact sheet). Never run them against a device's live data.

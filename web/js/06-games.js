@@ -66,7 +66,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
    (hist.length?'<div style="font-size:13px;color:var(--mu)">Tap a game to edit or delete it.</div><table><thead><tr><th>GAME</th><th>TEAM A</th><th style="text-align:center">SCORE</th><th>TEAM B</th><th>WINNER</th><th style="text-align:right">TIME</th></tr></thead><tbody>'+groups+'</tbody></table>':'<div class="empty" style="padding:12px">No games saved yet. Tap A won / B won, then Save – or add games manually.</div>')+'</section>'+
    vGPP(g,ppl))+happ+(!run&&!ended&&!past?'<div class="sb"><span></span><button class="btn" style="min-width:160px" data-a="gsave">Save</button></div>':'')}
 let lastAuto=0;
-function tick(){const now=Date.now();
+function tick(){const now=Date.now();{const c=document.querySelector('[data-tk="sclk"]'),g0=S.games[TODAY()];if(c&&g0&&g0.st)c.textContent=fmtH(playMs(g0,now)/1000)}
   if(ui.scr==='home'){const el=document.querySelector('[data-tk="sess"]'),g=S.games[TODAY()];if(el&&g&&g.st)el.textContent=fmtH(playMs(g,now)/1000);return}
   if(ui.scr!=='app'||ui.tab!=='games')return;const g=S.games[curDate()];if(!g)return;const run=running(g);
   document.querySelectorAll('[data-tk]').forEach(el=>{const k=el.dataset.tk;
