@@ -98,7 +98,7 @@ function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">AC
 async function accList(){const r=await req('GET','/api/accounts');if(r.s!==200)return toast(r.s===0?'No internet':'Could not load accounts');ui.acc.list=r.j.list;render()}
 
 Object.assign(SYACT,{
- switchacc:()=>{save();lockApp()},
+ switchacc:()=>{if(pinned())return toast('Unlock the tablet first');save();lockApp()},
  lgpick:x=>{const a=ACC[x];if(!a)return;if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
  lgother:()=>{ui.lg={step:'other'};lgRender()},lgback:()=>{ui.lg={step:'pick'};lgRender()},
  lgpw:()=>{const L=ui.lg;if(!L||L.busy)return;const p=($('#lgp')||{}).value||'',u=L.step==='pw'?L.u:(($('#lgu')||{}).value||'');L.uu=u;lgPassword(u,p)},

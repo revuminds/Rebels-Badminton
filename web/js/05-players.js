@@ -5,7 +5,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
   const nA=onIds(d).filter(id=>arrived(d,id)).length;
   return '<div class="sb" style="align-items:flex-start"><div><div class="row" style="gap:8px">'+PIN_SVG+'<span class="laby" style="letter-spacing:.12em">'+esc(sessLab(d).toUpperCase())+'</span></div>'+
    '<h1 style="margin-top:8px">WHO\'S ON <span>COURT</span></h1></div>'+
-   (pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – tap to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>')+'</div>'+
+   lockBtn()+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat('+(st?4:3)+',minmax(0,1fr));gap:12px"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>Playing</i></div>'+(st?'<div class="tile"><b style="color:var(--ok)">'+nA+'</b><i>Arrived</i></div>':'')+'<div class="tile"><b style="color:var(--y)">'+courtsOf(d).length+'</b><i>Courts · '+hrsL(courtHrs(d))+'</i></div></div>'+
    '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><div class="lvb" id="sxb">'+sxSeg(ui.sx,'sx',1)+'</div><button class="btn" data-a="add">+ Add</button></div>'+
    '<div id="dup">'+vDup()+'</div>'+vNoSx()+

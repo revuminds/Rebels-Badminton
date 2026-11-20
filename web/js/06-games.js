@@ -55,7 +55,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     happ='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">WHAT\'S HAPPENING</span><span class="lab">THE APP KEEPS UPCOMING GAMES READY</span></div>'+
      notes.map(x=>'<div class="tip"><span>●</span><span>'+esc(x)+'</span></div>').join('')+
      (g.log.length?g.log.slice(0,14).map(l=>'<div class="tip"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
-  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+ctl+'</div></div>'+
+  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+subsBtn(d)+ctl+lockBtn()+'</div></div>'+
    vSBar(g)+
    (plan?'<div class="warn yel">Planning mode · games planned here wait for '+esc(dlab(d))+'. Start session on match day.</div>':'')+
    (!ended&&!past&&on.length<4?'<div class="warn yel">Only '+pl(on.length,'player')+' on. Turn on at least 4 in Players.</div>':'')+
@@ -99,7 +99,7 @@ function vGE(){const e=ui.ge,g=G(e.d),used=new Set(e.ids.filter(Boolean));
   const ps=k=>'<select class="gei" data-c="ge_p" data-y="'+k+'">'+opts(k)+'</select>';
   const lb=(l,h)=>'<label class="fl">'+l+h+'</label>';
   const en=e.st&&num(e.du)?hm(tms(e.d,e.st)+num(e.du)*60000):'';
-  const wb=x=>'<button class="wonb'+(e.w===x?' on':'')+'" data-a="gewon" data-x="'+x+'">'+(x==='a'?'◀ A won':'B won ▶')+'</button>';
+  const wb=x=>'<button class="wonb'+(e.w===x?' on':'')+'" data-a="gewon" data-x="'+x+'">'+(e.w===x?'✓ ':'')+(x==='a'?'◀ A won':'B won ▶')+'</button>';
   return '<div class="modal" data-a="closege"><div class="pn" data-a="noop" style="gap:14px"><div class="sb"><div class="laby">'+(e.i<0?'ADD GAME MANUALLY':'EDIT GAME')+' · '+esc(dlab(e.d).toUpperCase())+'</div><button class="ib" data-a="closege">×</button></div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+lb('TEAM A',ps(0)+ps(1))+lb('TEAM B',ps(2)+ps(3))+'</div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">'+lb('Score A','<input class="gei" type="number" inputmode="numeric" min="0" value="'+e.sa+'" data-i="ge_sa" id="ge_sa">')+lb('Score B','<input class="gei" type="number" inputmode="numeric" min="0" value="'+e.sb+'" data-i="ge_sb" id="ge_sb">')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div>'+

@@ -421,6 +421,27 @@ body.viewer [data-a="cts"],body.viewer [data-a="devlock"],body.viewer .slotsel,b
   .crow{grid-template-columns:44px 1fr}.tile{min-width:0;padding:8px 10px}.tile b{font-size:26px}
   .cgrid{grid-template-columns:1fr}.search{min-width:0}.lvb{flex-wrap:wrap}.today{flex-direction:column}
   #toast{bottom:84px}}
+/* ===================== v18 ===================== */
+/* court cards fill the width: 1 = full, 2 = halves, 3 = thirds, 4+ = 2 rows · portrait + phone stack */
+.cgrid{grid-template-columns:repeat(var(--cols,1),minmax(0,1fr))}
+@media (orientation:portrait){.cgrid{grid-template-columns:1fr}}
+@media (max-width:700px){.cgrid{grid-template-columns:1fr}}
+/* A won / B won: solid white · selected solid yellow + ✓ (both themes) */
+.wonb{background:#fff;border:2px solid #fff;color:#14161A}
+.wonb.on{background:#FFD23F;border-color:#FFD23F;color:#14161A}
+body.light .wonb{border-color:#CBD0D8}body.light .wonb.on{border-color:#E0B000}
+/* Stop & save: light theme = solid Rebels red, white bold (dark unchanged) */
+body.light .tbtn.run{background:#D62F33;color:#fff;font-weight:800}
+.tbtn.edt{background:transparent;color:var(--tx);border:2px solid var(--bd)}.tbtn.done{background:var(--ok);color:#06210F}
+.cedn{margin:0}
+/* power (switch account) – top-right, dimmed while the tablet is pinned */
+.pwr{font-size:19px;line-height:1;padding:0 10px}.pwr.dis{opacity:.4}
+/* scores sent from the live page */
+@keyframes rvb{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.75);opacity:1}50%{box-shadow:0 0 0 7px rgba(245,165,36,0);opacity:.6}}
+.rvb{background:var(--amb)!important;border-color:var(--amb)!important;color:#1A1200!important;animation:rvb 1.1s ease-in-out infinite;font-weight:800}
+.subl{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto}
+.subr{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
+body.viewer [data-a="ced"],body.viewer [data-a="subsopen"]{display:none!important}
 </style>
 </head>
 <body>
@@ -484,7 +505,7 @@ function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}
 function whoAmI(){try{return SYNC.who()}catch(e){return 'this device'}}
-let tT;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',2200)}
+let tT;function toast(m,ms){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',ms||2200)}
 
 /* ---------- dates & numbers ---------- */
 const z=n=>String(n).padStart(2,'0');
@@ -1071,6 +1092,9 @@ const UNLOCK_SVG='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" st
 const BACK_SVG='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 5l-7 7 7 7"/></svg>';
 const pinned=()=>{try{return !!(NB&&NB.isPinned&&NB.isPinned())}catch(e){return false}};
 window.__dl=()=>render();
+/* v18: tablet lock button (Players + Games). Unlock is the tablet's own gesture – no in-app unlock while pinned. Icon follows the real state (polled). */
+const lockBtn=()=>pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – how to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>';
+let PINNED=null;setInterval(()=>{if(!NB||!NB.isPinned)return;const p=pinned();if(PINNED!==null&&p!==PINNED)render();PINNED=p},2000);
 const LOGO_SRC=()=>$('#lg').src;
 function vNav(){return '<img class="logo" src="'+$('#sk').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].filter(t=>!GM()||(t!=='finance'&&t!=='settings')).map(t=>'<button class="tab'+((t==='home'?ui.scr==='home':ui.tab===t&&ui.scr==='app')?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+'<span class="tlb" data-m="'+(t==='settings'?'More':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
 const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'+BACK_SVG+'</button>';
@@ -1208,7 +1232,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
   const nA=onIds(d).filter(id=>arrived(d,id)).length;
   return '<div class="sb" style="align-items:flex-start"><div><div class="row" style="gap:8px">'+PIN_SVG+'<span class="laby" style="letter-spacing:.12em">'+esc(sessLab(d).toUpperCase())+'</span></div>'+
    '<h1 style="margin-top:8px">WHO\'S ON <span>COURT</span></h1></div>'+
-   (pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – tap to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>')+'</div>'+
+   lockBtn()+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat('+(st?4:3)+',minmax(0,1fr));gap:12px"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>Playing</i></div>'+(st?'<div class="tile"><b style="color:var(--ok)">'+nA+'</b><i>Arrived</i></div>':'')+'<div class="tile"><b style="color:var(--y)">'+courtsOf(d).length+'</b><i>Courts · '+hrsL(courtHrs(d))+'</i></div></div>'+
    '<div class="row pn" style="flex-direction:row;padding:12px;gap:12px"><input id="pname" class="inp" style="flex:1" placeholder="Add a player name…" value="'+esc(ui.nm)+'" data-i="nm" autocomplete="off"><div class="lvb" id="lvb">'+vLv()+'</div><div class="lvb" id="sxb">'+sxSeg(ui.sx,'sx',1)+'</div><button class="btn" data-a="add">+ Add</button></div>'+
    '<div id="dup">'+vDup()+'</div>'+vNoSx()+
@@ -1328,7 +1352,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     happ='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">WHAT\'S HAPPENING</span><span class="lab">THE APP KEEPS UPCOMING GAMES READY</span></div>'+
      notes.map(x=>'<div class="tip"><span>●</span><span>'+esc(x)+'</span></div>').join('')+
      (g.log.length?g.log.slice(0,14).map(l=>'<div class="tip"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
-  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+ctl+'</div></div>'+
+  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+subsBtn(d)+ctl+lockBtn()+'</div></div>'+
    vSBar(g)+
    (plan?'<div class="warn yel">Planning mode · games planned here wait for '+esc(dlab(d))+'. Start session on match day.</div>':'')+
    (!ended&&!past&&on.length<4?'<div class="warn yel">Only '+pl(on.length,'player')+' on. Turn on at least 4 in Players.</div>':'')+
@@ -1372,7 +1396,7 @@ function vGE(){const e=ui.ge,g=G(e.d),used=new Set(e.ids.filter(Boolean));
   const ps=k=>'<select class="gei" data-c="ge_p" data-y="'+k+'">'+opts(k)+'</select>';
   const lb=(l,h)=>'<label class="fl">'+l+h+'</label>';
   const en=e.st&&num(e.du)?hm(tms(e.d,e.st)+num(e.du)*60000):'';
-  const wb=x=>'<button class="wonb'+(e.w===x?' on':'')+'" data-a="gewon" data-x="'+x+'">'+(x==='a'?'◀ A won':'B won ▶')+'</button>';
+  const wb=x=>'<button class="wonb'+(e.w===x?' on':'')+'" data-a="gewon" data-x="'+x+'">'+(e.w===x?'✓ ':'')+(x==='a'?'◀ A won':'B won ▶')+'</button>';
   return '<div class="modal" data-a="closege"><div class="pn" data-a="noop" style="gap:14px"><div class="sb"><div class="laby">'+(e.i<0?'ADD GAME MANUALLY':'EDIT GAME')+' · '+esc(dlab(e.d).toUpperCase())+'</div><button class="ib" data-a="closege">×</button></div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+lb('TEAM A',ps(0)+ps(1))+lb('TEAM B',ps(2)+ps(3))+'</div>'+
    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end">'+lb('Score A','<input class="gei" type="number" inputmode="numeric" min="0" value="'+e.sa+'" data-i="ge_sa" id="ge_sa">')+lb('Score B','<input class="gei" type="number" inputmode="numeric" min="0" value="'+e.sb+'" data-i="ge_sb" id="ge_sb">')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div>'+
@@ -1719,7 +1743,7 @@ function render(){const app=$('.app'),m=$('#main');/* H3: no Finance PIN – the
   if(ui.scr==='app'||ui.scr==='home')$('#nav').innerHTML=vNav();
   if(ui.scr==='app'){m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{if(ui.scr!=='home')$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
-  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
+  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():ui.subm&&ui.scr==='app'&&ui.tab==='games'?vSubs():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance')&&scr!=='home')ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
@@ -1781,7 +1805,7 @@ const act={
  hy:x=>{ui.h.y=x;ui.h.sel='y';render()},hsel:x=>{if(x.startsWith('s:')){if(!ui.h.sel.startsWith('s:'))ui.h.selM=ui.h.sel}else ui.h.selM=x;ui.h.sel=x;render()},
  htab:x=>{ui.h.tab=x;render()},hgames:x=>{ui.cur=x;go('app','games')},hfin:x=>{const h=ui.hun;ui.fsub='kitty';ui.ks={m:'session',s:x};go('app','finance');if(h){ui.unlocked=true;render()}},
  /* players */
- devlock:()=>{if(!NB||!NB.pinScreen)return toast('Tablet lock works in the app only');if(pinned())NB.unlock();else{NB.pinScreen();setTimeout(render,800)}},
+ devlock:()=>{if(!NB||!NB.pinScreen)return toast('Tablet lock works in the app only');if(pinned())return toast('To unlock: swipe up from the bottom and hold 3 seconds',6000);NB.pinScreen();setTimeout(render,800)},
  lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},sx:x=>{ui.sx=ui.sx===x?'':x;$('#sxb').innerHTML=sxSeg(ui.sx,'sx',1)},pmsx:x=>{ui.pm.sx=ui.pm.sx===x?'':x;render()},
  add:()=>{const n=ui.nm.trim().replace(/\s+/g,' ');if(!n)return toast('Type a name first');if(!ui.sx)return toast('Pick M or F');const d=dupInfo(n);if(d&&d.red)return toast('Already in the list');
    const id='p'+(S.nid++);S.players.push(Object.assign({id,name:n,lv:ui.lv,j:Date.now()},ui.sx?{sx:ui.sx}:{}));ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
@@ -2012,16 +2036,17 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const openC=C.map((c,i)=>i).filter(i=>!g.closed[i]);
   const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=g.qq[i]||[],pi=cpill(d,i,now);
     const secs=L.run?(now-L.start)/1000:(L.el||0);
-    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>':
+    const ed=ui.ced===i&&full&&L.run;
+    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):''):
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
     let body;
-    if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button></div>';
+    if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+(!L.run||ed?'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button>':'')+'</div>';
       const sc=(v,side)=>'<div class="scg"><button class="sc" data-a="sc" data-x="'+i+'" data-y="'+side+'-">−</button><span class="scn">'+v+'</span><button class="sc p" data-a="sc" data-x="'+i+'" data-y="'+side+'+">+</button></div>';
-      const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(s==='a'?'◀ A won':'B won ▶')+'</button>';
-      body='<div class="court big">'+lines+'<div class="side">'+cp(0)+cp(1)+'</div><div class="cmid"><div class="row" style="gap:6px">'+sc(L.sa,'a')+sc(L.sb,'b')+'</div><div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div><div class="side r">'+cp(2)+cp(3)+'</div></div>'}
+      const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(L.w===s?'✓ ':'')+(s==='a'?'◀ A won':'B won ▶')+'</button>';
+      body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="court big">'+lines+'<div class="side">'+cp(0)+cp(1)+'</div><div class="cmid"><div class="row" style="gap:6px">'+sc(L.sa,'a')+sc(L.sb,'b')+'</div><div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div><div class="side r">'+cp(2)+cp(3)+'</div></div>'}
     else{const last=g.last[i];body='<div class="court big'+(cl?' shut':'')+'">'+lines+'<div class="cwait" style="flex-direction:column;gap:10px">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+last.sa+' – '+last.sb+'</b> '+esc(tn(last,1))+'</span>':'')+
       '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
@@ -2041,7 +2066,8 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+' · Games: '+((RING||{})[id]||0)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
   const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">WAITING · ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
-  return '<div class="cgrid">'+courts+'</div>'+up+allp}
+  const nc=C.length;
+  return '<div class="cgrid" style="--cols:'+(nc<=3?nc:Math.ceil(nc/2))+'">'+courts+'</div>'+up+allp}
 
 /* ---------- check the 4 players before the game starts ---------- */
 function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}
@@ -2092,6 +2118,8 @@ Object.assign(act,{
  ctopen:x=>{const g=CG();delete g.closed[+x];logIt(g,cname(g.d,+x)+' reopened');save();render()},
  gpick:(x,y)=>{const a=String(x).split('.'),p={t:a[0],i:+a[1],k:+a[2],s:+y},o=ui.pick;if(o&&o.t===p.t&&o.i===p.i&&o.k===p.k&&o.s===p.s){ui.pick=null;return render()}ui.pick=p;pickScroll()},
  cswap:(x,y)=>{ui.pick={t:'c',i:+x,k:0,s:+y};pickScroll()},
+ /* v18: running game – players change only via ✎ Edit (same checks as Swap); timer and score are kept */
+ ced:x=>{ui.ced=+x;ui.pick=null;render()},cedx:()=>{ui.ced=null;ui.pick=null;render()},
  pickx:()=>{ui.pick=null;render();window.scrollTo(0,ui.pickY||0)},
  gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);if(r.n&&g.fp){const f=g.fp.find(o=>o.n===r.n);if(f){f.q=NUL4();f.x=1}}ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
@@ -2105,7 +2133,7 @@ Object.assign(act,{
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */
- timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(!L.run&&!L.sa&&!L.sb&&!L.el){g.live[i]=Object.assign({},L,{run:true,start:Date.now()});save();return render()}
+ timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(ui.ced===i){ui.ced=null;ui.pick=null}if(!L.run&&!L.sa&&!L.sb&&!L.el){g.live[i]=Object.assign({},L,{run:true,start:Date.now()});save();return render()}
    saveGame(g,i);save();render();toast(L.sa||L.sb?'Game saved':'Game saved · tap it in Game Summary to add the score')}
 });
 /* drag ≡ to reorder; drop on a court to queue it there */
@@ -2220,7 +2248,7 @@ function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g),r=AUTH
   return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
    (r?'<span class="strole '+(r==='admin'?'a':r==='games'?'g':'v')+'">'+ROLEN[r]+(SY.token?'':' · LOCAL')+'</span>':'')+
    (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')+'<button class="stbtn" data-a="theme" aria-label="Light / dark">'+(document.body.classList.contains('light')?'☾':'☀')+'</button>'+
-   (r?'<button class="stbtn swb" data-a="switchacc" aria-label="Switch account / Log out">⇄ <span>Switch</span></button>':'')}
+   (r?'<button class="stbtn pwr'+(pinned()?' dis':'')+'" data-a="switchacc" aria-label="'+(pinned()?'Unlock the tablet first':'Switch account / Log out')+'" title="Switch account / Log out">⏻</button>':'')}
 function stRender(){const el=$('#stat');if(el)el.innerHTML=vStat()}
 
 /* ---------- Settings sections: Sync & Account, Backup ---------- */
@@ -2365,7 +2393,7 @@ function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">AC
 async function accList(){const r=await req('GET','/api/accounts');if(r.s!==200)return toast(r.s===0?'No internet':'Could not load accounts');ui.acc.list=r.j.list;render()}
 
 Object.assign(SYACT,{
- switchacc:()=>{save();lockApp()},
+ switchacc:()=>{if(pinned())return toast('Unlock the tablet first');save();lockApp()},
  lgpick:x=>{const a=ACC[x];if(!a)return;if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
  lgother:()=>{ui.lg={step:'other'};lgRender()},lgback:()=>{ui.lg={step:'pick'};lgRender()},
  lgpw:()=>{const L=ui.lg;if(!L||L.busy)return;const p=($('#lgp')||{}).value||'',u=L.step==='pw'?L.u:(($('#lgu')||{}).value||'');L.uu=u;lgPassword(u,p)},
@@ -2381,13 +2409,56 @@ Object.assign(SYACT,{
  accface:x=>{const a=ACC[x];if(!a)return;a.face=a.face?0:1;accSave();render()}
 });
 
+/* ===== v18: scores sent by players from the live page – reviewed on the tablet (admin + game manager) =====
+   Players send a score for a FINISHED game without a score; nothing changes until it is accepted here.
+   Accept → saved as a normal result + audit log. Reject → the live page can send again. The tablet's own score always wins. */
+const hKey=h=>(h.at||0)+'-'+(h.c||1);                      /* same key as the Worker (hKey) */
+const subsOK=()=>(ADMIN()||GM())&&!!SY.token;
+let subsBusy=false;
+async function subsPoll(force){if(!subsOK()||subsBusy||navigator.onLine===false)return;if(!force&&!(ui.scr==='app'&&ui.tab==='games'))return;
+  subsBusy=true;try{const r=await req('GET','/api/subs?d='+TODAY(),null,15000);if(r.s!==200)return;const L=r.j.list||[],old=(ui.subs||[]).map(x=>x.id).join();
+    ui.subs=L;if(L.map(x=>x.id).join()!==old){if(ui.subm&&!L.length)ui.subm=0;const a=document.activeElement;if(!(ui.subm&&a&&a.dataset&&/^sub_/.test(a.dataset.i||'')))render()}}finally{subsBusy=false}}
+setInterval(()=>subsPoll(false),20000);
+function subsBtn(d){const n=(ui.subs||[]).length;return n&&d===TODAY()&&subsOK()?'<button class="ol rvb" data-a="subsopen">Scores to review ('+n+')</button>':''}
+function subGame(x){const g=S.games[TODAY()];return g&&(g.hist||[]).find(h=>hKey(h)===x.k)||null}
+function subVal(x){const e=(ui.subE||{})[x.id]||{};return{sa:e.sa!=null?e.sa:x.sa,sb:e.sb!=null?e.sb:x.sb}}
+function subErr(x){const h=subGame(x),g=S.games[TODAY()];if(!h)return 'Game not found on this tablet (edited or deleted)';if(h.sa||h.sb)return 'Already scored on the tablet: '+h.sa+' – '+h.sb;
+  const v=subVal(x),sa=Math.round(num(v.sa)),sb=Math.round(num(v.sb));if(String(v.sa)===''||String(v.sb)==='')return 'Enter both scores';const e=scoreErr(sa,sb,gp(g,h));if(e)return e;if(!gameWon(sa,sb,gp(g,h)))return 'Not a finished game – one side must reach '+gp(g,h).pts;return ''}
+function vSubs(){const L=ui.subs||[],g=S.games[TODAY()];
+  const row=x=>{const h=subGame(x),v=subVal(x),er=subErr(x),own=h&&(h.sa||h.sb);
+    return '<div class="subr"><div style="flex:1;min-width:0"><div style="font-weight:700">'+(h?esc(cname(TODAY(),h.c-1))+' · '+tyB(h.ids)+' · '+esc(tn(h,0))+' <span style="color:var(--mu)">vs</span> '+esc(tn(h,1)):'<span style="color:var(--mu)">Game '+esc(x.k)+'</span>')+'</div>'+
+     '<div style="font-size:13px;color:var(--mu);margin-top:2px">Sent by <b style="color:var(--tx)">'+esc(x.byn||'?')+'</b> · '+hm(x.at)+(h?' · game to '+gp(g,h).pts:'')+'</div>'+(er?'<div class="note amb" style="margin-top:6px;padding:4px 10px">'+esc(er)+'</div>':'')+'</div>'+
+     (own||!h?'':'<input class="ptsin" type="number" inputmode="numeric" min="0" value="'+esc(v.sa)+'" data-i="sub_sa" data-x="'+x.id+'" aria-label="Score team A"><span class="d">–</span><input class="ptsin" type="number" inputmode="numeric" min="0" value="'+esc(v.sb)+'" data-i="sub_sb" data-x="'+x.id+'" aria-label="Score team B">')+
+     (own||!h?'':'<button class="btn sm" data-a="subacc" data-x="'+x.id+'"'+(er?' disabled':'')+'>✓ Accept</button>')+'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="subrej" data-x="'+x.id+'">'+(own?'Dismiss':'✗ Reject')+'</button></div>'};
+  return '<div class="modal tall" data-a="closesubs"><div class="pn" data-a="noop" style="gap:12px;width:min(980px,96vw)"><div class="sb"><div><div class="laby">SCORES TO REVIEW · FROM THE LIVE PAGE</div><div style="font-size:14px;color:var(--mu);margin-top:4px">Check each score, edit if needed, then accept. Rejected games can be sent again from the live page. Your own score on the tablet always wins.</div></div><button class="ib" data-a="closesubs" aria-label="Close">×</button></div>'+
+   (L.length?'<div class="subl">'+L.map(row).join('')+'</div>':'<div class="empty" style="padding:12px">Nothing to review.</div>')+
+   '<div class="sb"><button class="ol" data-a="closesubs">Close</button>'+(L.length?'<button class="btn" data-a="subsall">✓ Accept all</button>':'')+'</div></div></div>'}
+async function subDo(id,st){const x=(ui.subs||[]).find(o=>o.id===id);if(!x)return false;const h=subGame(x),own=h&&(h.sa||h.sb);
+  if(st==='a'&&(own||!h||subErr(x)))return false;const v=subVal(x),sa=Math.round(num(v.sa)),sb=Math.round(num(v.sb));
+  const r=await req('POST','/api/subs/'+id,st==='a'?{st,sa,sb}:{st},15000);
+  if(r.s!==200&&r.s!==409){toast(r.s===0?'No internet – try again':(r.j.error||'Not saved'));return false}
+  ui.subs=(ui.subs||[]).filter(o=>o.id!==id);if(ui.subE)delete ui.subE[id];if(r.s===409)return true;
+  const g=S.games[TODAY()],w=x.byn||'?';
+  if(st==='a'&&h){const was=sa!==x.sa||sb!==x.sb;h.sa=sa;h.sb=sb;logIt(g,'Score from live page accepted: '+cname(g.d,h.c-1)+' '+tn(h,0)+' '+sa+' – '+sb+' '+tn(h,1)+' (sent by '+w+')');
+    audit('Live score accepted: '+cname(g.d,h.c-1)+' '+tn(h,0)+' '+sa+'–'+sb+' '+tn(h,1)+' · sent by '+w+(was?' as '+x.sa+'–'+x.sb:''))}
+  else audit('Live score '+(own?'dismissed (tablet score kept)':'rejected')+': '+x.sa+'–'+x.sb+' · sent by '+w);
+  save();return true}
+Object.assign(act,{
+ subsopen:()=>{ui.subm=1;render();subsPoll(true)},closesubs:()=>{ui.subm=0;render()},
+ subacc:async x=>{if(await subDo(+x,'a'))toast('Score saved');if(!(ui.subs||[]).length)ui.subm=0;render()},
+ subrej:async x=>{if(await subDo(+x,'r'))toast('Rejected · the live page can send again');if(!(ui.subs||[]).length)ui.subm=0;render()},
+ subsall:async()=>{let n=0,k=0;for(const x of (ui.subs||[]).slice()){const h=subGame(x),own=h&&(h.sa||h.sb);if(own){if(await subDo(x.id,'r'))k++}else if(!subErr(x)&&await subDo(x.id,'a'))n++}
+   toast(pl(n,'score')+' saved'+(k?' · '+k+' dismissed (tablet score kept)':'')+((ui.subs||[]).length?' · '+(ui.subs||[]).length+' need a fix':''));if(!(ui.subs||[]).length)ui.subm=0;render()}});
+document.addEventListener('input',e=>{const el=e.target,k=el.dataset&&el.dataset.i;if(!k||!/^sub_s[ab]$/.test(k)||VIEW())return;ui.subE=ui.subE||{};const o=ui.subE[el.dataset.x]=ui.subE[el.dataset.x]||{};o[k.slice(4)]=el.value;
+  clearTimeout(window.__sb);window.__sb=setTimeout(()=>{const a=document.activeElement,id=a&&a.dataset.i,xx=a&&a.dataset.x;render();if(id){const n=document.querySelector('[data-i="'+id+'"][data-x="'+xx+'"]');if(n){n.focus();try{n.setSelectionRange(n.value.length,n.value.length)}catch(err){}}}},600)});
+
 /* ===== start-up (last file: every module is defined) ===== */
 Object.assign(act,SYACT);
 migrate();save();render();const H0=document.querySelector('.home');if(H0)H0.classList.add('pre');
 /* H3: never auto-login – the account picker opens under the logo animation */
 ui.lg={step:'pick'};lgRender();
 /* test hooks (headless checks) */
-window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,get ui(){return ui}};
+window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,hKey,get ui(){return ui}};
 
 })();
 </script>

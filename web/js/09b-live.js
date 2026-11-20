@@ -17,16 +17,17 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const openC=C.map((c,i)=>i).filter(i=>!g.closed[i]);
   const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=g.qq[i]||[],pi=cpill(d,i,now);
     const secs=L.run?(now-L.start)/1000:(L.el||0);
-    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>':
+    const ed=ui.ced===i&&full&&L.run;
+    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):''):
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
     let body;
-    if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button></div>';
+    if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+(!L.run||ed?'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button>':'')+'</div>';
       const sc=(v,side)=>'<div class="scg"><button class="sc" data-a="sc" data-x="'+i+'" data-y="'+side+'-">−</button><span class="scn">'+v+'</span><button class="sc p" data-a="sc" data-x="'+i+'" data-y="'+side+'+">+</button></div>';
-      const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(s==='a'?'◀ A won':'B won ▶')+'</button>';
-      body='<div class="court big">'+lines+'<div class="side">'+cp(0)+cp(1)+'</div><div class="cmid"><div class="row" style="gap:6px">'+sc(L.sa,'a')+sc(L.sb,'b')+'</div><div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div><div class="side r">'+cp(2)+cp(3)+'</div></div>'}
+      const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(L.w===s?'✓ ':'')+(s==='a'?'◀ A won':'B won ▶')+'</button>';
+      body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="court big">'+lines+'<div class="side">'+cp(0)+cp(1)+'</div><div class="cmid"><div class="row" style="gap:6px">'+sc(L.sa,'a')+sc(L.sb,'b')+'</div><div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div><div class="side r">'+cp(2)+cp(3)+'</div></div>'}
     else{const last=g.last[i];body='<div class="court big'+(cl?' shut':'')+'">'+lines+'<div class="cwait" style="flex-direction:column;gap:10px">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+last.sa+' – '+last.sb+'</b> '+esc(tn(last,1))+'</span>':'')+
       '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
@@ -46,7 +47,8 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     return '<button class="apc'+(r?' gr':wh?'':' free')+'" data-a="apick" data-x="'+id+'">'+pav(id,42)+'<span class="pnm" style="flex:1"><b>'+esc(nameOf(id))+'</b><small>Level: '+LVS[lvOf(id)]+'</small><em>'+esc(st)+' · Games: '+((RING||{})[id]||0)+'</em></span>'+(r?'':'<span class="aw" data-tk="bench" data-id="'+id+'"></span>')+'</button>'};
   const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">WAITING · ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
-  return '<div class="cgrid">'+courts+'</div>'+up+allp}
+  const nc=C.length;
+  return '<div class="cgrid" style="--cols:'+(nc<=3?nc:Math.ceil(nc/2))+'">'+courts+'</div>'+up+allp}
 
 /* ---------- check the 4 players before the game starts ---------- */
 function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}
@@ -97,6 +99,8 @@ Object.assign(act,{
  ctopen:x=>{const g=CG();delete g.closed[+x];logIt(g,cname(g.d,+x)+' reopened');save();render()},
  gpick:(x,y)=>{const a=String(x).split('.'),p={t:a[0],i:+a[1],k:+a[2],s:+y},o=ui.pick;if(o&&o.t===p.t&&o.i===p.i&&o.k===p.k&&o.s===p.s){ui.pick=null;return render()}ui.pick=p;pickScroll()},
  cswap:(x,y)=>{ui.pick={t:'c',i:+x,k:0,s:+y};pickScroll()},
+ /* v18: running game – players change only via ✎ Edit (same checks as Swap); timer and score are kept */
+ ced:x=>{ui.ced=+x;ui.pick=null;render()},cedx:()=>{ui.ced=null;ui.pick=null;render()},
  pickx:()=>{ui.pick=null;render();window.scrollTo(0,ui.pickY||0)},
  gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);if(r.n&&g.fp){const f=g.fp.find(o=>o.n===r.n);if(f){f.q=NUL4();f.x=1}}ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
@@ -110,7 +114,7 @@ Object.assign(act,{
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */
- timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(!L.run&&!L.sa&&!L.sb&&!L.el){g.live[i]=Object.assign({},L,{run:true,start:Date.now()});save();return render()}
+ timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(ui.ced===i){ui.ced=null;ui.pick=null}if(!L.run&&!L.sa&&!L.sb&&!L.el){g.live[i]=Object.assign({},L,{run:true,start:Date.now()});save();return render()}
    saveGame(g,i);save();render();toast(L.sa||L.sb?'Game saved':'Game saved · tap it in Game Summary to add the score')}
 });
 /* drag ≡ to reorder; drop on a court to queue it there */

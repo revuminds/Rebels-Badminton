@@ -18,7 +18,8 @@ Every push to `main` builds a signed APK: **Releases → Build N → rebels-badm
 One Cloudflare Worker (`wrangler.jsonc` + `worker/`) serves the website, the sync API and `/live`: https://rebels-badminton.revuminds.workers.dev. Every push to `main` redeploys it (the build step copies `dist/RebelsBadminton.html`). Setup notes: `worker/README.md`.
 - Every app open asks who is using it: **admin** (everything; first password 12345, must be changed), **organizer** (sees everything incl. Finance, changes nothing), **games** = game manager (sessions, players, check-in, games, scores, print). Admin sets the other passwords in Settings → Account & passwords. Face unlock on the tablet per account.
 - Offline: remembered accounts still unlock; changes upload when back online.
+- Live link `/live`: players can send the score of a finished game (they pick themselves from its 4 players); the tablet shows a blinking **Scores to review** button on Games to accept / edit / reject.
 - Live link `/live`: no login, only from 30 min before the session until End session; names, courts, scores, schedule – never money, phones or photos.
 
 ## Tests
-`python3 tests/run_all.py <copy-of-backup.txt>` (headless Chrome + local Worker) · `python3 tests/shots.py <backup> out.png` (contact sheet). Never run them against a device's live data.
+`python3 tests/run_all.py <copy-of-backup.txt>` (headless Chrome + local Worker) · `python3 tests/v18_test.py <backup> <out-dir>` (v18 checks + screenshots) · `python3 tests/shots.py <backup> out.png` (contact sheet). Never run them against a device's live data.

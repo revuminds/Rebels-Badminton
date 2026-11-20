@@ -415,6 +415,27 @@ body.viewer [data-a="cts"],body.viewer [data-a="devlock"],body.viewer .slotsel,b
   .crow{grid-template-columns:44px 1fr}.tile{min-width:0;padding:8px 10px}.tile b{font-size:26px}
   .cgrid{grid-template-columns:1fr}.search{min-width:0}.lvb{flex-wrap:wrap}.today{flex-direction:column}
   #toast{bottom:84px}}
+/* ===================== v18 ===================== */
+/* court cards fill the width: 1 = full, 2 = halves, 3 = thirds, 4+ = 2 rows · portrait + phone stack */
+.cgrid{grid-template-columns:repeat(var(--cols,1),minmax(0,1fr))}
+@media (orientation:portrait){.cgrid{grid-template-columns:1fr}}
+@media (max-width:700px){.cgrid{grid-template-columns:1fr}}
+/* A won / B won: solid white · selected solid yellow + ✓ (both themes) */
+.wonb{background:#fff;border:2px solid #fff;color:#14161A}
+.wonb.on{background:#FFD23F;border-color:#FFD23F;color:#14161A}
+body.light .wonb{border-color:#CBD0D8}body.light .wonb.on{border-color:#E0B000}
+/* Stop & save: light theme = solid Rebels red, white bold (dark unchanged) */
+body.light .tbtn.run{background:#D62F33;color:#fff;font-weight:800}
+.tbtn.edt{background:transparent;color:var(--tx);border:2px solid var(--bd)}.tbtn.done{background:var(--ok);color:#06210F}
+.cedn{margin:0}
+/* power (switch account) – top-right, dimmed while the tablet is pinned */
+.pwr{font-size:19px;line-height:1;padding:0 10px}.pwr.dis{opacity:.4}
+/* scores sent from the live page */
+@keyframes rvb{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.75);opacity:1}50%{box-shadow:0 0 0 7px rgba(245,165,36,0);opacity:.6}}
+.rvb{background:var(--amb)!important;border-color:var(--amb)!important;color:#1A1200!important;animation:rvb 1.1s ease-in-out infinite;font-weight:800}
+.subl{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto}
+.subr{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
+body.viewer [data-a="ced"],body.viewer [data-a="subsopen"]{display:none!important}
 </style>
 </head>
 <body>

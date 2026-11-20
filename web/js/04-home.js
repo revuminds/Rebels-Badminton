@@ -12,6 +12,9 @@ const UNLOCK_SVG='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" st
 const BACK_SVG='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 5l-7 7 7 7"/></svg>';
 const pinned=()=>{try{return !!(NB&&NB.isPinned&&NB.isPinned())}catch(e){return false}};
 window.__dl=()=>render();
+/* v18: tablet lock button (Players + Games). Unlock is the tablet's own gesture – no in-app unlock while pinned. Icon follows the real state (polled). */
+const lockBtn=()=>pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – how to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>';
+let PINNED=null;setInterval(()=>{if(!NB||!NB.isPinned)return;const p=pinned();if(PINNED!==null&&p!==PINNED)render();PINNED=p},2000);
 const LOGO_SRC=()=>$('#lg').src;
 function vNav(){return '<img class="logo" src="'+$('#sk').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].filter(t=>!GM()||(t!=='finance'&&t!=='settings')).map(t=>'<button class="tab'+((t==='home'?ui.scr==='home':ui.tab===t&&ui.scr==='app')?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+'<span class="tlb" data-m="'+(t==='settings'?'More':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
 const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'+BACK_SVG+'</button>';

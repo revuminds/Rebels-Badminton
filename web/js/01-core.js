@@ -19,7 +19,7 @@ function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}
 function whoAmI(){try{return SYNC.who()}catch(e){return 'this device'}}
-let tT;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',2200)}
+let tT;function toast(m,ms){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',ms||2200)}
 
 /* ---------- dates & numbers ---------- */
 const z=n=>String(n).padStart(2,'0');

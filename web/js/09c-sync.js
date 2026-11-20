@@ -97,7 +97,7 @@ function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g),r=AUTH
   return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
    (r?'<span class="strole '+(r==='admin'?'a':r==='games'?'g':'v')+'">'+ROLEN[r]+(SY.token?'':' · LOCAL')+'</span>':'')+
    (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')+'<button class="stbtn" data-a="theme" aria-label="Light / dark">'+(document.body.classList.contains('light')?'☾':'☀')+'</button>'+
-   (r?'<button class="stbtn swb" data-a="switchacc" aria-label="Switch account / Log out">⇄ <span>Switch</span></button>':'')}
+   (r?'<button class="stbtn pwr'+(pinned()?' dis':'')+'" data-a="switchacc" aria-label="'+(pinned()?'Unlock the tablet first':'Switch account / Log out')+'" title="Switch account / Log out">⏻</button>':'')}
 function stRender(){const el=$('#stat');if(el)el.innerHTML=vStat()}
 
 /* ---------- Settings sections: Sync & Account, Backup ---------- */

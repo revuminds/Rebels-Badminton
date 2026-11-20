@@ -1,5 +1,5 @@
 // One Worker for everything (v17 H5): the app (static assets in ./public, filled by the build step below),
-// the sync API (/api/*) and the live session page (/live).
+// the sync API (/api/*) and the live session page (/live; its fonts come from ./public/fonts).
 // Cloudflare builds this on every push to main (Workers Builds, GitHub connected):
 //   build command : (anything – the step below copies the app from the repo, so the site always matches main)
 //   deploy command: npx wrangler deploy   (the older "--assets ./public --name rebels-badminton …" command also works)
@@ -9,7 +9,7 @@
   "main": "worker/src/index.js",
   "compatibility_date": "2026-11-01",
   "workers_dev": true,
-  "build": { "command": "mkdir -p public && cp dist/RebelsBadminton.html public/index.html" },
+  "build": { "command": "mkdir -p public/fonts && cp dist/RebelsBadminton.html public/index.html && cp web/fonts/outfit-latin-*.woff2 public/fonts/" },
   "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": ["/api/*", "/live", "/live/"] },
   "d1_databases": [{ "binding": "DB", "database_name": "rebels" }],
   // daily cloud copy at 02:00 Dubai (22:00 UTC), kept 90 days
