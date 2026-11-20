@@ -5,3 +5,4 @@ android/local.properties
 *.keystore
 *.apk
 tests/node_modules
+public/

@@ -1,53 +1,93 @@
-/* Sync Worker tests against a local Miniflare (D1 + R2 in memory). Run: node tests/worker_test.mjs */
+/* Worker tests (v17 A/F/H) against a local Miniflare (D1 in memory, photos in D1). Run: node tests/worker_test.mjs <copy-of-backup.txt> */
 import { Miniflare } from 'miniflare';
 import { readFileSync } from 'node:fs';
 const src = readFileSync(new URL('../worker/src/index.js', import.meta.url), 'utf8');
-const mf = new Miniflare({ modules: true, script: src, compatibilityDate: '2025-09-01', d1Databases: ['DB'], r2Buckets: ['PHOTOS'],
-  bindings: { ADMIN_EMAIL: 'admin@rebels.test', VIEWER_EMAILS: 'v1@rebels.test, v2@rebels.test', DEV_TRUST_HEADER: '1' } });
+const mf = new Miniflare({ modules: true, script: src, compatibilityDate: '2026-08-01', d1Databases: ['DB'] });
 const B = 'http://sync.test';
 let pass = 0, fail = 0; const ok = (c, m) => { c ? pass++ : fail++; console.log((c ? 'PASS ' : 'FAIL ') + m); };
-const call = async (m, p, body, tok, h = {}) => { const r = await mf.dispatchFetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}), ...h }, body: body == null ? undefined : JSON.stringify(body) }); let j = null; const t = await r.text(); try { j = JSON.parse(t) } catch (e) { j = t } return { s: r.status, j }; };
-async function login(email) {
-  const s = await call('POST', '/api/link/start', {});
-  const pend = await call('POST', '/api/link/poll', { poll: s.j.poll });
-  const r = await mf.dispatchFetch(B + '/link', { method: 'POST', headers: { 'X-Dev-Email': email, 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'c=' + s.j.code });
-  const html = await r.text();
-  const p = await call('POST', '/api/link/poll', { poll: s.j.poll });
-  return { pend: pend.j.status, html, ...p };
-}
+const call = async (m, p, body, tok) => { const r = await mf.dispatchFetch(B + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body == null ? undefined : JSON.stringify(body) }); let j = null; const t = await r.text(); try { j = JSON.parse(t) } catch (e) { j = t } return { s: r.status, j, ct: r.headers.get('content-type') || '' }; };
+const login = (u, p) => call('POST', '/api/login', { u, p });
 const real = JSON.parse(readFileSync(process.argv[2] || '/home/claude/testdata/real.txt', 'utf8'));
 const data = JSON.parse(JSON.stringify(real)); data.players.forEach(p => { p.ph = '+971500000000'; }); data.players[0].hidePub = 1;
 
-const a = await login('admin@rebels.test'); ok(a.pend === 'pending' && a.s === 200 && a.j.role === 'admin', 'admin device link (pending → approved → token)');
-const v = await login('v1@rebels.test'); ok(v.j.role === 'viewer', 'viewer device link');
-const x = await login('stranger@x.test'); ok(x.s === 403 || /Not allowed/.test(x.html), 'unknown email refused');
+/* ---- H3 logins ---- */
 ok((await call('GET', '/api/data')).s === 401, 'no token → 401');
-let r = await call('PUT', '/api/data', { base: 0, data }, a.j.token); ok(r.s === 200 && r.j.rev === 1, 'admin first upload → rev 1');
-r = await call('PUT', '/api/data', { base: 0, data }, a.j.token); ok(r.s === 409 && r.j.rev === 1, 'stale device (base 0 < rev 1) blocked with 409');
-r = await call('PUT', '/api/data', { base: 1, data }, a.j.token); ok(r.s === 200 && r.j.rev === 2, 'up-to-date device uploads → rev 2');
-r = await call('PUT', '/api/data', { base: 2, data }, v.j.token); ok(r.s === 403, 'viewer cannot edit (403)');
-r = await call('GET', '/api/data', null, v.j.token); ok(r.s === 200 && r.j.rev === 2 && JSON.parse(r.j.data).fin, 'viewer reads everything incl. finance');
-const fin1 = JSON.stringify(real.fin), back = JSON.parse(r.j.data); ok(JSON.stringify(back.fin) === fin1, 'finance identical after round trip');
-r = await call('GET', '/api/snapshots', null, v.j.token); ok(r.s === 403, 'viewer cannot list snapshots (403)');
-r = await call('POST', '/api/snapshots/2026-01-01/restore', {}, v.j.token); ok(r.s === 403, 'viewer cannot restore (403)');
-r = await call('PUT', '/api/photo/p1', { img: 'data:image/jpeg;base64,AAAA', h: 'x' }, v.j.token); ok(r.s === 403, 'viewer cannot upload photos (403)');
-r = await call('PUT', '/api/photo/p1', { img: 'data:image/jpeg;base64,AAAA', h: 'x' }, a.j.token); ok(r.s === 200, 'admin photo → R2');
-r = await call('GET', '/api/photo/p1', null, v.j.token); ok(r.j.img === 'data:image/jpeg;base64,AAAA', 'viewer sees photo');
+let a = await login('admin', '12345'); ok(a.s === 200 && a.j.role === 'admin' && a.j.mc === true, 'admin default 12345 works, must change (mc)');
+ok((await call('GET', '/api/data', null, a.j.token)).s === 403, 'before the change: data refused (403)');
+ok((await call('POST', '/api/password', { old: '12345', new: '12345' }, a.j.token)).s === 400, '12345 not accepted as new password');
+ok((await call('POST', '/api/password', { old: 'nope', new: 'Rebels#1' }, a.j.token)).s === 403, 'wrong old password refused');
+ok((await call('POST', '/api/password', { old: '12345', new: 'Rebels#1' }, a.j.token)).s === 200, 'admin changes password (forced change)');
+ok((await login('admin', '12345')).s === 401, 'old default password no longer works');
+const A = (await login('Admin ', 'Rebels#1')).j.token; ok(!!A, 'admin logs in with new password (username case/space ignored)');
+ok((await login('organizer', 'x')).s === 401 && (await login('games', 'x')).s === 401, 'organizer + game manager cannot log in before admin sets passwords');
+ok((await call('POST', '/api/accounts/games/password', { new: 'courts1' }, A)).s === 200 && (await call('POST', '/api/accounts/organizer/password', { new: 'viewer1' }, A)).s === 200, 'admin sets game manager + organizer passwords');
+const G = (await login('games', 'courts1')).j, O = (await login('organizer', 'viewer1')).j;
+ok(G.role === 'games' && O.role === 'organizer', 'game manager + organizer log in with their role');
+ok((await login('game manager', 'courts1')).s === 200, '"game manager" accepted as username for games');
+let r; for (let i = 0; i < 4; i++) r = await login('organizer', 'bad');
+ok(r.s === 401 && r.j.left === 1, '4 wrong tries → 1 left');
+r = await login('organizer', 'bad'); ok(r.s === 429 && r.j.until > Date.now() + 14 * 60e3, '5th wrong try → locked 15 min (429)');
+ok((await login('organizer', 'viewer1')).s === 429, 'correct password refused while locked');
+const acc = await call('GET', '/api/accounts', null, A); ok(acc.s === 200 && acc.j.list.find(x => x.u === 'organizer').locked > 0, 'admin sees the lock in account list');
+ok((await call('POST', '/api/accounts/organizer/password', { new: 'viewer2' }, A)).s === 200 && (await login('organizer', 'viewer2')).s === 200, 'admin reset unlocks + new password works');
+ok((await call('GET', '/api/me', null, O.token)).s === 401, 'reset revokes the old organizer token');
+const O2 = (await login('organizer', 'viewer2')).j.token;
+ok((await call('GET', '/api/accounts', null, G.token)).s === 403 && (await call('POST', '/api/accounts/games/password', { new: 'zzzzz1' }, O2)).s === 403, 'only admin manages accounts (403)');
+
+/* ---- data + roles ---- */
+r = await call('PUT', '/api/data', { base: 0, data }, A); ok(r.s === 200 && r.j.rev === 1, 'admin first upload → rev 1');
+r = await call('PUT', '/api/data', { base: 0, data }, A); ok(r.s === 409 && r.j.rev === 1, 'stale device (base 0 < rev 1) blocked with 409');
+r = await call('PUT', '/api/data', { base: 1, data }, O2); ok(r.s === 403, 'organizer cannot edit (403)');
+r = await call('GET', '/api/data', null, O2); ok(r.s === 200 && JSON.stringify(JSON.parse(r.j.data).fin) === JSON.stringify(real.fin), 'organizer reads everything, finance identical');
+r = await call('GET', '/api/data', null, G.token); const gd = JSON.parse(r.j.data);
+ok(r.s === 200 && !gd.fin && !gd.ent && !('pin' in gd) && r.j.stripped.includes('fin'), 'game manager gets NO finance (fin/ent/pin stripped)');
+gd.players[1].lv = 4; gd.fin = { hacked: { court: '999' } }; gd.ent = []; gd.def = { pts: 99 };
+r = await call('PUT', '/api/data', { base: 1, data: gd }, G.token); ok(r.s === 200 && r.j.rev === 2, 'game manager uploads game data → rev 2');
+r = await call('GET', '/api/data', null, A); const ad = JSON.parse(r.j.data);
+ok(ad.players[1].lv === 4 && JSON.stringify(ad.fin) === JSON.stringify(real.fin) && JSON.stringify(ad.ent) === JSON.stringify(real.ent) && ad.def.pts === real.def.pts, 'game manager change kept; finance + settings untouched by game manager');
+ok((await call('PUT', '/api/photo/p1', { img: 'data:image/jpeg;base64,AAAA' }, O2)).s === 403, 'organizer cannot upload photos (403)');
+ok((await call('PUT', '/api/photo/p1', { img: 'data:image/jpeg;base64,AAAA' }, G.token)).s === 200, 'game manager photo upload (players)');
+ok((await call('GET', '/api/photo/p1', null, O2)).j.img === 'data:image/jpeg;base64,AAAA', 'organizer sees photo');
+for (const t of [G.token, O2]) ok((await call('GET', '/api/snapshots', null, t)).s === 403 && (await call('POST', '/api/snapshots/2026-01-01/restore', {}, t)).s === 403, (t === G.token ? 'game manager' : 'organizer') + ': no snapshots / restore (403)');
 await new Promise(res => setTimeout(res, 300));
-r = await call('GET', '/api/snapshots', null, a.j.token); ok(r.s === 200 && r.j.list.length === 1, 'daily snapshot taken on upload');
-/* 90-day pruning: plant old snapshots, run cron */
+r = await call('GET', '/api/snapshots', null, A); ok(r.s === 200 && r.j.list.length === 1, 'daily snapshot taken on upload');
 const db = await mf.getD1Database('DB');
 const old = new Date(Date.now() - 100 * 864e5).toISOString().slice(0, 10), mid = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-await db.prepare('INSERT INTO snaps(day,rev,data,at) VALUES(?,?,?,?),(?,?,?,?)').bind(old, 1, '{"v":4,"players":[]}', 0, mid, 1, JSON.stringify(data), 0).run();
-await (await mf.getWorker()).scheduled({ cron: '0 22 * * *' });
-r = await call('GET', '/api/snapshots', null, a.j.token); ok(!r.j.list.some(s => s.day === old) && r.j.list.some(s => s.day === mid), '90-day pruning (100-day-old copy deleted, 30-day kept)');
-r = await call('POST', '/api/snapshots/' + mid + '/restore', {}, a.j.token); ok(r.s === 200 && r.j.rev === 3, 'admin cloud restore → new rev');
-/* public page */
-const pub = await mf.dispatchFetch(B + '/'); const html = await pub.text();
-ok(pub.status === 200 && /LEADERBOARD/.test(html), 'public page served without login');
-ok(!/AED|fee|paid|court":|\+971|data:image|8804/i.test(html), 'public page: no finance / phones / photos / PIN');
-ok(!html.includes(real.players[0].name + '<'), 'public page: hidden player not shown by name');
-ok(/Tej/.test(html), 'public page: leaderboard names present');
-r = await call('POST', '/api/logout', {}, v.j.token); ok((await call('GET', '/api/data', null, v.j.token)).s === 401, 'sign out revokes token');
-const o = await mf.dispatchFetch(B + '/api/data', { method: 'OPTIONS' }); ok(o.status === 204 && o.headers.get('access-control-allow-origin') === '*', 'CORS preflight (app from file:// / any origin)');
-console.log(`\n${pass} passed, ${fail} failed`); await mf.dispose(); process.exit(fail ? 1 : 0);
+await db.prepare('INSERT INTO snaps(day,rev,data,at) VALUES(?,?,?,?),(?,?,?,?)').bind(old, 0, '{"v":1,"players":[]}', 1, mid, 1, JSON.stringify(real), 2).run();
+const sch = await mf.getWorker(); await sch.scheduled({ cron: '0 22 * * *' });
+r = await call('GET', '/api/snapshots', null, A); ok(!r.j.list.some(x => x.day === old) && r.j.list.some(x => x.day === mid), '90-day pruning: 100-day-old copy deleted, 30-day kept');
+r = await call('POST', '/api/snapshots/' + mid + '/restore', {}, A); ok(r.s === 200 && r.j.rev === 3, 'admin restores a cloud copy (new rev)');
+r = await call('GET', '/api/audit', null, A); ok(r.j.list.some(x => /Cloud restore/.test(x.m)) && r.j.list.some(x => /Locked 15 min/.test(x.m)), 'audit log: restore + lock recorded');
+ok((await call('POST', '/api/password', { old: 'Rebels#1', new: 'Rebels#2' }, A)).s === 200, 'admin changes own password (needs old)');
+
+/* ---- H4 live link ---- */
+const dub = new Date(Date.now() + 4 * 3600e3), today = dub.toISOString().slice(0, 10), hhmm = t => new Date(t + 4 * 3600e3).toISOString().slice(11, 16);
+const L = JSON.parse(JSON.stringify(data)); L.days = { [today]: { sch: 1, time: hhmm(Date.now() - 20 * 60e3), loc: 'Sportsbay', courts: [{ n: 'Court 1', h: 2 }, { n: 'Court 2', h: 2 }], on: {}, att: {} } };
+const ids = L.players.map(p => p.id);
+L.games = { [today]: { d: today, st: Date.now() - 15 * 60e3, en: 0, pts: 21, cur: [ids.slice(0, 4), [null, null, null, null]], curN: [3, null], live: [{ run: true, start: Date.now() - 300e3, sa: 7, sb: 5 }, {}], qq: [[], []], up: [{ q: ids.slice(4, 8), n: 4, c: 1 }], nxt: [],
+  hist: [{ n: 1, c: 1, ids: ids.slice(0, 4), sa: 21, sb: 15, at: Date.now() - 5 * 60e3 }], fp: [{ n: 1, r: 0, c: 0, q: ids.slice(0, 4) }, { n: 3, r: 1, c: 0, q: ids.slice(0, 4) }, { n: 4, r: 1, c: 1, q: ids.slice(4, 8) }] } };
+r = await call('GET', '/api/data', null, A);
+ok((await call('PUT', '/api/data', { base: r.j.rev, data: L }, A)).s === 200, 'session data uploaded (session running)');
+r = await call('GET', '/api/live'); const lv = r.j, txt = JSON.stringify(lv);
+ok(lv.live === true && lv.now.length === 1 && lv.now[0].sa === 7 && lv.next.length >= 1 && lv.results.length === 1 && lv.sched.length === 3, 'live during session: courts now (live score), up next, schedule, results');
+ok(lv.stats.length > 0 && lv.stats.every(s => 'g' in s && 'w' in s), 'live: today games + wins per player');
+ok(!/\+971|fin|court":"116|paid|img|data:image|ph"|"pin"/.test(txt), 'live: no finance, payments, phones, photos, PIN');
+ok(txt.includes('Guest') && !txt.includes(L.players[0].name), 'live: hidden player shown as Guest');
+ok((await call('GET', '/live')).ct.includes('text/html'), '/live page served without login');
+L.games[today].en = Date.now(); r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
+r = await call('GET', '/api/live'); ok(r.j.live === false && Object.keys(r.j).every(k => ['live', 'next'].includes(k)), 'after End session: "No live session" only');
+L.games[today].en = 0; L.games[today].st = Date.now() - 4 * 3600e3; L.days[today].time = hhmm(Date.now() - 3.5 * 3600e3);
+r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
+ok((await call('GET', '/api/live')).j.live === false, 'auto-off at booked end + 1 h if not ended');
+const fut = new Date(Date.now() + 7 * 864e5 + 4 * 3600e3).toISOString().slice(0, 10);
+L.days = { [today]: { sch: 1, time: hhmm(Date.now() + 2 * 3600e3), loc: 'Sportsbay', courts: [{ n: 'Court 1', h: 2 }] }, [fut]: { sch: 1, time: '10:00', loc: 'Sportsbay', courts: [{ n: 'Court 1', h: 2 }] } }; L.games = {};
+r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
+r = await call('GET', '/api/live'); ok(r.j.live === false && r.j.next.date === today, 'more than 30 min before start: off, shows next session');
+L.days[today].time = hhmm(Date.now() + 20 * 60e3); r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
+ok((await call('GET', '/api/live')).j.live === true, '30 min before start: live link on');
+r = await call('OPTIONS', '/api/data'); ok(r.s === 204, 'CORS preflight (laptop file / APK)');
+const nodb = new Miniflare({ modules: true, script: src, compatibilityDate: '2026-08-01' });
+ok((await nodb.dispatchFetch(B + '/api/ping')).status === 503, 'no database bound → 503 (app stays offline-only)');
+await nodb.dispose(); await mf.dispose();
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

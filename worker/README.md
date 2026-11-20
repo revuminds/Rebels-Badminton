@@ -1,17 +1,15 @@
-# Rebels sync – Cloudflare setup (free tier, ~10 min, once)
+# Rebels Badminton Worker – setup (once)
 
-The app works fully offline without this. Sync adds: upload after every save, 2 read-only organizer viewers, daily cloud copies (90 days), photos in R2, and a public club page.
+One Worker = the website (the app), the sync API (`/api/*`) and the live session page (`/live`). Config: `wrangler.jsonc` in the repo root.
 
-1. **Install** (laptop): `npm i -g wrangler` then `wrangler login`.
-2. **Database + photos:** `wrangler d1 create rebels` → paste the `database_id` into `wrangler.toml`. `wrangler r2 bucket create rebels-photos`.
-3. **Emails:** in `wrangler.toml` set `ADMIN_EMAIL` (you) and `VIEWER_EMAILS` (the 2 organizers, comma separated).
-4. **Build the app** (so `/app` serves it): `python3 tools/build.py` from the repo root.
-5. **Deploy:** `cd worker && wrangler deploy`. Note the address, e.g. `https://rebels-sync.<you>.workers.dev`.
-6. **Cloudflare Access** (Zero Trust → Access → Applications → Add → Self-hosted):
-   - Domain: the worker address, **path `/link` only** (the public page and the app's API must stay outside Access).
-   - Policy: Allow → Emails → your email + the 2 organizers. Login method: One-time PIN.
-   - Copy the application **AUD tag** into `ACCESS_AUD` and your team domain (`<team>.cloudflareaccess.com`) into `ACCESS_TEAM_DOMAIN`, then `wrangler deploy` again.
-7. **In the app:** Settings → Sync & Account → paste the address → Sign in → approve in the browser page that opens (email code). Admin first sign-in uploads the tablet's data.
+**Cloudflare dashboard → Workers → rebels-badminton → Settings → Build** (GitHub connected, branch `main`):
+- Build command: can stay as it is (the deploy step copies the app from the repo anyway).
+- Deploy command: `npx wrangler deploy` (the older `npx wrangler deploy --assets ./public --name rebels-badminton --compatibility-date 2026-11-01` also works).
 
-Public page: the worker address itself (`/`). Same app on any device: `<address>/app`.
-Tests (no Cloudflare account needed): `node tests/worker_test.mjs <backup.txt>` (needs `npm i miniflare` in `tests/`).
+On the first deploy Wrangler creates the D1 database **rebels** by itself (no ID to paste). Photos are stored in D1 (no R2 / card needed).
+If the first deploy fails at "provisioning", create it once by hand: Storage & Databases → D1 → Create → name `rebels`, then redeploy.
+
+First login: username `admin`, password `12345` → choose a new password. Then Settings → Account & passwords → set passwords for `organizer` and `games`.
+The first admin login on the tablet uploads the tablet's data. Daily cloud copies at 02:00 Dubai, kept 90 days (Settings → Sync → Cloud history).
+
+Tests (no Cloudflare account needed): `node tests/worker_test.mjs <copy-of-backup.txt>` (needs `npm i miniflare` in `tests/`).

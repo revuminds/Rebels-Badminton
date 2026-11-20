@@ -1,9 +1,10 @@
 /* ===== render, actions, events, start-up ===== */
-function render(){const app=$('.app'),m=$('#main');if(VIEW()){ui.unlocked=true;ui.hun=true;ui.bun=false}document.body.classList.toggle('viewer',VIEW());stRender();RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app'&&ui.scr!=='home');app.classList.toggle('onhome',ui.scr==='home');
+function render(){const app=$('.app'),m=$('#main');/* H3: no Finance PIN – the logged-in role decides */ui.unlocked=ui.hun=canFin();ui.bun=ADMIN();if(GM()&&(ui.tab==='finance'||ui.tab==='settings')&&ui.scr==='app')ui.tab='games';if(GM()&&ui.h&&ui.h.tab==='fin')ui.h.tab='games';
+  document.body.classList.toggle('viewer',VIEW());document.body.classList.toggle('gm',GM());stRender();RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app'&&ui.scr!=='home');app.classList.toggle('onhome',ui.scr==='home');
   if(ui.scr==='app'||ui.scr==='home')$('#nav').innerHTML=vNav();
   if(ui.scr==='app'){m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{if(ui.scr!=='home')$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
+  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance')&&scr!=='home')ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
@@ -133,7 +134,7 @@ const act={
  theme:()=>{const l=!document.body.classList.contains('light');document.body.classList.toggle('light',l);try{localStorage.setItem('rebels.theme',l?'light':'dark')}catch(e){}render()},
  pf:(x,y)=>{ui.pf=ui.pf||{};ui.pf[x]=ui.pf[x]===y?'':y;$('#pgrid').innerHTML=vGrid();$('#pfl').innerHTML=vPfl()},
  gpo:()=>{ui.gpo=ui.gpo===0?1:0;render()},
- fsub:x=>{ui.fsub=x;render()},lock:()=>{ui.unlocked=false;ui.pin='';render()},
+ bpo:()=>{ui.bpo=ui.bpo===0?1:0;render()}, fsub:x=>{ui.fsub=x;render()},lock:()=>{ui.unlocked=false;ui.pin='';render()},
  ksm:x=>{ui.ks=ui.ks||{};ui.ks.m=x;ui.open=null;render()},kopen:x=>{ui.ks.m='session';ui.ks.s=x;render();window.scrollTo(0,0)},
  mkpdf:()=>{const ss=sessions();if(!ss.length)return toast('No sessions yet');const{k,list}=kSel(ss);if(!list.length)return toast('No sessions in that selection');const ti=selTitle(k,list);
    $('#print').className='rp';$('#print').innerHTML=vReport(list,ti);setTimeout(()=>{try{if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
@@ -180,8 +181,10 @@ const act={
 function applyDef(f){const t=TODAY();Object.values(S.games).forEach(g=>{if(!g.st&&g.d>=t){g[f]=S.def[f];g.psig=''}})}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.dataset.a==='noop'){e.stopPropagation();return}
   if(el.classList.contains('modal')&&e.target!==el)return;if(el.disabled)return;
-  const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a))return toast('Viewer · read-only');f(el.dataset.x,el.dataset.y)}});
-document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)return;if(VIEW()&&!['q','pe_q','ap_q','syu'].includes(k))return toast('Viewer · read-only');
+  const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a,el.dataset.x))return toast(GM()?'Game manager · no finance or settings':'Organizer · read-only');f(el.dataset.x,el.dataset.y)}});
+document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)return;
+  if(k.startsWith('lg_')){if(ui.lg)ui.lg[k.slice(3)]=el.value;return}
+  if(k.startsWith('acc_')&&ADMIN()){const f=k.slice(4);ui.acc=ui.acc||{};if(f==='lock'){const v=Math.round(num(el.value));if(v>0)try{localStorage.setItem(LKKEY,String(v))}catch(e){}}else if(f==='organizer'||f==='games')ui.acc['p_'+f]=el.value;else ui.acc[f]=el.value;return}if(VIEW()&&!['q','pe_q','ap_q','lg_u','lg_p','lg_n1','lg_n2'].includes(k))return toast('Organizer · read-only');if(GM()&&(/^d_|^en_|^f_|^acc/.test(k)||k==='syu'))return;
   if(k==='syu'){ui.syu=el.value;return}
   if(k==='nm'){ui.nm=el.value;$('#dup').innerHTML=vDup()}
   else if(k==='q'){ui.q=el.value;$('#pgrid').innerHTML=vGrid()}
@@ -201,14 +204,14 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='er_sa'||k==='er_sb'){const r=ui.er.r[el.dataset.x]=ui.er.r[el.dataset.x]||{sa:'',sb:''};r[k.slice(3)]=el.value;if(el.value!==''&&!r.p)r.p='y'}
   else if(k.startsWith('en_')){ui.ent[k.slice(3)]=el.value}
   else if(k==='g_pts'||k==='fp_pts'||k==='lv_pts'){const g=CG(),v=Math.round(num(el.value));if(v<1||v>99)return;
-    if(k==='g_pts'){const o=+g.pts;g.pts=v;(g.fp||[]).forEach(x=>{if(+x.pts===o||+x.pts===v)delete x.pts});(g.live||[]).forEach(L=>{if(+L.pts===o)L.pts=v})}
+    if(k==='g_pts'){const o=+g.pts;g.pts=v;S.def.pts=v;/* H8: next session starts with this value */(g.fp||[]).forEach(x=>{if(+x.pts===o||+x.pts===v)delete x.pts});(g.live||[]).forEach(L=>{if(+L.pts===o)L.pts=v})}
     else if(k==='fp_pts'){const x=(g.fp||[]).find(o=>o.n==el.dataset.x);if(x){if(v===+g.pts)delete x.pts;else x.pts=v}}
     else{const L=g.live[+el.dataset.x];if(L)L.pts=v}
     clearTimeout(window.__pt);window.__pt=setTimeout(()=>{save();const a=document.activeElement&&document.activeElement.dataset.i;if(!a||!/pts$/.test(a))render()},800)}
   else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
-document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='lgp'||id==='lgu'){e.preventDefault();return act.lgpw()}if(e.target.dataset&&/^lg_n/.test(e.target.dataset.i||'')){e.preventDefault();return act.lgchg()}if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
 document.addEventListener('focusout',e=>{if(e.target.id==='cnin'&&ui.cne!=null){ui.cne=null;save();setTimeout(()=>{if(ui.cne==null)render()},200)}});
-document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;if(VIEW()&&!['fsel','ksmo','ksy','ksa','ksb','rpv'].includes(c)){toast('Viewer · read-only');return render()}
+document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;if(VIEW()&&!['fsel','ksmo','ksy','ksa','ksb','rpv'].includes(c)){toast('Organizer · read-only');return render()}
   if(c==='scdate'){if(el.value){ui.sc.d=el.value;render()}}
   else if(c==='sctime'){ui.sc.time=el.value;render()}
   else if(c==='scloc'){if(el.value==='__new'){ui.scNew=true;render();setTimeout(()=>$('#nloc')&&$('#nloc').focus(),50)}else{ui.sc.loc=el.value;render()}}
@@ -257,6 +260,7 @@ function migrate(){const t=TODAY();if((S.v||0)<SCHEMA&&S.players&&S.players.leng
     Object.keys(S.fin).forEach(d=>{if(!S.days[d]&&!S.games[d])delete S.fin[d]});
     S.v=4}
   if((S.v||0)<5){/* v17: audit log, scheduling settings, deuce default off for new data */S.audit=S.audit||[];if(S.def.strong==null)S.def.strong=3;if(S.def.pwr==null)S.def.pwr=1;S.v=5}
+  if((S.v||0)<6){/* v17 H3: logins replace the Finance PIN */delete S.pin;if(S.def.bAmb==null)S.def.bAmb=20;if(S.def.bRed==null)S.def.bRed=30;S.v=6}
   if(!Array.isArray(S.audit))S.audit=[];
   topUp()}
 

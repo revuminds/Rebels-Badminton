@@ -336,6 +336,12 @@ tr.redr td{background:rgba(245,165,36,.12)}tr.redr td:first-child{box-shadow:ins
 .stchip{display:inline-flex;align-items:center;gap:6px;color:var(--mu)}.stchip i{width:9px;height:9px;border-radius:50%;background:var(--gr);display:inline-block}
 .stchip.ok{color:var(--ok)}.stchip.ok i{background:var(--ok)}.stchip.amb{color:var(--amb)}.stchip.amb i{background:var(--amb)}
 .stbtn{height:32px;min-height:0;min-width:44px;padding:0 10px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--tx);font-size:15px}
+.strole.g{border-color:var(--ok);color:var(--ok)}.strole.a{border-color:var(--y);color:var(--y)}.stbtn.swb span{font-size:13px}
+#login{position:fixed;inset:0;z-index:45;background:var(--bg);display:flex;align-items:center;justify-content:center;overflow:auto;padding:20px}#login[hidden]{display:none}body.locked{overflow:hidden}
+.lgbox{width:min(560px,100%);display:flex;flex-direction:column;align-items:center;gap:14px}.lglogo{width:120px;height:120px;object-fit:contain}.lgtt{font-size:34px;letter-spacing:.02em}.lgtt span{color:var(--y)}
+.lgh{font-size:20px;font-weight:700}.lgs{font-size:14px;color:var(--mu);text-align:center}.lgin{width:100%;height:56px;font-size:18px}
+.lgtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;width:100%}.lgt{min-height:132px;border-radius:18px;border:2px solid var(--bd);background:var(--pn);color:var(--tx);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:17px}
+.lgt i{font-style:normal;font-size:13px;color:var(--mu)}.lgt.oth{border-style:dashed}.lgi{width:52px;height:52px;border-radius:50%;background:var(--y);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px}.lgt.oth .lgi{background:var(--bd)}
 .strole{padding:3px 8px;border-radius:6px;font-size:11px;letter-spacing:.1em;border:1px solid var(--bd);color:var(--mu)}.strole.v{border-color:var(--xd);color:var(--xd)}
 .stclk{color:var(--ok);letter-spacing:.06em}.stclk b{font-size:15px;margin-left:4px}
 .stlogo{margin-right:auto;font-weight:800;letter-spacing:.14em;font-size:12px;color:var(--mu)}.stlogo b{color:var(--y)}
@@ -351,7 +357,9 @@ main{padding:20px 26px 48px;gap:16px}
 .ptsl{display:inline-flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.08em;color:var(--mu);font-weight:700}
 .ptsin{width:66px;height:40px;border-radius:9px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font-weight:800;font-size:18px;text-align:center;padding:0 4px}.ptsin.sm{width:56px;height:36px;font-size:16px}
 .ptsin:focus{border-color:var(--y)}
-.gppt td,.gppt th{white-space:nowrap}.gppt .n{text-align:center}.gppt td.n{font-weight:800;font-size:18px}
+.gppt td,.gppt th{white-space:nowrap}
+.bst{font-weight:600;color:var(--mu)}.bst.on{color:var(--ok)}.bst.amb{color:var(--amb,#F5A524)}.bst.red{color:#FF4D52;font-weight:800}
+.brow.amb td:first-child{box-shadow:inset 4px 0 0 var(--amb,#F5A524)}.brow.red td:first-child{box-shadow:inset 4px 0 0 #FF4D52}.brow.fi{opacity:.55}.gppt .n{text-align:center}.gppt td.n{font-weight:800;font-size:18px}
 .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--gr)}.dot.ok{background:var(--ok)}.dot.amb{background:var(--amb)}
 tr.gpp.amb td:first-child{box-shadow:inset 4px 0 0 var(--amb)}tr.gpp.ok td:first-child{box-shadow:inset 4px 0 0 var(--ok)}tr.gpp.gr{opacity:.7}
 .code{font:800 28px/1 ui-monospace,monospace;letter-spacing:.2em;background:var(--bg);border-radius:10px;padding:10px 16px;color:var(--y)}
@@ -359,6 +367,7 @@ tr.gpp.amb td:first-child{box-shadow:inset 4px 0 0 var(--amb)}tr.gpp.ok td:first
 .lnk{background:none;border:0;padding:0;color:var(--xd);font-weight:600;text-decoration:underline;cursor:pointer;font-size:14px}
 button,.btn,.ol,.gh,.fc,.ib{min-height:44px}.slot button,.sc,.cbh button{min-height:0}
 /* viewer: same screens, edit controls hidden */
+body.gm [data-a="liveshare"]{display:inline-flex}body.viewer [data-a="liveshare"]{display:none!important}
 body.viewer [data-a="add"],body.viewer [data-a="tog"],body.viewer [data-a="alloff"],body.viewer [data-a="rmslot"],body.viewer [data-a="gx"],body.viewer [data-a="sc"],body.viewer [data-a="won"],body.viewer [data-a="timer"],
 body.viewer [data-a="startsess"],body.viewer [data-a="endsess"],body.viewer [data-a="fpplan"],body.viewer [data-a="fpre"],body.viewer [data-a="fpclear"],body.viewer [data-a="remix"],body.viewer [data-a="reshuffle"],body.viewer [data-a="gadd"],
 body.viewer [data-a="newsched"],body.viewer [data-a="hstart"],body.viewer [data-a="sedit2"],body.viewer [data-a="cancelup"],body.viewer [data-a="eropen"],body.viewer [data-a="ckopen"],body.viewer [data-a="cfopen"],body.viewer [data-a="asg"],
@@ -441,6 +450,7 @@ body.viewer [data-a="cts"],body.viewer [data-a="devlock"],body.viewer .slotsel,b
 <main id="main"></main>
 </div>
 <div id="modal"></div>
+<div id="login" hidden></div>
 <div id="toast"></div>
 <div id="print" class="rp"></div>
 <img id="sk" src="SKETCH" alt="" hidden><img id="lg" src="LOGO" alt="" hidden>

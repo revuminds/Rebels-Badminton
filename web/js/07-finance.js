@@ -1,9 +1,9 @@
 /* ===== Finance: The Kitty | Rebels (PIN-locked) ===== */
 const orgName=id=>id?nameOf(id):'—';
 const orgChips=(cur,a,x)=>(S.orgs||[]).length?(S.orgs||[]).map(o=>'<button class="orgc sm'+(cur===o?' on':'')+'" data-a="'+a+'" data-x="'+(x!=null?x:o)+'"'+(x!=null?' data-y="'+o+'"':'')+'>'+esc(nameOf(o))+'</button>').join(''):'<span style="font-size:13px;color:var(--mu)">Pick organizers in Settings</span>';
-function vFinance(){if(!ui.unlocked){ui.pctx='fin';return '<div class="lock">'+vPin()+'</div>'}
+function vFinance(){if(!canFin())return '<div class="pn"><div class="empty">Finance is for admin and organizer only.</div></div>';
   const top='<div class="sb"><div class="row" style="gap:14px"><h1>FIN<span>ANCE</span></h1><div class="seg">'+['kitty','rebels'].map(k=>'<button class="'+(ui.fsub===k?'on':'')+'" data-a="fsub" data-x="'+k+'">'+(k==='kitty'?'The Kitty':'Rebels')+'</button>').join('')+'</div></div>'+
-   '<button class="ol" style="width:52px;padding:0;color:var(--mu);display:flex;align-items:center;justify-content:center" data-a="lock" aria-label="Lock finance">'+LOCK_SVG+'</button></div>';
+   '</div>';
   return top+(ui.fsub==='rebels'?vRebels():vKitty())}
 function kSel(ss){const k=ui.ks||(ui.ks={m:'session'});if(!k.s||!ss.includes(k.s))k.s=ss[ss.length-1];const ms=[...new Set(ss.map(d=>d.slice(0,7)))].sort().reverse(),ys=[...new Set(ss.map(d=>d.slice(0,4)))].sort().reverse();
   if(!k.mo||!ms.includes(k.mo))k.mo=ms[0];if(!k.y||!ys.includes(k.y))k.y=ys[0];if(!k.a)k.a=ss[0];if(!k.b)k.b=ss[ss.length-1];

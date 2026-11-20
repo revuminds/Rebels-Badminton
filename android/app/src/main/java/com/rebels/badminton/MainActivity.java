@@ -138,6 +138,22 @@ public class MainActivity extends Activity {
         web.postDelayed(() -> web.evaluateJavascript("window.__dl&&__dl()", null), 400);
     }
 
+    private void bioResult(String tag, boolean ok) {
+        web.evaluateJavascript("window.__bio&&__bio(" + JSONObject.quote(tag) + "," + ok + ")", null);
+    }
+    private void askBio(String tag) {
+        if (Build.VERSION.SDK_INT < 29) { bioResult(tag, false); return; }
+        try {
+            BiometricPrompt.Builder b = new BiometricPrompt.Builder(this).setTitle("Rebels Badminton").setSubtitle("Unlock " + tag)
+                    .setNegativeButton("Use password", getMainExecutor(), (d, w) -> bioResult(tag, false));
+            if (Build.VERSION.SDK_INT >= 30) b.setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK);
+            b.build().authenticate(new CancellationSignal(), getMainExecutor(), new BiometricPrompt.AuthenticationCallback() {
+                @Override public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult r) { bioResult(tag, true); }
+                @Override public void onAuthenticationError(int code, CharSequence msg) { bioResult(tag, false); }
+            });
+        } catch (Exception e) { bioResult(tag, false); }
+    }
+
     /** Unlock: face/fingerprint if the tablet allows, otherwise the tablet's own PIN/pattern. */
     private void askToUnpin() {
         if (Build.VERSION.SDK_INT >= 28) {
@@ -248,6 +264,15 @@ public class MainActivity extends Activity {
                 }
             });
         }
+        /** v17 H3: face / fingerprint unlock for a remembered account. Biometrics only (no tablet PIN). Result → window.__bio(tag, ok). */
+        @JavascriptInterface public boolean bioAvailable() {
+            try {
+                if (Build.VERSION.SDK_INT >= 30) return getSystemService(BiometricManager.class).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK) == BiometricManager.BIOMETRIC_SUCCESS;
+                if (Build.VERSION.SDK_INT == 29) return getSystemService(BiometricManager.class).canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
+            } catch (Exception ignored) { }
+            return false;
+        }
+        @JavascriptInterface public void bioAuth(String tag) { runOnUiThread(() -> askBio(tag)); }
         @JavascriptInterface public boolean isPinned() { return isPinnedNow(); }
         @JavascriptInterface public void unlock() { runOnUiThread(() -> askToUnpin()); }
 

@@ -2,7 +2,7 @@
 function vSBar(g){const d=g.d,ps=playMs(g)/1000,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><label class="ptsl">POINTS <input class="ptsin" type="number" inputmode="numeric" min="1" max="99" value="'+esc(g.pts)+'" data-i="g_pts" aria-label="Session points"'+(VIEW()?' disabled':'')+'></label><span>DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+(g.fp?FULL_MIN+' MIN GAMES':Math.round(gameMin(g))+'+'+num(g.chg)+' MIN')+'</span>'+cs+
-   '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span></div>'}
+   '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span>'+(!VIEW()&&d===TODAY()&&!g.en?'<button class="ol sm" data-a="liveshare">📡 Share live link</button>':'')+'</div>'}
 
 function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY(),g=G(d),D=day(d),on=onIds(d),plan=d>t,past=d<t,run=running(g),ended=!!g.en,now=Date.now();
   if(!past&&!g.st)ensurePlan(g);if(run)autoNext(g,'fill',null);
@@ -38,7 +38,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
      '<div class="g2" style="gap:12px">'+g.plan.map((rd,r)=>{const inR=new Set(rd.flat().filter(Boolean)),pk=on.filter(id=>!inR.has(id));
        return '<div class="prd"><span class="lab" style="color:var(--y)">ROUND '+(r+2)+'</span>'+rd.map((q,i)=>r+1<courtRounds(g,i)?quad(q,i,(r+1)+'.'+i,pk,esc(cname(d,i).toUpperCase())):'').join('')+'</div>'}).join('')+'</div>'+
      '<div class="tipbox"><div class="laby" style="font-size:12px">PLAN TIPS</div>'+tips.map(x=>'<div class="tip"><span>→</span><span>'+esc(x)+'</span></div>').join('')+'</div></section>'}
-  const bench='';
+  const bench=g.st?vBenchP(g):'';
   const hist=g.hist,tot=hist.reduce((a,h)=>a+h.s,0),cnt=counts(g,false),nC=Math.max(courtsOf(d).length,...hist.map(h=>h.c));
   const hrow=h=>{const hi=g.hist.indexOf(h),aw=h.sa>h.sb,tie=h.sa===h.sb,A2=tn(h,0),B2=tn(h,1);
     return '<tr class="tap" data-a="gedit" data-x="'+hi+'"><td style="color:var(--mu)">'+hlab(h)+'</td><td style="font-weight:'+(aw?700:400)+';color:'+(aw||tie?'var(--tx)':'var(--mu)')+'">'+esc(A2)+'</td><td class="d" style="text-align:center;font-size:22px">'+h.sa+' – '+h.sb+'</td><td style="font-weight:'+(!aw&&!tie?700:400)+';color:'+(!aw||tie?'var(--tx)':'var(--mu)')+'">'+esc(B2)+'</td><td><span class="win">'+(tie?'Draw':esc(aw?A2:B2))+'</span></td><td style="text-align:right;font-weight:600">'+(h.u?'—':fmt(h.s))+'</td></tr>'};
@@ -75,6 +75,7 @@ function tick(){const now=Date.now();{const c=document.querySelector('[data-tk="
     else if(k==='pst'){const p2=pstat(g,el.dataset.id,now);if(el.innerHTML!==p2.t)el.innerHTML=p2.t;el.className='pst '+p2.c}
     else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
+    else if(k==='bsit'||k==='btot')benchTick(g,el,now);
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 
 /* ---------- Players pop-up: check in / left / dummy ---------- */
@@ -184,3 +185,20 @@ function vGPP(g,ppl){const d=g.d,run=running(g),hrs=Math.max(.5,sessLenH(d)),now
   const open=ui.gpo!==0;
   return '<section class="pn" style="gap:8px"><button class="mhead" data-a="gpo"><span class="lab">GAMES PER PLAYER · TARGET '+RATE+'/HOUR · GREEN ON TARGET · AMBER BEHIND</span><span>'+(open?'▴':'▾')+'</span></button>'+
    (open?(ppl.length?'<div style="overflow-x:auto"><table class="gppt"><thead><tr><th>PLAYER</th><th>M/F</th><th class="n">PLAYED</th><th class="n">PLANNED</th><th class="n">WINS</th><th class="n">RESTED ROUNDS</th><th class="n">TARGET</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty" style="padding:12px">No players yet.</div>'):'')+'</section>'}
+
+/* ---------- v17 H6: live bench ("desk") status – longest-sitting player on top ---------- */
+const bAmb=()=>num(S.def.bAmb)||20,bRed=()=>num(S.def.bRed)||30;
+function benchRows(g,now){const d=g.d;now=now||Date.now();const ids=[...new Set([...onIds(d),...(g.ros||[]),...Object.keys((S.days[d]||{}).att||{})])].filter(id=>P(id)&&arrived(d,id));
+  return ids.map(id=>{let c=-1;g.cur.forEach((q,i)=>{if(q&&q.every(Boolean)&&q.includes(id))c=i});const gone=leftAt(d,id);
+    const sit=running(g)&&c<0&&!gone&&g.since[id]!=null?Math.max(0,(now-g.since[id])/1000):0;return{id,c,gone,sit,tot:benchSec(g,id,now),fi:isDum(d,id)}})
+   .sort((a,b)=>(a.fi-b.fi)||(!!a.gone-!!b.gone)||(b.sit-a.sit)||(b.tot-a.tot)||nameOf(a.id).localeCompare(nameOf(b.id)))}
+const bCls=(sit,fi)=>fi||!sit?'':sit>=bRed()*60?'red':sit>=bAmb()*60?'amb':'';
+function bTxt(g,r){if(r.c>=0)return 'On court · '+esc(cname(g.d,r.c));if(r.gone)return 'Left '+hm(r.gone);if(!running(g))return 'Finished';return 'On bench · sitting '+Math.floor(r.sit/60)+' min'}
+function vBenchP(g){const run=running(g),now=Date.now(),L=benchRows(g,now),reg=L.filter(r=>!r.fi),fi=L.filter(r=>r.fi),open=ui.bpo!==0;
+  const row=r=>{const c=bCls(r.sit,r.fi);return '<tr class="brow '+c+(r.fi?' fi':'')+'"><td>'+pwho(r.id,30)+'</td><td><span class="bst '+(r.c>=0?'on ':'')+c+'" data-tk="bsit" data-id="'+r.id+'"'+(r.fi?' data-fi="1"':'')+'>'+bTxt(g,r)+'</span></td><td class="n" data-tk="btot" data-id="'+r.id+'">'+fmtH(r.tot)+'</td></tr>'};
+  const top=reg.find(r=>r.sit>0);
+  return '<section class="pn" style="gap:8px"><button class="mhead" data-a="bpo"><span class="lab">'+(run?'BENCH NOW · LONGEST SITTING ON TOP · AMBER '+bAmb()+'+ MIN · RED '+bRed()+'+ MIN':'BENCH TIME · THIS SESSION')+'</span><span>'+(top&&run?'<b class="bst '+bCls(top.sit)+'" style="margin-right:10px">'+esc(nameOf(top.id))+' · '+Math.floor(top.sit/60)+' min</b>':'')+(open?'▴':'▾')+'</span></button>'+
+   (open?(L.length?'<div style="overflow-x:auto"><table class="gppt bencht"><thead><tr><th>PLAYER</th><th>NOW</th><th class="n">TOTAL BENCH</th></tr></thead><tbody>'+reg.map(row).join('')+
+    (fi.length?'<tr><td colspan="3" class="lab" style="padding-top:10px">FILL-INS · NOT COUNTED AS LONG SITTING</td></tr>'+fi.map(row).join(''):'')+'</tbody></table></div>':'<div class="empty" style="padding:12px">Nobody checked in yet.</div>'):'')+'</section>'}
+function benchTick(g,el,now){const r=benchRows(g,now).find(x=>x.id===el.dataset.id);if(!r)return;if(el.dataset.tk==='btot'){el.textContent=fmtH(r.tot);return}
+  const t=bTxt(g,r);if(el.textContent!==t)el.textContent=t;const c=el.dataset.fi?'':bCls(r.sit);el.className='bst '+(r.c>=0?'on ':'')+c;const tr=el.closest('tr');if(tr&&!el.dataset.fi)tr.className='brow '+c}

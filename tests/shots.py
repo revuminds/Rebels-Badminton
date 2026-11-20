@@ -8,7 +8,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent; DATA = pathlib.Path(sys.a
 CLOCK = """(()=>{const off=Date.parse('2026-11-22T10:35:00+04:00')-Date.now(),D=Date;class FD extends D{constructor(...a){a.length?super(...a):super(D.now()+off)}static now(){return D.now()+off}};window.Date=FD})();"""
 SETUP = """()=>{const d='2026-11-22',g=RB.G(d);delete g.fp;RB.planFull(g,false);RB.act.startsess();Object.keys(RB.S.days[d].on).forEach(id=>RB.act.ckin(id));RB.act.closeck&&RB.act.closeck();
   RB.act.cfopen('0');RB.act.cfok();RB.act.cfopen('1');RB.act.cfok();for(let k=0;k<9;k++)RB.act.sc('0','a+');for(let k=0;k<6;k++)RB.act.sc('0','b+');RB.ui.unlocked=true;RB.save()}"""
-SCR = [('Home', "RB.act.tab('home')"), ('Players', "RB.act.tab('players')"), ('Games', "RB.act.tab('games')"), ('Finance', "RB.ui.unlocked=true;RB.act.tab('finance');RB.ui.unlocked=true;RB.render()"), ('Settings', "RB.act.tab('settings')")]
+SCR = [('Home', "RB.act.tab('home')"), ('Players', "RB.act.tab('players')"), ('Games', "RB.act.tab('games')"), ('Finance', "RB.act.tab('finance')"), ('Settings', "RB.act.tab('settings')")]
 VP = [('Phone 390', 390, 844, 0), ('Tablet 1194×834', 1194, 834, 0), ('Tablet 834×1194', 834, 1194, 0), ('Laptop 1280', 1280, 800, 0), ('Tablet light', 1194, 834, 1)]
 shots = []
 with sync_playwright() as p:
@@ -20,6 +20,9 @@ with sync_playwright() as p:
         pg = c.new_page(); pg.on('dialog', lambda d: d.accept())
         pg.goto('file://' + str(ROOT / 'dist/RebelsBadminton.html')); pg.wait_for_timeout(300)
         pg.evaluate("document.querySelector('#wel')&&document.querySelector('#wel').click()"); pg.wait_for_timeout(800)
+        pg.evaluate("()=>{RB.remember('admin','admin','pw12345','');RB.remember('games','games','pw12345','');RB.lockApp()}"); pg.wait_for_timeout(300)
+        if not light: shots.append((lab, 'Login', Image.open(io.BytesIO(pg.screenshot()))))
+        pg.evaluate("RB.enterAs('admin','admin')"); pg.wait_for_timeout(300)
         pg.evaluate(SETUP)
         for name, js in (SCR if not light else SCR[:3]):
             pg.evaluate(js); pg.wait_for_timeout(300); pg.evaluate("window.scrollTo(0,0)")

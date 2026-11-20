@@ -231,4 +231,15 @@ function planFull(g,re){const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.len
   const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.qq.flat().filter(x=>x.n).map(x=>x.n)),ok=new Set(ids);
     g.fp.forEach(x=>{if(dn.has(x.n))keep[x.n]=Object.assign({},x,{dn:1});else if(cur.has(x.n)||inQ.has(x.n)||x.x)keep[x.n]=x;else if(x.m&&x.q.every(id=>id&&ok.has(id)))keep[x.n]=x})}
   const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
-  g.fp=best.out.map(x=>{const y=Object.assign({},x);delete y.dn;return y});g.fpAt=Date.now();if(running(g)){g.up=[];fpSync(g)}return 1}
+  g.fp=best.out.map(x=>{const y=Object.assign({},x);delete y.dn;return y});rotCourts(g,keep);g.fpAt=Date.now();if(running(g)){g.up=[];fpSync(g)}return 1}
+
+/* v17 H7 (soft rule, lowest priority): after a round's games are chosen, put them on courts so each player's games spread over the courts.
+   Who plays, partners and rest never change; kept / manual games never move; only courts used in that round (= still booked). */
+const perms=a=>a.length<2?[a]:a.flatMap((x,i)=>perms(a.slice(0,i).concat(a.slice(i+1))).map(p=>[x].concat(p)));
+function rotCourts(g,keep){keep=keep||{};const R={},cc={};g.fp.forEach(x=>(R[x.r]=R[x.r]||[]).push(x));
+  Object.keys(R).map(Number).sort((a,b)=>a-b).forEach(r=>{const L=R[r],mov=L.filter(x=>!keep[x.n]&&!x.m&&x.q.some(Boolean));
+    if(mov.length>1&&mov.length<7){const cs=mov.map(x=>x.c),ns=mov.map(x=>x.n).sort((a,b)=>a-b),cost=pm=>mov.reduce((a,x,i)=>a+x.q.reduce((b,id)=>b+(id&&cc[id]?(cc[id][pm[i]]||0)*(cc[id][pm[i]]||0):0),0),0);
+      let best=null;perms(cs).forEach(pm=>{const c=cost(pm);if(!best||c<best.c-1e-9)best={c,pm}});mov.forEach((x,i)=>x.c=best.pm[i]);
+      mov.slice().sort((a,b)=>a.c-b.c).forEach((x,i)=>x.n=ns[i])}
+    L.forEach(x=>x.q.forEach(id=>{if(id){cc[id]=cc[id]||{};cc[id][x.c]=(cc[id][x.c]||0)+1}}))});
+  g.fp.sort((a,b)=>a.n-b.n)}
