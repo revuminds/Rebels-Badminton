@@ -247,11 +247,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void unlock() { runOnUiThread(() -> askToUnpin()); }
 
         /** Export PDF: opens Android's print screen, where "Save as PDF" makes the file to share. */
-        @JavascriptInterface public void print(String title) {
+        @JavascriptInterface public void print(String title) { doPrint(title, false); }
+        /** v16: game schedule prints A4 portrait. */
+        @JavascriptInterface public void printPortrait(String title) { doPrint(title, true); }
+        private void doPrint(String title, boolean portrait) {
             runOnUiThread(() -> {
                 PrintManager pm = (PrintManager) getSystemService(PRINT_SERVICE);
                 PrintAttributes a = new PrintAttributes.Builder()
-                        .setMediaSize(PrintAttributes.MediaSize.ISO_A4.asLandscape()).build();
+                        .setMediaSize(portrait ? PrintAttributes.MediaSize.ISO_A4.asPortrait() : PrintAttributes.MediaSize.ISO_A4.asLandscape()).build();
                 pm.print(title, web.createPrintDocumentAdapter(title), a);
             });
         }

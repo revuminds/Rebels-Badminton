@@ -13,7 +13,7 @@ let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}
 if(!S)S=blank();
-function save(){S.savedAt=Date.now();const t=JSON.stringify(S);
+function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g)});const t=JSON.stringify(S);
   try{localStorage.setItem(KEY,t)}catch(e){toast('Could not save – export a backup')}
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}}
 let tT;function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(tT);tT=setTimeout(()=>t.style.display='none',2200)}

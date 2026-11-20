@@ -30,12 +30,12 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     else{const last=g.last[i];body='<div class="court big'+(cl?' shut':'')+'">'+lines+'<div class="cwait" style="flex-direction:column;gap:10px">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+last.sa+' – '+last.sb+'</b> '+esc(tn(last,1))+'</span>':'')+
       '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
-      (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+'</span>'+row('q',i,k,x.q)+
+      (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span>'+row('q',i,k,x.q)+
         '<div class="mvw"><button class="ol sm" data-a="mv" data-x="'+i+'.'+k+'">Move ▾</button>'+(ui.mv===i+'.'+k?'<div class="mvm"><button data-a="mvup" data-x="'+i+'.'+k+'">↩ Back to Upcoming</button>'+openC.filter(j=>j!==i).map(j=>'<button data-a="mvc" data-x="'+i+'.'+k+'" data-y="'+j+'">To '+esc(cname(d,j))+'</button>').join('')+'<button data-a="mvx" aria-label="Close">×</button></div>':'')+'</div></div>').join(''):
        '<div class="qempty">Empty · tap Assign on an upcoming game, or drag one here</div>')+'</div>';
     return '<section class="cblock" data-drop="c" data-i="'+i+'">'+head+body+qb+'</section>'}).join('');
-  const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+' · auto-picked · × removes a player, then tap a name in All players</div>'+
-    (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+row('u',0,k,x.q)+
+  const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+(g.fp?' · from your full session plan':' · auto-picked')+' · × removes a player, then tap a name in All players</div>'+
+    (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)&&!g.fp?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+(x.n?'<span class="qtag">G'+x.n+' · '+esc(cno(d,x.c))+' · '+gType(x.q)+'</span>':'')+row('u',0,k,x.q)+
       '<button class="gcb" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>Assign ▾</button></div>').join(''):
      '<div class="qempty">Upcoming games appear once 4 players are checked in (Players button).</div>')+'</section>';
   const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.qq.length;i++){const k=(g.qq[i]||[]).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
@@ -96,7 +96,7 @@ Object.assign(act,{
  gpick:(x,y)=>{const a=String(x).split('.'),p={t:a[0],i:+a[1],k:+a[2],s:+y},o=ui.pick;if(o&&o.t===p.t&&o.i===p.i&&o.k===p.k&&o.s===p.s){ui.pick=null;return render()}ui.pick=p;pickScroll()},
  cswap:(x,y)=>{ui.pick={t:'c',i:+x,k:0,s:+y};pickScroll()},
  pickx:()=>{ui.pick=null;render();window.scrollTo(0,ui.pickY||0)},
- gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);ui.pick=null;autoNext(g,'fill',null)}save();render()},
+ gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);if(r.n&&g.fp){const f=g.fp.find(o=>o.n===r.n);if(f){f.q=NUL4();f.x=1}}ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
  ucourt:(x,y)=>moveGame(CG(),'u.0.'+x,'q',+y,-1),
  asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const k=ui.asg-1;ui.asg=0;moveGame(CG(),'u.0.'+k,'q',+x,-1)},
@@ -104,7 +104,7 @@ Object.assign(act,{
  mvup:x=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'u',0,0)},
  mvc:(x,y)=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'q',+y,-1)},
  cfopen:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast(cname(g.d,i)+' still has a game');
-   if((g.qq[i]||[]).length)ui.cf={i,t:'q',k:0};else if(g.up.length)ui.cf={i,t:'u',k:0};else return toast('No game waiting – add one in Upcoming');render()},
+   if((g.qq[i]||[]).length)ui.cf={i,t:'q',k:0};else if(g.up.length){const k=g.fp?Math.max(0,g.up.findIndex(x=>x.c===i)):0;ui.cf={i,t:'u',k}}else return toast('No game waiting – add one in Upcoming');render()},
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */

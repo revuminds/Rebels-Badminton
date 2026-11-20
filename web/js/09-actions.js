@@ -1,8 +1,8 @@
 /* ===== render, actions, events, start-up ===== */
 function render(){const app=$('.app'),m=$('#main');RING=null;if(ui.scr==='app'&&ui.tab==='games'){const d0=curDate(),g0=d0&&S.games[d0];if(g0&&g0.st)RING=counts(g0,false)}app.classList.toggle('full',ui.scr!=='app');
   if(ui.scr==='app'){$('#nav').innerHTML=vNav();m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
-  else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():vHome()}
-  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
+  else{$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
+  $('#modal').innerHTML=ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():'';tick()}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance'))ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
@@ -13,6 +13,28 @@ const act={
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
  newsched:()=>openSched(''),sedit2:x=>openSched(x),hedit:x=>openSched(x,'hist'),
+ hstart2:()=>{if(!confirm('Start today’s session again? It continues the same session – games, check-ins and payments are kept.'))return;act.hstart()},
+ /* v16 edit any past session: players + games */
+ pedit:x=>{ui.pe={d:x,q:''};go('pedit')},pedone:()=>{const d=ui.pe&&ui.pe.d;ui.pe=null;if(d){if(ui.h){ui.h.y=d.slice(0,4);ui.h.sel='s:'+d}else ui.h={y:d.slice(0,4),sel:'s:'+d,tab:'games'}}go('hist')},
+ peadd:x=>{const d=ui.pe.d,g=ensureMan(d);g.ros=[...new Set([...(g.ros||[]),x])];ui.pe.q='';save();render();toast(nameOf(x)+' added')},
+ perm:x=>{const d=ui.pe.d,g=S.games[d],n=g?g.hist.filter(h=>h.ids.includes(x)).length:0,f=S.fin[d],pd=f&&payOf(f,x);
+   if(!confirm((n||pd?nameOf(x)+' has '+[n?pl(n,'game'):'',pd?'a payment':''].filter(Boolean).join(' and ')+' in this session. ':'')+'Remove '+nameOf(x)+' from this session?'+(n?' Their games stay in the list.':'')+(pd?' The payment is removed.':'')))return;
+   if(g)g.ros=(g.ros||[]).filter(i=>i!==x);const D=S.days[d];if(D){if(D.on)delete D.on[x];if(D.att)delete D.att[x]}if(f){delete f.paid[x];if(f.cnt)delete f.cnt[x]}save();render();toast(nameOf(x)+' removed')},
+ pegadd:x=>{ensureMan(x);ui.ge={d:x,i:-1,ids:NUL4(),sa:'',sb:'',w:'',c:1,st:'',du:''};render()},
+ pegedit:(x,y)=>{const g=G(x),h=g.hist[+y];if(!h)return;ui.ge={d:x,i:+y,ids:h.ids.slice(),sa:h.sa,sb:h.sb,w:h.sa>h.sb?'a':h.sb>h.sa?'b':'',c:h.c,st:h.u?'':hm(h.at-h.s*1000),du:h.u?'':Math.round(h.s/60)};render()},
+ /* v16 add past session */
+ apopen:()=>{const L=Object.keys(S.days).filter(d=>isSched(d)).sort().pop(),D=L?S.days[L]:null;ui.ap={d:addD(TODAY(),-1),time:D?D.time:'20:00',loc:D?D.loc:(S.locs[0]||''),courts:D?JSON.parse(JSON.stringify(courtsOf(L))):[{n:'Court 1',h:2}],cost:S.def.court||'',sh:'',ids:[],q:''};go('addpast')},
+ apcancel:()=>{ui.ap=null;go('hist')},
+ apch:(x,y)=>{const c=ui.ap.courts[+x];c.h=Math.max(.5,Math.min(8,num(c.h)+ +y));render()},
+ apcn:x=>{const C=ui.ap.courts;if(+x>0){if(C.length<8)C.push({n:'Court '+(C.length+1),h:C[C.length-1].h})}else if(C.length>1)C.pop();render()},
+ aptick:x=>{const a=ui.ap.ids,i=a.indexOf(x);if(i>=0)a.splice(i,1);else a.push(x);$('#aplist').innerHTML=vAPList();$('#apn').textContent=a.length},
+ apsave:()=>{const a=ui.ap,d=a.d,t=TODAY();if(!d)return toast('Pick a date');if(d>=t)return toast('Pick a past date');
+   const g0=S.games[d];if(isSched(d)||(g0&&(g0.st||(g0.hist||[]).length)))return toast('There is already a session on '+dlab(d)+' – open it in Previous sessions → Edit session');
+   if(!a.ids.length&&!confirm('No players ticked. Save anyway?'))return;
+   if(S.delD)delete S.delD[d];delete S.games[d];mkDay(d,{time:a.time,loc:a.loc,courts:a.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)})),on:{},att:{},man:1});
+   const g=G(d);g.st=tms(d,a.time);g.en=g.st+sessLenH(d)*3600e3;g.ros=a.ids.slice();g.man=1;
+   const f=finOf(d,true);f.court=a.cost;if(num(a.cost))f.cby=f.cby||S.lastBy||S.orgs[0]||'';f.used=num(a.sh);
+   if(a.loc&&!S.locs.includes(a.loc))S.locs.push(a.loc);ui.ap=null;ui.h=null;ui.pe={d,q:''};save();go('pedit');toast('Past session saved · add games here (optional)')},
  hstart:()=>{ui.cur=TODAY();ui.flow='start';go('app','players');toast('Check who is playing, then tap Next')},
  pnext:()=>{const d=curDate();if(!d)return;ui.cur=d;const g=S.games[d],st=ui.flow==='start'&&canStart(d);ui.flow='';go('app','games');
    if(st){startSession();if(running(S.games[d])){ui.ck=1;render()}}},
@@ -44,8 +66,9 @@ const act={
  /* players */
  devlock:()=>{if(!NB||!NB.pinScreen)return toast('Tablet lock works in the app only');if(pinned())NB.unlock();else{NB.pinScreen();setTimeout(render,800)}},
  lv:x=>{ui.lv=+x;$('#lvb').innerHTML=vLv()},sx:x=>{ui.sx=ui.sx===x?'':x;$('#sxb').innerHTML=sxSeg(ui.sx,'sx',1)},pmsx:x=>{ui.pm.sx=ui.pm.sx===x?'':x;render()},
- add:()=>{const n=ui.nm.trim().replace(/\s+/g,' ');if(!n)return toast('Type a name first');const d=dupInfo(n);if(d&&d.red)return toast('Already in the list');
+ add:()=>{const n=ui.nm.trim().replace(/\s+/g,' ');if(!n)return toast('Type a name first');if(!ui.sx)return toast('Pick M or F');const d=dupInfo(n);if(d&&d.red)return toast('Already in the list');
    const id='p'+(S.nid++);S.players.push(Object.assign({id,name:n,lv:ui.lv,j:Date.now()},ui.sx?{sx:ui.sx}:{}));ui.nm='';save();render();toast(n+' added');const i=$('#pname');if(i)i.focus()},
+ qsx:(x,y)=>{const p=P(x);if(!p)return;p.sx=y;const g=S.games[curDate()];if(g){if(running(g))autoNext(g,'fill',null);else g.psig=''}save();render()},
  clearq:()=>{ui.q='';$('#psearch').value='';$('#pgrid').innerHTML=vGrid()},
  alloff:()=>{const d=curDate(),D=day(d);if(!onIds(d).length)return;if(!confirm('Turn all players off for '+dlab(d)+'?'))return;
    const ids=onIds(d);D.on={};const g=S.games[d];if(g){const t=Date.now();ids.forEach(id=>benchOff(g,id,t));g.nxt=g.nxt.map(()=>NUL4());autoNext(g,'fill',null)}save();render()},
@@ -60,7 +83,7 @@ const act={
  closepm:()=>{ui.pm=null;render()},noop:()=>{},
  qlv:(x,y)=>{const p=P(x);if(!p||p.lv===+y)return;p.lv=+y;lvChanged([x]);save();render()},
  saveedit:()=>{const e=ui.pm,p=P(e.id),n=e.name.trim().replace(/\s+/g,' ');if(!n)return toast('Name cannot be empty');const d=dupInfo(n,p.id);if(d&&d.red)return toast('That name is already used');
-   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.sx)p.sx=e.sx;else delete p.sx;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
+   const lc=p.lv!==e.lv;p.name=n;p.ph=(e.ph||'').trim();p.lv=e.lv;if(e.sx){if(e.sx!==p.sx)Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});p.sx=e.sx}else delete p.sx;if(e.img)p.img=e.img;else delete p.img;ui.pm={id:p.id,ed:0};if(lc){lvChanged([p.id]);Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''})}save();render();toast('Saved')},
  sdel:x=>{const p=P(x);if(!p)return;if(!confirm('Delete '+p.name+'? Past games and payments keep their record.'))return;p.gone=true;Object.values(S.days).forEach(D=>delete D.on[p.id]);S.orgs=S.orgs.filter(o=>o!==p.id);delete ui.lvE[p.id];save();render();toast(p.name+' deleted')},
  arrive:x=>{const d=curDate(),D=day(d),g=S.games[d],t=Date.now();D.att=D.att||{};D.att[x]={a:t};const late=g?(t-Math.max(bookStart(d),g.st||0))/60e3:0;
    attChanged(x,late>10?nameOf(x)+' arrived '+Math.round(late)+' min late – '+target(g,x)+' games realistic':nameOf(x)+' checked in');save();render()},
@@ -81,6 +104,15 @@ const act={
  gch:(x,y)=>{const d=curDate(),D=day(d),c=D.courts[+x];if(!c)return;c.h=Math.max(.5,Math.min(8,num(c.h)+ +y));const g=G(d);
    if(running(g))autoNext(g,'fill',c.n+' now '+hrsL(c.h)+' (ends '+hm(courtEnd(d,+x))+') · remaining games re-planned');else g.psig='';save();render()},
  shuffle:()=>{},
+ /* v16 full session plan */
+ fpplan:()=>{const g=CG();if(planFull(g,false)){logIt(g,'Full session planned · '+g.fp.length+' games');save();render();toast(pl(g.fp.length,'game')+' planned')}},
+ fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, queued and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
+ fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=[];g.qq=g.qq.map(L=>L.filter(x=>!x.n));autoNext(g,'fill',null)}else g.psig='';save();render()},
+ fpo:()=>{ui.fpo=!ui.fpo;render()},
+ fpprint:()=>{const g=CG();if(!g.fp)return;const ti='Game schedule '+g.d,el=$('#print');el.className='sp';el.innerHTML=vFullPrint(g);
+   setTimeout(()=>{try{if(NB&&NB.printPortrait)NB.printPortrait('Rebels Badminton - '+ti);else if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
+ eropen:x=>{const g=G(x||curDate());if(!g.fp)return;erInit(g.d)},closeer:()=>{ui.er=null;render()},ersave:()=>erSave(),
+ erp:(x,y)=>{const r=ui.er.r[x]=ui.er.r[x]||{sa:'',sb:''};r.p=r.p===y?'':y;render()},
  rmslot:(x,y)=>{const g=CG();qref(g,x)[+y]=null;if(String(x)[0]==='0')g.nman[+String(x).split('.')[1]]=1;save();render()},
  gadd:()=>{const g=CG(),l=g.hist[0];ui.ge={d:g.d,i:-1,ids:NUL4(),sa:'',sb:'',w:'',c:1,st:l?hm(l.at+num(g.chg)*60000):g.st?hm(g.st):hm(Date.now()),du:Math.round(gameMin(g))};render()},
  gedit:x=>{const g=CG(),h=g.hist[+x];if(!h)return;ui.ge={d:g.d,i:+x,ids:h.ids.slice(),sa:h.sa,sb:h.sb,w:h.sa>h.sb?'a':h.sb>h.sa?'b':'',c:h.c,st:hm(h.at-h.s*1000),du:Math.round(h.s/60)};render()},
@@ -98,7 +130,7 @@ const act={
  fsub:x=>{ui.fsub=x;render()},lock:()=>{ui.unlocked=false;ui.pin='';render()},
  ksm:x=>{ui.ks=ui.ks||{};ui.ks.m=x;ui.open=null;render()},kopen:x=>{ui.ks.m='session';ui.ks.s=x;render();window.scrollTo(0,0)},
  mkpdf:()=>{const ss=sessions();if(!ss.length)return toast('No sessions yet');const{k,list}=kSel(ss);if(!list.length)return toast('No sessions in that selection');const ti=selTitle(k,list);
-   $('#print').innerHTML=vReport(list,ti);setTimeout(()=>{try{if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
+   $('#print').className='rp';$('#print').innerHTML=vReport(list,ti);setTimeout(()=>{try{if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
  fsave:()=>{save();ui.saved='✓ Saved';render()},unpaid:()=>{ui.unpaid=!ui.unpaid;render()},
  payopen:x=>{const f=fin(),p=payOf(f,x);ui.pay={d:ui.fsel,id:x,m:p?p.m:(S.lastM||'cash'),by:p?p.by:(S.lastBy&&isOrg(S.lastBy)?S.lastBy:(S.orgs[0]||''))};render()},
  closepay:()=>{ui.pay=null;render()},paym:x=>{ui.pay.m=x;render()},payby:x=>{ui.pay.by=x;render()},
@@ -156,6 +188,10 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k.startsWith('ge_')){const e=ui.ge,f=k.slice(3);e[f]=el.value;if(f==='en'&&e.st&&el.value){let m=(tms(e.d,el.value)-tms(e.d,e.st))/60000;if(m<=0)m+=1440;e.du=Math.round(m);$('#ge_du').value=e.du}
     else if((f==='st'||f==='du')&&$('#ge_en'))$('#ge_en').value=e.st&&num(e.du)?hm(tms(e.d,e.st)+num(e.du)*60000):''}
   else if(k.startsWith('se_')){ui.se[k.slice(3)]=el.value}
+  else if(k==='pe_q'){ui.pe.q=el.value;$('#pesug').innerHTML=vPESug(ui.pe.d)}
+  else if(k==='ap_q'){ui.ap.q=el.value;$('#aplist').innerHTML=vAPList()}
+  else if(k==='ap_cn'){ui.ap.courts[+el.dataset.x].n=el.value}else if(k==='ap_cost'){ui.ap.cost=el.value}else if(k==='ap_sh'){ui.ap.sh=el.value}
+  else if(k==='er_sa'||k==='er_sb'){const r=ui.er.r[el.dataset.x]=ui.er.r[el.dataset.x]||{sa:'',sb:''};r[k.slice(3)]=el.value;if(el.value!==''&&!r.p)r.p='y'}
   else if(k.startsWith('en_')){ui.ent[k.slice(3)]=el.value}
   else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
@@ -173,7 +209,8 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='rpv'){ui.rp.v=el.value;render()}
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}
-  else if(c==='ge_c'){ui.ge.c=+el.value}});
+  else if(c==='ge_c'){ui.ge.c=+el.value}
+  else if(c==='ap_d'){ui.ap.d=el.value}else if(c==='ap_t'){ui.ap.time=el.value}else if(c==='ap_l'){ui.ap.loc=el.value}});
 setInterval(tick,1000);
 window.addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false;ui.bun=false}else{topUp();render()}});

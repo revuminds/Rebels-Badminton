@@ -245,6 +245,18 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .rp .pb{break-before:page}
 .rp .keep{break-inside:avoid}
 .rp .ult{background:#FFD23F;border-radius:3mm;padding:3mm 4mm;margin-top:4mm}
+/* v16 game schedule print: A4 portrait, black & white */
+.sp{color:#000;font-family:Outfit,sans-serif;font-size:10.5pt;page:port}
+@page port{size:A4 portrait;margin:12mm}
+.sp h1{font:900 20pt 'Big Shoulders Display',sans-serif;margin:0;color:#000}
+.sp .m{margin:1mm 0 1mm}.sp .lg{font-size:9pt;margin-bottom:3mm}
+.sp table{width:100%;border-collapse:collapse}
+.sp th,.sp td{border:1px solid #000;padding:1.8mm 2mm;text-align:left;color:#000}
+.sp th{font-size:8pt;letter-spacing:.06em;font-weight:700}
+.sp td.no{font-weight:700;font-size:12pt;text-align:center}
+.sp .bx{display:inline-block;width:9mm;height:6mm;border:1px solid #000;vertical-align:middle}
+.sp tr{break-inside:avoid}
+.sxt{font-weight:700;color:#7FB7F0}.sxt.f{color:#F28CB1}.sxt.no{color:var(--y)}
 @media print{@page{size:A4 landscape;margin:10mm}html,body{background:#fff!important}#wel,.app,#modal,#toast{display:none!important}#print{display:block}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 
 /* v12 */
