@@ -184,6 +184,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
   const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a,el.dataset.x))return toast(GM()?'Game manager · no finance or settings':'Organizer · read-only');f(el.dataset.x,el.dataset.y)}});
 document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)return;
   if(k.startsWith('lg_')){if(ui.lg)ui.lg[k.slice(3)]=el.value;return}
+  if(k.startsWith('qp_')){const v=el.value.replace(/\D/g,'').slice(0,4);if(v!==el.value)el.value=v;ui.qpi=ui.qpi||{};ui.qpi[k.slice(3)]=v;return}
   if(k.startsWith('acc_')&&ADMIN()){const f=k.slice(4);ui.acc=ui.acc||{};if(f==='lock'){const v=Math.round(num(el.value));if(v>0)try{localStorage.setItem(LKKEY,String(v))}catch(e){}}else if(f==='organizer'||f==='games')ui.acc['p_'+f]=el.value;else ui.acc[f]=el.value;return}if(VIEW()&&!['q','pe_q','ap_q','lg_u','lg_p','lg_n1','lg_n2'].includes(k))return toast('Organizer · read-only');if(GM()&&(/^d_|^en_|^f_|^acc/.test(k)||k==='syu'))return;
   if(k==='syu'){ui.syu=el.value;return}
   if(k==='nm'){ui.nm=el.value;$('#dup').innerHTML=vDup()}

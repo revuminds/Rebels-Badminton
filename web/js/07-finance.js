@@ -19,9 +19,9 @@ function vKitty(){const ss=sessions();if(!ss.length)return '<div class="pn"><div
   const sel=all.filter(s=>list.includes(s.d));
   return bar+(k.m==='session'||sel.length===1?vKSession(all,sel[0]||all[all.length-1]):vKMulti(sel,selTitle(k,list)))}
 function headTiles(sel,lab){const sum=x=>sel.reduce((a,s)=>a+s[x],0),c=sum('ret'),sp=sum('inv'),b=c-sp,h=holds(sel);
-  const hl=Object.keys(h).map(o=>esc(o?nameOf(o):'Unassigned')+' holds '+A0(h[o].cash+h[o].bank)).join(' · ');
+  const hl=Object.keys(h).map(o=>'<span style="display:block">'+esc(o?nameOf(o):'Unassigned')+' collected '+A0(h[o].cash+h[o].bank)+'</span>').join('');
   return '<div class="sb" style="align-items:flex-end"><div><div class="laby" style="letter-spacing:.18em">'+esc(lab.toUpperCase())+'</div><h1 style="margin-top:4px">THE <span>KITTY</span></h1></div>'+
-   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small style="white-space:nowrap;font-size:12px">'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
+   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small style="display:block;font-size:12px;line-height:1.35;white-space:normal;overflow-wrap:anywhere">'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
    '<div class="btile" style="background:'+(b<0?'var(--bad)':'var(--ok)')+';color:var(--bg)"><i style="color:var(--bg);font-weight:600">Balance</i><b>'+sg(b)+'</b></div></div></div>'}
 function sumBoxes(s){const bx=(h,c,big,lines)=>'<div class="sbox" style="border-top:3px solid '+c+'"><div style="font-size:12px;letter-spacing:.12em;color:var(--mu);font-weight:700">'+h+'</div><div class="d" style="font-size:28px;line-height:1">'+big+'</div>'+lines.map(([k,v])=>'<div class="kv"><span>'+k+'</span><span>'+v+'</span></div>').join('')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">'+
@@ -104,7 +104,7 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
   const extra=Object.values(R0.o).filter(x=>!orgs.includes(x.id)&&(Math.abs(x.put)>.5||Math.abs(x.hold)>.5));
   const xn=x=>x.id&&P(x.id)?nameOf(x.id)+' (not organizer)':'Not assigned';
   const bw=(nm,v)=>Math.abs(v)<.5?esc(nm)+' even':v>0?esc(nm)+' holds <b style="color:var(--ok)">'+A0(v)+'</b>':'kitty owes '+esc(nm)+' <b style="color:#FF9F43">'+A0(-v)+'</b>';
-  const split='<div class="pn" style="gap:6px;padding:12px 16px"><div class="sb"><span class="lab">WHO HOLDS THE KITTY · ALL TIME</span><b class="d" style="font-size:24px;color:'+(R0.bal<0?'var(--bad)':'var(--ok)')+'">AED '+sg(R0.bal).replace('.00','')+'</b></div>'+
+  const split='<div class="pn" style="gap:6px;padding:12px 16px"><div class="sb"><span class="lab">WHO HOLDS THE KITTY · ALL TIME</span><b class="d" style="font-size:24px;color:'+(R0.bal<0?'var(--bad)':'var(--ok)')+'">AED '+sg(Math.round(R0.bal)).replace('.00','')+'</b></div>'+
    '<div style="font-size:15px">'+[...orgs.map(o=>bw(nameOf(o),ox(o).pos)),...extra.map(x=>bw(xn(x),x.pos))].join(' · ')+'</div>'+
    (extra.length?'<div class="warn yel">Some money has no organizer set – open those entries / payments and set Paid by or Collected by.</div>':'')+'</div>';
   const cards=orgs.length?'<div style="display:grid;grid-template-columns:repeat('+Math.min(3,orgs.length)+',minmax(0,1fr));gap:12px">'+orgs.map(o=>{const x=ox(o),y=R.o[o]||Z,n=x.pos,fn=esc(nameOf(o).split(' ')[0]);

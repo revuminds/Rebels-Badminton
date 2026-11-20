@@ -435,7 +435,8 @@ body.light .tbtn.run{background:#D62F33;color:#fff;font-weight:800}
 .tbtn.edt{background:transparent;color:var(--tx);border:2px solid var(--bd)}.tbtn.done{background:var(--ok);color:#06210F}
 .cedn{margin:0}
 /* power (switch account) – top-right, dimmed while the tablet is pinned */
-.pwr{font-size:19px;line-height:1;padding:0 10px}.pwr.dis{opacity:.4}
+.sg{gap:0}.sg.open{gap:12px}.sgh{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:2px 0;min-height:44px;color:var(--tx);cursor:pointer;text-align:left}.sgh .laby{margin:0}.sgc{font-size:18px;color:var(--mu)}
+.pwr{line-height:1;padding:0 10px;color:var(--y);border-color:var(--y);display:inline-flex;align-items:center;justify-content:center}.pwr svg{display:block}.pwr.dis{opacity:.4}
 /* scores sent from the live page */
 @keyframes rvb{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.75);opacity:1}50%{box-shadow:0 0 0 7px rgba(245,165,36,0);opacity:.6}}
 .rvb{background:var(--amb)!important;border-color:var(--amb)!important;color:#1A1200!important;animation:rvb 1.1s ease-in-out infinite;font-weight:800}
@@ -1119,7 +1120,7 @@ function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d
    '<div class="pn hin"><div class="sb"><b style="font-size:16px">Upcoming</b><span style="font-size:13px;color:var(--mu)">Edit to change time, venue, courts or hours</span></div>'+(rows||'<div style="color:var(--mu);font-size:14px;padding:6px 2px">No upcoming sessions. Tap Schedule session.</div>')+'</div></div></div>'}
 
 /* ---------- SCHEDULE SESSION ---------- */
-const TIMES=(()=>{const a=[];for(let m=6*60;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
+const TIMES=(()=>{const a=[];for(let m=0;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
 function nextSessDate(){const t=TODAY(),all=Object.keys(S.days).filter(d=>isSched(d)).sort(),last=all[all.length-1];let d=last?addD(last,7):addD(t,7);while(d<=t)d=addD(d,7);while(S.days[d]&&isSched(d))d=addD(d,7);return d}
 function openSched(d,ret){const t=TODAY();if(d&&S.days[d]){const D=S.days[d],g=S.games[d];ui.sc={d,orig:d,ret:ret||'home',time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(g&&g.st),ended:!!(g&&g.en)}}
   else{const last=Object.keys(S.days).filter(x=>isSched(x)).sort().pop(),L=last?S.days[last]:null;ui.sc={d:isSched(t)?nextSessDate():t,orig:'',time:L?L.time:'20:00',loc:L?L.loc:(S.locs[0]||''),courts:[{n:'Court 1',h:2}],rep:false}}
@@ -1524,9 +1525,9 @@ function vKitty(){const ss=sessions();if(!ss.length)return '<div class="pn"><div
   const sel=all.filter(s=>list.includes(s.d));
   return bar+(k.m==='session'||sel.length===1?vKSession(all,sel[0]||all[all.length-1]):vKMulti(sel,selTitle(k,list)))}
 function headTiles(sel,lab){const sum=x=>sel.reduce((a,s)=>a+s[x],0),c=sum('ret'),sp=sum('inv'),b=c-sp,h=holds(sel);
-  const hl=Object.keys(h).map(o=>esc(o?nameOf(o):'Unassigned')+' holds '+A0(h[o].cash+h[o].bank)).join(' · ');
+  const hl=Object.keys(h).map(o=>'<span style="display:block">'+esc(o?nameOf(o):'Unassigned')+' collected '+A0(h[o].cash+h[o].bank)+'</span>').join('');
   return '<div class="sb" style="align-items:flex-end"><div><div class="laby" style="letter-spacing:.18em">'+esc(lab.toUpperCase())+'</div><h1 style="margin-top:4px">THE <span>KITTY</span></h1></div>'+
-   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small style="white-space:nowrap;font-size:12px">'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
+   '<div class="row"><div class="btile" style="background:var(--pn)"><i>Collected</i><b style="color:var(--ok)">'+c.toFixed(2)+'</b>'+(hl?'<small style="display:block;font-size:12px;line-height:1.35;white-space:normal;overflow-wrap:anywhere">'+hl+'</small>':'')+'</div><div class="btile" style="background:var(--pn)"><i>Spent</i><b>'+sp.toFixed(2)+'</b></div>'+
    '<div class="btile" style="background:'+(b<0?'var(--bad)':'var(--ok)')+';color:var(--bg)"><i style="color:var(--bg);font-weight:600">Balance</i><b>'+sg(b)+'</b></div></div></div>'}
 function sumBoxes(s){const bx=(h,c,big,lines)=>'<div class="sbox" style="border-top:3px solid '+c+'"><div style="font-size:12px;letter-spacing:.12em;color:var(--mu);font-weight:700">'+h+'</div><div class="d" style="font-size:28px;line-height:1">'+big+'</div>'+lines.map(([k,v])=>'<div class="kv"><span>'+k+'</span><span>'+v+'</span></div>').join('')+'</div>';
   return '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px">'+
@@ -1609,7 +1610,7 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
   const extra=Object.values(R0.o).filter(x=>!orgs.includes(x.id)&&(Math.abs(x.put)>.5||Math.abs(x.hold)>.5));
   const xn=x=>x.id&&P(x.id)?nameOf(x.id)+' (not organizer)':'Not assigned';
   const bw=(nm,v)=>Math.abs(v)<.5?esc(nm)+' even':v>0?esc(nm)+' holds <b style="color:var(--ok)">'+A0(v)+'</b>':'kitty owes '+esc(nm)+' <b style="color:#FF9F43">'+A0(-v)+'</b>';
-  const split='<div class="pn" style="gap:6px;padding:12px 16px"><div class="sb"><span class="lab">WHO HOLDS THE KITTY · ALL TIME</span><b class="d" style="font-size:24px;color:'+(R0.bal<0?'var(--bad)':'var(--ok)')+'">AED '+sg(R0.bal).replace('.00','')+'</b></div>'+
+  const split='<div class="pn" style="gap:6px;padding:12px 16px"><div class="sb"><span class="lab">WHO HOLDS THE KITTY · ALL TIME</span><b class="d" style="font-size:24px;color:'+(R0.bal<0?'var(--bad)':'var(--ok)')+'">AED '+sg(Math.round(R0.bal)).replace('.00','')+'</b></div>'+
    '<div style="font-size:15px">'+[...orgs.map(o=>bw(nameOf(o),ox(o).pos)),...extra.map(x=>bw(xn(x),x.pos))].join(' · ')+'</div>'+
    (extra.length?'<div class="warn yel">Some money has no organizer set – open those entries / payments and set Paid by or Collected by.</div>':'')+'</div>';
   const cards=orgs.length?'<div style="display:grid;grid-template-columns:repeat('+Math.min(3,orgs.length)+',minmax(0,1fr));gap:12px">'+orgs.map(o=>{const x=ox(o),y=R.o[o]||Z,n=x.pos,fn=esc(nameOf(o).split(' ')[0]);
@@ -1712,7 +1713,7 @@ function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.
     return '<div class="sb"><h1>SET<span>TINGS</span></h1>'+tabs+'</div><section class="pn"><div class="laby">LEARNED RULES</div><div style="font-size:14px;color:var(--mu)">When you change Up Next the same way about 3 times over 2+ sessions, the app learns the reason and applies it automatically. Your manual placement always wins.</div>'+
      (R.length?R.map((r,i)=>'<div class="row" style="background:var(--bg);border-radius:12px;padding:10px 12px;gap:12px"><div style="flex:1"><div style="font-weight:600;font-size:16px">'+(r.nw?'<i class="nb">New</i> ':'')+esc(r.why)+'</div><div style="font-size:13px;color:var(--mu)">Seen '+pl(r.n||0,'time')+' · learned '+dlab(r.at)+'</div></div><button class="fc'+(r.on?' on':'')+'" data-a="ruletog" data-x="'+i+'">'+(r.on?'On':'Off')+'</button><button class="ol sm" style="color:var(--bad)" data-a="ruledel" data-x="'+i+'">Delete</button></div>').join(''):'<div class="empty">No learned rules yet.</div>')+
      '<div style="font-size:13px;color:var(--mu)">'+pl((S.ovr||[]).length,'manual change')+' recorded (levels of all 4 players each time).</div></section>'}
-  return '<div class="sb"><h1>SET<span>TINGS</span></h1>'+tabs+'</div>'+
+  return '<div class="sb"><h1>SET<span>TINGS</span></h1>'+tabs+'</div>'+sgWrap(
    '<section class="pn"><div class="laby">SESSION DEFAULTS · USED FOR EVERY SESSION</div><div class="row" style="flex-wrap:wrap;gap:10px"><button class="fc'+(df.deuce?' on':'')+'" data-a="ddeuce">Deuce '+(df.deuce?'ON · win by 2, cap '+capOf(df):'OFF · first to the points wins')+'</button><span style="font-size:13px;color:var(--mu)">Points are typed on the Games page (session box + each game).</span></div>'+
    '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">'+[['slot','Game minutes','1'],['chg','Changeover minutes','1'],['spt','Shuttles per tube','1']].map(([k,l,st])=>'<label class="fl">'+l+'<input class="fin" type="number" inputmode="decimal" min="1" step="'+st+'" value="'+esc(df[k])+'" data-i="d_'+k+'"></label>').join('')+'</div>'+
    (()=>{const L=learnG(),f=x=>x?x.m.toFixed(1)+' min ('+x.n+')':'—';return '<div class="row" style="gap:10px;flex-wrap:wrap"><button class="fc'+(learnOn()?' on':'')+'" data-a="dlearn">'+(learnOn()?'✓ Learn game time from real games':'Learn game time from real games')+'</button><span style="font-size:14px;color:var(--mu)">'+(L.all?'Learned: avg '+f(L.all)+' · Beginner '+f(L.b[0])+' · Intermediate '+f(L.b[1])+' · Advanced '+f(L.b[2]):'Needs 5 real games – using '+num(S.def.slot)+' min until then')+'</span></div>'})()+'<div style="font-size:13px;color:var(--mu)">Court hours are set per session in Schedule session.</div></section>'+
@@ -1720,7 +1721,12 @@ function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.
    (act2.length?act2.map(p=>{const v=E[p.id]!=null?E[p.id]:p.lv;return '<div class="row" style="justify-content:space-between;background:var(--bg);border-radius:12px;padding:6px 8px 6px 14px"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:6px">'+(E[p.id]!=null?'<span style="color:var(--y)">●</span>':'')+pwho(p.id,32)+'</span><div class="lvb" style="background:var(--pn)">'+lvSeg(v,'slv',p.id)+'</div><button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="sdel" data-x="'+p.id+'">Delete</button></div>'}).join(''):'<div class="empty" style="padding:12px">No players yet.</div>')+'</section>'+
    '<section class="pn"><div class="sb"><div class="laby">ORGANIZERS</div><span class="lab">'+(S.orgs||[]).length+' / 5</span></div><div style="font-size:14px;color:var(--mu)">Organizers receive payments and get a partner card in Finance → Rebels.</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:8px">'+act2.map(p=>'<button class="orgc'+(isOrg(p.id)?' on':'')+'" data-a="org" data-x="'+p.id+'">'+(isOrg(p.id)?'★ ':'')+esc(p.name)+'</button>').join('')+'</div></section>'+
-   vAcctSet()+vSchedSet()+vSyncSet()+vBackup()}
+   vAcctSet()+vSchedSet()+vSyncSet()+vBackup())}
+/* v20: every Settings block is a collapsed group (title row only); tap = expand (one open at a time); Save = save + collapse */
+function sgWrap(h){let n=0;return h.replace(/<section class="pn">([\s\S]*?)<\/section>/g,(m,b)=>{const t=(b.match(/<div class="laby">([\s\S]*?)<\/div>/)||[])[1]||'Settings',k=t.replace(/<[^>]*>|&amp;/g,'').replace(/[^A-Z]/gi,'').toLowerCase().slice(0,16)||('g'+n);n++;
+  const op=ui.sopen===k,hd='<button class="sgh'+(op?' on':'')+'" data-a="sgo" data-x="'+k+'" aria-expanded="'+op+'"><span class="laby">'+t+'</span><span class="sgc">'+(op?'▾':'▸')+'</span></button>';
+  if(!op)return '<section class="pn sg">'+hd+'</section>';
+  return '<section class="pn sg open">'+hd+b.replace(/<div class="laby">[\s\S]*?<\/div>/,'')+'<div class="row" style="justify-content:flex-end"><button class="btn sm" data-a="sgsave">Save</button></div></section>'})}
 /* v17 Settings → Scheduling */
 function vSchedSet(){const st=STRONG(),pw=PWR();
   return '<section class="pn"><div class="laby">SCHEDULING</div><div style="font-size:14px;color:var(--mu)">Target '+RATE+' games per player per hour (10-min games → up to 8 players per court). Fair order: equal games &amp; rest → level balance → new partners → new opponents. Fill-ins (tick in Games → Players) only fill gaps and rest players.</div>'+
@@ -1938,6 +1944,7 @@ document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!
   const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a,el.dataset.x))return toast(GM()?'Game manager · no finance or settings':'Organizer · read-only');f(el.dataset.x,el.dataset.y)}});
 document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)return;
   if(k.startsWith('lg_')){if(ui.lg)ui.lg[k.slice(3)]=el.value;return}
+  if(k.startsWith('qp_')){const v=el.value.replace(/\D/g,'').slice(0,4);if(v!==el.value)el.value=v;ui.qpi=ui.qpi||{};ui.qpi[k.slice(3)]=v;return}
   if(k.startsWith('acc_')&&ADMIN()){const f=k.slice(4);ui.acc=ui.acc||{};if(f==='lock'){const v=Math.round(num(el.value));if(v>0)try{localStorage.setItem(LKKEY,String(v))}catch(e){}}else if(f==='organizer'||f==='games')ui.acc['p_'+f]=el.value;else ui.acc[f]=el.value;return}if(VIEW()&&!['q','pe_q','ap_q','lg_u','lg_p','lg_n1','lg_n2'].includes(k))return toast('Organizer · read-only');if(GM()&&(/^d_|^en_|^f_|^acc/.test(k)||k==='syu'))return;
   if(k==='syu'){ui.syu=el.value;return}
   if(k==='nm'){ui.nm=el.value;$('#dup').innerHTML=vDup()}
@@ -2263,7 +2270,9 @@ function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g),r=AUTH
   return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
    (r?'<span class="strole '+(r==='admin'?'a':r==='games'?'g':'v')+'">'+ROLEN[r]+(SY.token?'':' · LOCAL')+'</span>':'')+
    (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')+'<button class="stbtn" data-a="theme" aria-label="Light / dark">'+(document.body.classList.contains('light')?'☾':'☀')+'</button>'+
-   (r?'<button class="stbtn pwr'+(pinned()?' dis':'')+'" data-a="switchacc" aria-label="'+(pinned()?'Unlock the tablet first':'Switch account / Log out')+'" title="Switch account / Log out">⏻</button>':'')}
+   (r&&!pinned()?'<button class="stbtn pwr" data-a="switchacc" aria-label="Log off" title="Log off">'+PWR_SVG+'</button>':'')}
+/* v20: own drawn power icon (red) – log off = back to the account tiles; hidden while the tablet is locked */
+const PWR_SVG='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7.1 6.6a8 8 0 1 0 9.8 0"/><path d="M12 3v8.5"/></svg>';
 function stRender(){const el=$('#stat');if(el)el.innerHTML=vStat()}
 
 /* ---------- Settings sections: Sync & Account, Backup ---------- */
@@ -2289,7 +2298,7 @@ function vBackup(){if(!ADMIN())return '<section class="pn"><div class="laby">BAC
    (L.length?L.map((s,k)=>'<div class="erow"><b style="flex:1">'+new Date(s.t).toLocaleString()+'</b><span style="color:var(--mu)">'+esc(s.why)+' · '+pl(s.n||0,'player')+'</span><button class="ol sm" data-a="snrest" data-x="'+k+'">Restore</button></div>').join(''):'<div class="empty" style="padding:8px">None yet.</div>')+
    ((S.audit||[]).length?'<div class="lab">AUDIT LOG</div><div class="snl">'+S.audit.slice(0,25).map(a=>'<div class="tip"><span style="color:var(--mu);min-width:120px">'+new Date(a.t).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span><span>'+esc(a.m)+' <small style="color:var(--mu)">· '+esc(a.by||'')+'</small></span></div>').join('')+'</div>':''):'')+'</section>'}
 /* viewer: read-only – only looking around is allowed */
-const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface'.split(' '));
+const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave'.split(' '));
 /* game manager: no finance, settings, backup, accounts */
 const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
 const viewBlock=(a,x)=>(VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a))||(GM()&&(GM_NO.has(a)||(a==='tab'&&(x==='finance'||x==='settings'))||(a==='htab'&&x==='fin')));
@@ -2331,7 +2340,7 @@ function sha256(str){const K=[],H=[1779033703,3144134277,1013904242,2773480762,1
 const lhash=(pw,salt)=>{let x=salt+'|'+pw;for(let i=0;i<4000;i++)x=sha256(salt+x);return x};
 const rsalt=()=>{try{return [...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return Math.random().toString(36).slice(2)+Date.now().toString(36)}};
 const bioOK=()=>{try{return !!(NB&&NB.bioAvailable&&NB.bioAvailable())}catch(e){return false}};
-function remember(u,role,pw,tok){const a=ACC[u]||{},s=rsalt();ACC[u]=Object.assign(a,{role,s,h:lhash(pw,s),tok:tok===undefined?a.tok||'':tok,t:Date.now(),fails:0,lock:0});accSave()}
+function remember(u,role,pw,tok){const a=ACC[u]||{},s=rsalt();ACC[u]=Object.assign(a,{role,s,h:lhash(pw,s),tok:tok===undefined?a.tok||'':tok,t:Date.now(),fails:0,lock:0,qf:0,qx:0});accSave()}
 
 /* ---------- lock / unlock ---------- */
 let hidAt=0;
@@ -2353,7 +2362,7 @@ async function lgPassword(u,p){u=normU(u);const L=ui.lg;if(!u||!p)return lgErr('
       if(d.s===200&&d.j.mc){const ch=await authReq(d.j.token,'POST','/api/password',{old:'12345',new:p});if(ch.s===200){remember(u,'admin',p,d.j.token);if(!SY.rev)SY.dirty=d.j.hasData?0:1;return lgAfter(u,'admin',false)}}}
     return lgErr('Wrong username or password'+(r.j.left!=null?' · '+pl2(r.j.left,'try','tries')+' left':''))}
   /* no cloud (offline / not set up): remembered account → local check */
-  if(a&&a.h){if(a.h===lhash(p,a.s)){a.fails=0;accSave();return enterAs(u,a.role,true)}
+  if(a&&a.h){if(a.h===lhash(p,a.s)){a.fails=0;a.qf=0;a.qx=0;accSave();return enterAs(u,a.role,true)}
     a.fails=(a.fails||0)+1;if(a.fails>=5){a.lock=Date.now()+15*60e3;a.fails=0}accSave();return lgErr(a.lock>Date.now()?'Locked after 5 wrong tries – try again at '+hm(a.lock):'Wrong password (offline check)')}
   if(u==='admin'&&p==='12345'&&!ACC.admin){Object.assign(L,{step:'chg',u,role:'admin',tok:'',old:p,err:'',local:1});return lgRender()}
   lgErr('No internet – this account hasn’t been used on this device yet. Connect once to log in.')}
@@ -2365,7 +2374,21 @@ async function lgChange(){const L=ui.lg,n1=L.n1||'',n2=L.n2||'';if(n1.length<5)r
   if(r.s!==200)return lgErr(r.s===0?'No internet – try again':(r.j.error||'Could not change the password'));
   const first=!ACC[L.u];remember(L.u,L.role,n1,L.tok);if(first&&L.role==='admin'&&!SY.rev)SY.dirty=1;lgAfter(L.u,L.role,first)}
 /* after a password login: offer face unlock once (tablet app) */
-function lgAfter(u,role,first){if(bioOK()&&ACC[u]&&ACC[u].face==null){ui.lg={step:'face',u,role};return lgRender()}enterAs(u,role)}
+function lgAfter(u,role,first){if(ACC[u]&&!ACC[u].qp&&!ACC[u].qpno){ui.lg={step:'qpnew',u,role,pin:''};return lgRender()}enterAs(u,role)}
+/* ---------- v20: 4-digit quick PIN per account, this device only (works offline) ----------
+   ACC[u].qp={s,h} (salted hash) · qf = wrong tries · qx=1 after 5 wrong → password needed (cleared by a password login) */
+const qpOn=u=>!!(ACC[u]&&ACC[u].qp&&!ACC[u].qx);
+function qpSet(u,pin){const a=ACC[u];if(!a)return false;const s=rsalt();a.qp={s,h:lhash(pin,s)};a.qf=0;a.qx=0;delete a.qpno;accSave();return true}
+function qpKey(k){const L=ui.lg;if(!L||!['qpin','qpnew','qpcon'].includes(L.step))return;L.pin=L.pin||'';
+  if(k==='⌫'){L.pin=L.pin.slice(0,-1);return lgRender()}if(!/^\d$/.test(k)||L.pin.length>=4)return;L.pin+=k;L.err='';if(L.pin.length<4)return lgRender();
+  const p=L.pin,u=L.u,a=ACC[u];L.pin='';if(!a)return lgRender();
+  if(L.step==='qpin'){if(a.qp&&a.qp.h===lhash(p,a.qp.s)){a.qf=0;accSave();return enterAs(u,a.role,navigator.onLine===false)}
+    a.qf=(a.qf||0)+1;if(a.qf>=5){a.qx=1;a.qf=0;accSave();ui.lg={step:'pw',u,err:'5 wrong PINs – log in with the password'};return lgRender()}
+    accSave();L.err='Wrong PIN · '+pl2(5-a.qf,'try','tries')+' left';return lgRender()}
+  if(L.step==='qpnew'){L.p1=p;L.step='qpcon';return lgRender()}
+  if(p!==L.p1){L.step='qpnew';L.p1='';L.err='PINs didn’t match – start again';return lgRender()}
+  qpSet(u,p);toast('Quick PIN saved');enterAs(u,L.role||a.role)}
+document.addEventListener('keydown',e=>{const L=ui.lg;if(!L||!['qpin','qpnew','qpcon'].includes(L.step))return;if(/^\d$/.test(e.key)){e.preventDefault();qpKey(e.key)}else if(e.key==='Backspace'){e.preventDefault();qpKey('⌫')}});
 function lgBio(u){if(!bioOK())return;ui.lg={step:'bio',u};lgRender();try{NB.bioAuth(u)}catch(e){ui.lg={step:'pw',u};lgRender()}}
 window.__bio=(u,ok)=>{const L=ui.lg;if(!L||L.u!==u)return;if(ok&&ACC[u]){if(L.step==='faceset'){ACC[u].face=1;accSave();return enterAs(u,L.role||ACC[u].role)}return enterAs(u,ACC[u].role,navigator.onLine===false)}
   if(L.step==='faceset'){ACC[u].face=0;accSave();return enterAs(u,L.role||ACC[u].role)}ui.lg={step:'pw',u,err:'Not unlocked – use the password'};lgRender()};
@@ -2373,7 +2396,7 @@ function lgErr(m){if(ui.lg){ui.lg.err=m;ui.lg.busy=0}lgRender()}
 
 /* ---------- login screen ---------- */
 function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u]);
-  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(ACC[u].face&&bioOK()?'Tablet unlock':'Password')+'</i></button>';
+  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(qpOn(u)?'Quick PIN':ACC[u].face&&bioOK()?'Tablet unlock':'Password')+'</i></button>';
   const err=L.err?'<div class="note amb" style="width:100%">'+esc(L.err)+'</div>':'';const busy=L.busy?' disabled':'';
   let body='';
   if(L.step==='pick')body='<div class="lgh">Who is using the app?</div><div class="lgtiles">'+ks.map(tile).join('')+'<button class="lgt oth" data-a="lgother"><span class="lgi">+</span><b>Other account</b><i>Username &amp; password</i></button></div>'+
@@ -2388,6 +2411,11 @@ function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u
     '<div class="row" style="width:100%"><button class="gh" data-a="lgback">Cancel</button><button class="btn" style="flex:1" data-a="lgchg"'+busy+'>'+(L.busy?'Saving…':'Save &amp; continue')+'</button></div>';
   else if(L.step==='face')body='<div class="lgh">Use tablet unlock?</div><div class="lgs">Next time on this tablet, '+ACN[L.u]+' opens with the tablet’s own unlock (face, PIN or pattern) instead of the password. Anyone who can unlock this tablet can then open '+ACN[L.u]+' – keep the tablet PIN private.</div>'+
     '<div class="row" style="width:100%"><button class="gh" style="flex:1" data-a="lgnoface">Not now</button><button class="btn" style="flex:1" data-a="lgface">Turn on</button></div>';
+  else if(L.step==='qpin'||L.step==='qpnew'||L.step==='qpcon'){const pin=L.pin||'',keys=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>k?'<button class="key" data-a="qpk" data-x="'+k+'" aria-label="'+(k==='⌫'?'Delete':k)+'">'+k+'</button>':'<span></span>').join('');
+    body='<div class="lgh">'+(L.step==='qpin'?ACN[L.u]:L.step==='qpnew'?'Set a quick PIN':'Same PIN again')+'</div><div class="lgs">'+(L.step==='qpin'?'Enter your 4-digit quick PIN':L.step==='qpnew'?'4 digits to open '+ACN[L.u]+' on this device next time – works offline. 5 wrong → password.':'Enter the same 4 digits again')+'</div>'+
+     '<div class="row" style="gap:14px;margin:4px 0">'+[0,1,2,3].map(i=>'<span class="pdot'+(i<pin.length?' on':'')+'"></span>').join('')+'</div><div style="min-height:20px;font-size:14px;color:var(--bad);font-weight:600">'+esc(L.err||'')+'</div>'+
+     '<div style="display:grid;grid-template-columns:repeat(3,76px);gap:10px">'+keys+'</div>'+
+     (L.step==='qpin'?'<div class="row"><button class="gh" data-a="lgback">Back</button><button class="lnk" data-a="lgqpw">Use password</button></div>':'<button class="gh" data-a="qpno">Not now</button>')}
   else if(L.step==='bio'||L.step==='faceset')body='<div class="lgh">Unlock with the tablet…</div><div class="lgs">'+ACN[L.u]+'</div><button class="gh" data-a="lgback">Use password</button>';
   return '<div class="lgbox"><img src="'+$('#lg').src+'" alt="" class="lglogo"><div class="d lgtt">REBELS <span>BADMINTON</span></div>'+body+
    '<div class="lgs" style="margin-top:6px">'+(navigator.onLine===false?'Offline – remembered accounts still unlock':'')+'</div></div>'}
@@ -2396,20 +2424,28 @@ function lgRender(){const el=$('#login');if(!el)return;if(!ui.lg){el.innerHTML='
 document.addEventListener('visibilitychange',()=>{if(document.hidden){hidAt=Date.now()}else if(AUTH.u&&hidAt&&Date.now()-hidAt>lockMin()*60e3){lockApp()}});
 
 /* ---------- Settings → Account & passwords (admin) ---------- */
-function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">ACCOUNT</div><div class="kv"><span>Logged in as</span><span>'+esc(ACN[AUTH.u]||'')+'</span></div><div class="row"><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>';
+function vQuickPin(){const u=AUTH.u,on=!!(ACC[u]&&ACC[u].qp);
+  return '<div class="lab">QUICK PIN · THIS DEVICE · '+esc((ACN[u]||'').toUpperCase())+'</div><div style="font-size:14px;color:var(--mu)">'+(on?'ON – tap the '+esc(ACN[u]||'')+' tile → 4-digit PIN.'+(ACC[u].qx?' <b style="color:var(--bad)">Blocked after 5 wrong tries – the next password login turns it back on.</b>':''):'OFF – set 4 digits to open this account without the password.')+' Works offline; 5 wrong tries → password.</div>'+
+   '<div class="row" style="flex-wrap:wrap"><input class="inp" type="password" inputmode="numeric" maxlength="4" style="width:150px" placeholder="New PIN" data-i="qp_n1" autocomplete="off"><input class="inp" type="password" inputmode="numeric" maxlength="4" style="width:150px" placeholder="PIN again" data-i="qp_n2" autocomplete="off"><button class="btn sm" data-a="qpset">'+(on?'Change PIN':'Set quick PIN')+'</button>'+(on?'<button class="ol sm" style="color:var(--bad)" data-a="qpdel">Remove</button>':'')+'</div>'}
+function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">ACCOUNT &amp; PASSWORDS</div><div class="kv"><span>Logged in as</span><span>'+esc(ACN[AUTH.u]||'')+'</span></div>'+vQuickPin()+'<div class="row"><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>';
   const A=ui.acc||(ui.acc={}),L=A.list,row=u=>{const x=L&&L.find(o=>o.u===u);return '<div class="erow" style="flex-wrap:wrap"><b style="min-width:150px">'+ACN[u]+' <small style="color:var(--mu)">· '+u+'</small></b><span style="flex:1;color:var(--mu);font-size:14px">'+(!L?'':x&&x.set?(x.locked?'Locked until '+hm(x.locked):'Password set'):'No password yet – cannot log in')+'</span>'+
     '<input class="inp" type="password" style="width:200px" placeholder="New password" data-i="acc_'+u+'" autocomplete="new-password"><button class="btn sm" data-a="accset" data-x="'+u+'">'+(x&&x.set?'Reset':'Set')+'</button></div>'};
   const rem=['admin','games','organizer'].filter(u=>ACC[u]);
   return '<section class="pn"><div class="laby">ACCOUNT &amp; PASSWORDS</div><div style="font-size:14px;color:var(--mu)">3 accounts: <b>admin</b> (everything) · <b>organizer</b> (sees everything incl. Finance, changes nothing) · <b>games</b> = game manager (sessions, players, check-in, games, scores, print – no Finance, Settings or backup). Passwords are checked by the cloud; 5 wrong tries lock the account for 15 min.</div>'+
    '<div class="lab">MY PASSWORD (ADMIN)</div><div class="row" style="flex-wrap:wrap"><input class="inp" type="password" style="width:200px" placeholder="Current password" data-i="acc_old" autocomplete="current-password"><input class="inp" type="password" style="width:200px" placeholder="New password" data-i="acc_new" autocomplete="new-password"><button class="btn sm" data-a="accpw">Change</button></div>'+
    '<div class="sb"><div class="lab">ORGANIZER &amp; GAME MANAGER</div><button class="gh" data-a="acclist">'+(L?'Refresh':'Show status')+'</button></div>'+row('organizer')+row('games')+
-   '<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Tablet unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
+   vQuickPin()+'<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+(ACC[u].qp?' <small style="color:var(--ok)">· quick PIN</small>':'')+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Tablet unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
    '<div class="row" style="gap:10px;flex-wrap:wrap"><label class="fl" style="max-width:260px">Lock after app in background (min)<input class="fin" type="number" inputmode="numeric" min="1" value="'+lockMin()+'" data-i="acc_lock"></label><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>'}
 async function accList(){const r=await req('GET','/api/accounts');if(r.s!==200)return toast(r.s===0?'No internet':'Could not load accounts');ui.acc.list=r.j.list;render()}
 
 Object.assign(SYACT,{
  switchacc:()=>{if(pinned())return toast('Unlock the tablet first');save();lockApp()},
- lgpick:x=>{const a=ACC[x];if(!a)return;if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
+ lgpick:x=>{const a=ACC[x];if(!a)return;if(qpOn(x)){ui.lg={step:'qpin',u:x,pin:''};return lgRender()}if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
+ sgo:x=>{ui.sopen=ui.sopen===x?'':x;render()},sgsave:()=>{if(!VIEW())save();ui.sopen='';render();toast(VIEW()?'Closed':'Saved')},
+ qpk:x=>qpKey(x),lgqpw:()=>{const L=ui.lg;if(L){ui.lg={step:'pw',u:L.u};lgRender()}},
+ qpno:()=>{const L=ui.lg;if(!L)return;if(ACC[L.u]){ACC[L.u].qpno=1;accSave()}enterAs(L.u,L.role||ACC[L.u].role)},
+ qpset:()=>{const u=AUTH.u,v=ui.qpi||{};if(!ACC[u])return toast('Log in with the password once on this device first');if(!/^\d{4}$/.test(v.n1||''))return toast('PIN must be 4 digits');if(v.n1!==v.n2)return toast('The two PINs don’t match');qpSet(u,v.n1);ui.qpi={};toast('Quick PIN saved for '+ACN[u]);render()},
+ qpdel:()=>{const a=ACC[AUTH.u];if(!a)return;delete a.qp;a.qpno=1;accSave();toast('Quick PIN removed');render()},
  lgother:()=>{ui.lg={step:'other'};lgRender()},lgback:()=>{ui.lg={step:'pick'};lgRender()},
  lgpw:()=>{const L=ui.lg;if(!L||L.busy)return;const p=($('#lgp')||{}).value||'',u=L.step==='pw'?L.u:(($('#lgu')||{}).value||'');L.uu=u;lgPassword(u,p)},
  lgchg:()=>{if(ui.lg&&!ui.lg.busy)lgChange()},lgbio:x=>lgBio(x),

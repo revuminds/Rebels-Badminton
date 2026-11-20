@@ -36,7 +36,7 @@ function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d
    '<div class="pn hin"><div class="sb"><b style="font-size:16px">Upcoming</b><span style="font-size:13px;color:var(--mu)">Edit to change time, venue, courts or hours</span></div>'+(rows||'<div style="color:var(--mu);font-size:14px;padding:6px 2px">No upcoming sessions. Tap Schedule session.</div>')+'</div></div></div>'}
 
 /* ---------- SCHEDULE SESSION ---------- */
-const TIMES=(()=>{const a=[];for(let m=6*60;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
+const TIMES=(()=>{const a=[];for(let m=0;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
 function nextSessDate(){const t=TODAY(),all=Object.keys(S.days).filter(d=>isSched(d)).sort(),last=all[all.length-1];let d=last?addD(last,7):addD(t,7);while(d<=t)d=addD(d,7);while(S.days[d]&&isSched(d))d=addD(d,7);return d}
 function openSched(d,ret){const t=TODAY();if(d&&S.days[d]){const D=S.days[d],g=S.games[d];ui.sc={d,orig:d,ret:ret||'home',time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(g&&g.st),ended:!!(g&&g.en)}}
   else{const last=Object.keys(S.days).filter(x=>isSched(x)).sort().pop(),L=last?S.days[last]:null;ui.sc={d:isSched(t)?nextSessDate():t,orig:'',time:L?L.time:'20:00',loc:L?L.loc:(S.locs[0]||''),courts:[{n:'Court 1',h:2}],rep:false}}

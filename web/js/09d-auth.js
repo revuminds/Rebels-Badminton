@@ -21,7 +21,7 @@ function sha256(str){const K=[],H=[1779033703,3144134277,1013904242,2773480762,1
 const lhash=(pw,salt)=>{let x=salt+'|'+pw;for(let i=0;i<4000;i++)x=sha256(salt+x);return x};
 const rsalt=()=>{try{return [...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){return Math.random().toString(36).slice(2)+Date.now().toString(36)}};
 const bioOK=()=>{try{return !!(NB&&NB.bioAvailable&&NB.bioAvailable())}catch(e){return false}};
-function remember(u,role,pw,tok){const a=ACC[u]||{},s=rsalt();ACC[u]=Object.assign(a,{role,s,h:lhash(pw,s),tok:tok===undefined?a.tok||'':tok,t:Date.now(),fails:0,lock:0});accSave()}
+function remember(u,role,pw,tok){const a=ACC[u]||{},s=rsalt();ACC[u]=Object.assign(a,{role,s,h:lhash(pw,s),tok:tok===undefined?a.tok||'':tok,t:Date.now(),fails:0,lock:0,qf:0,qx:0});accSave()}
 
 /* ---------- lock / unlock ---------- */
 let hidAt=0;
@@ -43,7 +43,7 @@ async function lgPassword(u,p){u=normU(u);const L=ui.lg;if(!u||!p)return lgErr('
       if(d.s===200&&d.j.mc){const ch=await authReq(d.j.token,'POST','/api/password',{old:'12345',new:p});if(ch.s===200){remember(u,'admin',p,d.j.token);if(!SY.rev)SY.dirty=d.j.hasData?0:1;return lgAfter(u,'admin',false)}}}
     return lgErr('Wrong username or password'+(r.j.left!=null?' · '+pl2(r.j.left,'try','tries')+' left':''))}
   /* no cloud (offline / not set up): remembered account → local check */
-  if(a&&a.h){if(a.h===lhash(p,a.s)){a.fails=0;accSave();return enterAs(u,a.role,true)}
+  if(a&&a.h){if(a.h===lhash(p,a.s)){a.fails=0;a.qf=0;a.qx=0;accSave();return enterAs(u,a.role,true)}
     a.fails=(a.fails||0)+1;if(a.fails>=5){a.lock=Date.now()+15*60e3;a.fails=0}accSave();return lgErr(a.lock>Date.now()?'Locked after 5 wrong tries – try again at '+hm(a.lock):'Wrong password (offline check)')}
   if(u==='admin'&&p==='12345'&&!ACC.admin){Object.assign(L,{step:'chg',u,role:'admin',tok:'',old:p,err:'',local:1});return lgRender()}
   lgErr('No internet – this account hasn’t been used on this device yet. Connect once to log in.')}
@@ -55,7 +55,21 @@ async function lgChange(){const L=ui.lg,n1=L.n1||'',n2=L.n2||'';if(n1.length<5)r
   if(r.s!==200)return lgErr(r.s===0?'No internet – try again':(r.j.error||'Could not change the password'));
   const first=!ACC[L.u];remember(L.u,L.role,n1,L.tok);if(first&&L.role==='admin'&&!SY.rev)SY.dirty=1;lgAfter(L.u,L.role,first)}
 /* after a password login: offer face unlock once (tablet app) */
-function lgAfter(u,role,first){if(bioOK()&&ACC[u]&&ACC[u].face==null){ui.lg={step:'face',u,role};return lgRender()}enterAs(u,role)}
+function lgAfter(u,role,first){if(ACC[u]&&!ACC[u].qp&&!ACC[u].qpno){ui.lg={step:'qpnew',u,role,pin:''};return lgRender()}enterAs(u,role)}
+/* ---------- v20: 4-digit quick PIN per account, this device only (works offline) ----------
+   ACC[u].qp={s,h} (salted hash) · qf = wrong tries · qx=1 after 5 wrong → password needed (cleared by a password login) */
+const qpOn=u=>!!(ACC[u]&&ACC[u].qp&&!ACC[u].qx);
+function qpSet(u,pin){const a=ACC[u];if(!a)return false;const s=rsalt();a.qp={s,h:lhash(pin,s)};a.qf=0;a.qx=0;delete a.qpno;accSave();return true}
+function qpKey(k){const L=ui.lg;if(!L||!['qpin','qpnew','qpcon'].includes(L.step))return;L.pin=L.pin||'';
+  if(k==='⌫'){L.pin=L.pin.slice(0,-1);return lgRender()}if(!/^\d$/.test(k)||L.pin.length>=4)return;L.pin+=k;L.err='';if(L.pin.length<4)return lgRender();
+  const p=L.pin,u=L.u,a=ACC[u];L.pin='';if(!a)return lgRender();
+  if(L.step==='qpin'){if(a.qp&&a.qp.h===lhash(p,a.qp.s)){a.qf=0;accSave();return enterAs(u,a.role,navigator.onLine===false)}
+    a.qf=(a.qf||0)+1;if(a.qf>=5){a.qx=1;a.qf=0;accSave();ui.lg={step:'pw',u,err:'5 wrong PINs – log in with the password'};return lgRender()}
+    accSave();L.err='Wrong PIN · '+pl2(5-a.qf,'try','tries')+' left';return lgRender()}
+  if(L.step==='qpnew'){L.p1=p;L.step='qpcon';return lgRender()}
+  if(p!==L.p1){L.step='qpnew';L.p1='';L.err='PINs didn’t match – start again';return lgRender()}
+  qpSet(u,p);toast('Quick PIN saved');enterAs(u,L.role||a.role)}
+document.addEventListener('keydown',e=>{const L=ui.lg;if(!L||!['qpin','qpnew','qpcon'].includes(L.step))return;if(/^\d$/.test(e.key)){e.preventDefault();qpKey(e.key)}else if(e.key==='Backspace'){e.preventDefault();qpKey('⌫')}});
 function lgBio(u){if(!bioOK())return;ui.lg={step:'bio',u};lgRender();try{NB.bioAuth(u)}catch(e){ui.lg={step:'pw',u};lgRender()}}
 window.__bio=(u,ok)=>{const L=ui.lg;if(!L||L.u!==u)return;if(ok&&ACC[u]){if(L.step==='faceset'){ACC[u].face=1;accSave();return enterAs(u,L.role||ACC[u].role)}return enterAs(u,ACC[u].role,navigator.onLine===false)}
   if(L.step==='faceset'){ACC[u].face=0;accSave();return enterAs(u,L.role||ACC[u].role)}ui.lg={step:'pw',u,err:'Not unlocked – use the password'};lgRender()};
@@ -63,7 +77,7 @@ function lgErr(m){if(ui.lg){ui.lg.err=m;ui.lg.busy=0}lgRender()}
 
 /* ---------- login screen ---------- */
 function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u]);
-  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(ACC[u].face&&bioOK()?'Tablet unlock':'Password')+'</i></button>';
+  const tile=u=>'<button class="lgt" data-a="lgpick" data-x="'+u+'"><span class="lgi">'+ACN[u][0]+'</span><b>'+ACN[u]+'</b><i>'+(qpOn(u)?'Quick PIN':ACC[u].face&&bioOK()?'Tablet unlock':'Password')+'</i></button>';
   const err=L.err?'<div class="note amb" style="width:100%">'+esc(L.err)+'</div>':'';const busy=L.busy?' disabled':'';
   let body='';
   if(L.step==='pick')body='<div class="lgh">Who is using the app?</div><div class="lgtiles">'+ks.map(tile).join('')+'<button class="lgt oth" data-a="lgother"><span class="lgi">+</span><b>Other account</b><i>Username &amp; password</i></button></div>'+
@@ -78,6 +92,11 @@ function vLogin(){const L=ui.lg,ks=['admin','games','organizer'].filter(u=>ACC[u
     '<div class="row" style="width:100%"><button class="gh" data-a="lgback">Cancel</button><button class="btn" style="flex:1" data-a="lgchg"'+busy+'>'+(L.busy?'Saving…':'Save &amp; continue')+'</button></div>';
   else if(L.step==='face')body='<div class="lgh">Use tablet unlock?</div><div class="lgs">Next time on this tablet, '+ACN[L.u]+' opens with the tablet’s own unlock (face, PIN or pattern) instead of the password. Anyone who can unlock this tablet can then open '+ACN[L.u]+' – keep the tablet PIN private.</div>'+
     '<div class="row" style="width:100%"><button class="gh" style="flex:1" data-a="lgnoface">Not now</button><button class="btn" style="flex:1" data-a="lgface">Turn on</button></div>';
+  else if(L.step==='qpin'||L.step==='qpnew'||L.step==='qpcon'){const pin=L.pin||'',keys=['1','2','3','4','5','6','7','8','9','','0','⌫'].map(k=>k?'<button class="key" data-a="qpk" data-x="'+k+'" aria-label="'+(k==='⌫'?'Delete':k)+'">'+k+'</button>':'<span></span>').join('');
+    body='<div class="lgh">'+(L.step==='qpin'?ACN[L.u]:L.step==='qpnew'?'Set a quick PIN':'Same PIN again')+'</div><div class="lgs">'+(L.step==='qpin'?'Enter your 4-digit quick PIN':L.step==='qpnew'?'4 digits to open '+ACN[L.u]+' on this device next time – works offline. 5 wrong → password.':'Enter the same 4 digits again')+'</div>'+
+     '<div class="row" style="gap:14px;margin:4px 0">'+[0,1,2,3].map(i=>'<span class="pdot'+(i<pin.length?' on':'')+'"></span>').join('')+'</div><div style="min-height:20px;font-size:14px;color:var(--bad);font-weight:600">'+esc(L.err||'')+'</div>'+
+     '<div style="display:grid;grid-template-columns:repeat(3,76px);gap:10px">'+keys+'</div>'+
+     (L.step==='qpin'?'<div class="row"><button class="gh" data-a="lgback">Back</button><button class="lnk" data-a="lgqpw">Use password</button></div>':'<button class="gh" data-a="qpno">Not now</button>')}
   else if(L.step==='bio'||L.step==='faceset')body='<div class="lgh">Unlock with the tablet…</div><div class="lgs">'+ACN[L.u]+'</div><button class="gh" data-a="lgback">Use password</button>';
   return '<div class="lgbox"><img src="'+$('#lg').src+'" alt="" class="lglogo"><div class="d lgtt">REBELS <span>BADMINTON</span></div>'+body+
    '<div class="lgs" style="margin-top:6px">'+(navigator.onLine===false?'Offline – remembered accounts still unlock':'')+'</div></div>'}
@@ -86,20 +105,28 @@ function lgRender(){const el=$('#login');if(!el)return;if(!ui.lg){el.innerHTML='
 document.addEventListener('visibilitychange',()=>{if(document.hidden){hidAt=Date.now()}else if(AUTH.u&&hidAt&&Date.now()-hidAt>lockMin()*60e3){lockApp()}});
 
 /* ---------- Settings → Account & passwords (admin) ---------- */
-function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">ACCOUNT</div><div class="kv"><span>Logged in as</span><span>'+esc(ACN[AUTH.u]||'')+'</span></div><div class="row"><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>';
+function vQuickPin(){const u=AUTH.u,on=!!(ACC[u]&&ACC[u].qp);
+  return '<div class="lab">QUICK PIN · THIS DEVICE · '+esc((ACN[u]||'').toUpperCase())+'</div><div style="font-size:14px;color:var(--mu)">'+(on?'ON – tap the '+esc(ACN[u]||'')+' tile → 4-digit PIN.'+(ACC[u].qx?' <b style="color:var(--bad)">Blocked after 5 wrong tries – the next password login turns it back on.</b>':''):'OFF – set 4 digits to open this account without the password.')+' Works offline; 5 wrong tries → password.</div>'+
+   '<div class="row" style="flex-wrap:wrap"><input class="inp" type="password" inputmode="numeric" maxlength="4" style="width:150px" placeholder="New PIN" data-i="qp_n1" autocomplete="off"><input class="inp" type="password" inputmode="numeric" maxlength="4" style="width:150px" placeholder="PIN again" data-i="qp_n2" autocomplete="off"><button class="btn sm" data-a="qpset">'+(on?'Change PIN':'Set quick PIN')+'</button>'+(on?'<button class="ol sm" style="color:var(--bad)" data-a="qpdel">Remove</button>':'')+'</div>'}
+function vAcctSet(){if(!ADMIN())return '<section class="pn"><div class="laby">ACCOUNT &amp; PASSWORDS</div><div class="kv"><span>Logged in as</span><span>'+esc(ACN[AUTH.u]||'')+'</span></div>'+vQuickPin()+'<div class="row"><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>';
   const A=ui.acc||(ui.acc={}),L=A.list,row=u=>{const x=L&&L.find(o=>o.u===u);return '<div class="erow" style="flex-wrap:wrap"><b style="min-width:150px">'+ACN[u]+' <small style="color:var(--mu)">· '+u+'</small></b><span style="flex:1;color:var(--mu);font-size:14px">'+(!L?'':x&&x.set?(x.locked?'Locked until '+hm(x.locked):'Password set'):'No password yet – cannot log in')+'</span>'+
     '<input class="inp" type="password" style="width:200px" placeholder="New password" data-i="acc_'+u+'" autocomplete="new-password"><button class="btn sm" data-a="accset" data-x="'+u+'">'+(x&&x.set?'Reset':'Set')+'</button></div>'};
   const rem=['admin','games','organizer'].filter(u=>ACC[u]);
   return '<section class="pn"><div class="laby">ACCOUNT &amp; PASSWORDS</div><div style="font-size:14px;color:var(--mu)">3 accounts: <b>admin</b> (everything) · <b>organizer</b> (sees everything incl. Finance, changes nothing) · <b>games</b> = game manager (sessions, players, check-in, games, scores, print – no Finance, Settings or backup). Passwords are checked by the cloud; 5 wrong tries lock the account for 15 min.</div>'+
    '<div class="lab">MY PASSWORD (ADMIN)</div><div class="row" style="flex-wrap:wrap"><input class="inp" type="password" style="width:200px" placeholder="Current password" data-i="acc_old" autocomplete="current-password"><input class="inp" type="password" style="width:200px" placeholder="New password" data-i="acc_new" autocomplete="new-password"><button class="btn sm" data-a="accpw">Change</button></div>'+
    '<div class="sb"><div class="lab">ORGANIZER &amp; GAME MANAGER</div><button class="gh" data-a="acclist">'+(L?'Refresh':'Show status')+'</button></div>'+row('organizer')+row('games')+
-   '<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Tablet unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
+   vQuickPin()+'<div class="lab">REMEMBERED ON THIS DEVICE</div>'+(rem.length?rem.map(u=>'<div class="erow"><b style="flex:1">'+ACN[u]+(ACC[u].qp?' <small style="color:var(--ok)">· quick PIN</small>':'')+'</b>'+(bioOK()?'<button class="fc'+(ACC[u].face?' on':'')+'" data-a="accface" data-x="'+u+'">Tablet unlock '+(ACC[u].face?'ON':'OFF')+'</button>':'')+'<button class="ol sm" style="color:var(--bad)" data-a="accrm" data-x="'+u+'">Remove</button></div>').join(''):'<div class="empty" style="padding:8px">None.</div>')+
    '<div class="row" style="gap:10px;flex-wrap:wrap"><label class="fl" style="max-width:260px">Lock after app in background (min)<input class="fin" type="number" inputmode="numeric" min="1" value="'+lockMin()+'" data-i="acc_lock"></label><button class="ol sm" data-a="switchacc">Switch account / Log out</button></div></section>'}
 async function accList(){const r=await req('GET','/api/accounts');if(r.s!==200)return toast(r.s===0?'No internet':'Could not load accounts');ui.acc.list=r.j.list;render()}
 
 Object.assign(SYACT,{
  switchacc:()=>{if(pinned())return toast('Unlock the tablet first');save();lockApp()},
- lgpick:x=>{const a=ACC[x];if(!a)return;if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
+ lgpick:x=>{const a=ACC[x];if(!a)return;if(qpOn(x)){ui.lg={step:'qpin',u:x,pin:''};return lgRender()}if(a.face&&bioOK())return lgBio(x);ui.lg={step:'pw',u:x};lgRender()},
+ sgo:x=>{ui.sopen=ui.sopen===x?'':x;render()},sgsave:()=>{if(!VIEW())save();ui.sopen='';render();toast(VIEW()?'Closed':'Saved')},
+ qpk:x=>qpKey(x),lgqpw:()=>{const L=ui.lg;if(L){ui.lg={step:'pw',u:L.u};lgRender()}},
+ qpno:()=>{const L=ui.lg;if(!L)return;if(ACC[L.u]){ACC[L.u].qpno=1;accSave()}enterAs(L.u,L.role||ACC[L.u].role)},
+ qpset:()=>{const u=AUTH.u,v=ui.qpi||{};if(!ACC[u])return toast('Log in with the password once on this device first');if(!/^\d{4}$/.test(v.n1||''))return toast('PIN must be 4 digits');if(v.n1!==v.n2)return toast('The two PINs don’t match');qpSet(u,v.n1);ui.qpi={};toast('Quick PIN saved for '+ACN[u]);render()},
+ qpdel:()=>{const a=ACC[AUTH.u];if(!a)return;delete a.qp;a.qpno=1;accSave();toast('Quick PIN removed');render()},
  lgother:()=>{ui.lg={step:'other'};lgRender()},lgback:()=>{ui.lg={step:'pick'};lgRender()},
  lgpw:()=>{const L=ui.lg;if(!L||L.busy)return;const p=($('#lgp')||{}).value||'',u=L.step==='pw'?L.u:(($('#lgu')||{}).value||'');L.uu=u;lgPassword(u,p)},
  lgchg:()=>{if(ui.lg&&!ui.lg.busy)lgChange()},lgbio:x=>lgBio(x),
