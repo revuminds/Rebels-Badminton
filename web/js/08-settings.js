@@ -32,11 +32,13 @@ function vSettings(){const df=S.def,ss=sessions().length,E=ui.lvE||{},nE=Object.
    '<div class="row" style="flex-wrap:wrap;gap:8px">'+act2.map(p=>'<button class="orgc'+(isOrg(p.id)?' on':'')+'" data-a="org" data-x="'+p.id+'">'+(isOrg(p.id)?'★ ':'')+esc(p.name)+'</button>').join('')+'</div></section>'+
    '<section class="pn"><div class="laby">ADMIN PIN</div>'+(ui.pmode?'<div style="display:flex;justify-content:center;padding:10px 0">'+vPin()+'</div>':
     '<div class="row"><span style="color:var(--mu);font-size:15px;flex:1">'+(S.pin?'Finance is locked with a 4-digit PIN. Changing it needs the current PIN.':'No PIN set yet.')+'</span><button class="btn" data-a="chpin">'+(S.pin?'Change PIN':'Set PIN')+'</button></div>')+'</section>'+
-   '<section class="pn"><div class="laby">BACKUP</div><div style="font-size:14px;color:var(--mu)">Everything is saved on this device on every tap. Keep a copy elsewhere too (WhatsApp to yourself, email, notes).</div>'+
-   '<div class="row"><div class="tile"><b>'+active().length+'</b><i>Players</i></div><div class="tile"><b>'+ss+'</b><i>Sessions</i></div><div class="tile"><b>'+g+'</b><i>Games saved</i></div><div class="tile"><b style="font-size:20px;line-height:1.7">'+(S.savedAt?new Date(S.savedAt).toLocaleString():'—')+'</b><i>Last saved</i></div></div>'+
-   (!ui.bun&&!ui.pmode?(()=>{ui.pctx='bak';return '<div class="lab">EXPORT / IMPORT · ADMIN PIN</div><div style="display:flex;justify-content:center;padding:10px 0">'+vPin()+'</div>'})():ui.bun?
-   '<div class="row" style="flex-wrap:wrap"><button class="btn" data-a="bexport">Export backup</button><button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="bimport">Import backup</button></div>'+
-   '<div style="font-size:14px;color:var(--mu)">Export saves a file (rebels-backup-'+TODAY()+'.txt) to keep or send. Import replaces ALL data on this device with the file.</div>':'')+'</section>'}
+   vSchedSet()+vSyncSet()+vBackup()}
+/* v17 Settings → Scheduling */
+function vSchedSet(){const st=STRONG(),pw=PWR();
+  return '<section class="pn"><div class="laby">SCHEDULING</div><div style="font-size:14px;color:var(--mu)">Target '+RATE+' games per player per hour (10-min games → up to 8 players per court). Fair order: equal games &amp; rest → level balance → new partners → new opponents. Fill-ins (tick in Games → Players) only fill gaps and rest players.</div>'+
+   '<div class="row" style="flex-wrap:wrap;gap:8px"><span class="lab" style="margin-right:6px">STRONG PLAYERS</span>'+[[2,'Intermediate and up'],[3,'Int + and up'],[4,'Advanced only']].map(([v,l])=>'<button class="fc'+(st===v?' on':'')+'" data-a="dstrong" data-x="'+v+'">'+l+'</button>').join('')+'</div>'+
+   '<div class="row" style="flex-wrap:wrap;gap:8px"><span class="lab" style="margin-right:6px">POWER GAMES PER STRONG PLAYER PER HOUR</span>'+[0,1,2].map(v=>'<button class="fc'+(pw===v?' on':'')+'" data-a="dpwr" data-x="'+v+'">'+v+'</button>').join('')+'</div>'+
+   '<div style="font-size:13px;color:var(--mu)">Power game = 4 strong players. Their other games are mentor games (strong + weaker vs strong + weaker). Needs 4 strong players who make a legal game, otherwise mentor games only. 1 woman + 3 men and 3 women + 1 man are never automatic – only by a manual swap you confirm (logged).</div></section>'}
 
 /* ---------- PDF report: exactly the Kitty selection ---------- */
 function vReport(ds,title){const all=allCalc(),sel=all.filter(s=>ds.includes(s.d));

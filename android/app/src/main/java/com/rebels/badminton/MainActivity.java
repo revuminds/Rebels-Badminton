@@ -211,6 +211,11 @@ public class MainActivity extends Activity {
             catch (Exception e) { return ""; }
         }
 
+        /** v17 cloud sign-in page opens in the tablet's browser (Cloudflare Access one-time code). */
+        @JavascriptInterface public void openUrl(String u) {
+            runOnUiThread(() -> { try { if (u != null && u.startsWith("https://")) startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(u))); } catch (Exception ignored) { } });
+        }
+
         /** Players tab lock button: Android screen pinning, screen stays on. */
         @JavascriptInterface public void pinScreen() { runOnUiThread(() -> { try { startLockTask(); } catch (Exception ignored) { } keepAwake(true); }); }
 

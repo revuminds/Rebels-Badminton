@@ -20,7 +20,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>':
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
-      (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+'<span style="flex:1"></span>'+
+      (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
     let body;
     if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button></div>';
@@ -78,9 +78,11 @@ function pickScroll(){ui.pickY=window.scrollY;render();const el=$('#allp');if(el
 function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
   if(pk.t==='c'){const q=g.cur[pk.i];if(!q||!q[pk.s])return render();const old=q[pk.s];if(old===id)return render();
     const bi=g.cur.findIndex((c,j)=>c&&c.includes(id));if(bi>=0){render();return toast(nameOf(id)+' is on '+cname(d,bi))}
+    const nq=q.slice();nq[pk.s]=id;if(!fmtGate(nq,'swap on '+cname(d,pk.i)))return render();
     q[pk.s]=id;benchOn(g,old,t);benchOff(g,id,t);const D=day(d);D.att=D.att||{};const a=D.att[id];if(!a||!a.a)D.att[id]={a:t};else if(a.l)a.l=0;
     logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));if(clearFrom(g,[id]).length)logIt(g,nameOf(id)+' now on '+cname(d,pk.i)+' → replaced in later games');autoNext(g,'fill',null)}
   else{const x=gRef(g,pk.t+'.'+pk.i+'.'+pk.k);if(!x)return render();if(x.q.includes(id)){render();return toast(nameOf(id)+' is already in this game')}
+    const nq=x.q.slice();nq[pk.s]=id;if(nq.every(Boolean)&&!fmtGate(nq,'upcoming game'))return render();
     x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
   save();render();window.scrollTo(0,ui.pickY||0)}
 function moveGame(g,src,t,i,k){const a=String(src).split('.'),SL=gList(g,a[0],+a[1]),sk=+a[2],x=SL&&SL[sk];if(!x)return;
