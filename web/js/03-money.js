@@ -45,17 +45,20 @@ function bookings(p){const t=TODAY(),ds=Object.keys(S.days).filter(d=>isSched(d)
 /* ---------- Rebels: organisers' money ---------- */
 function inPer(d,p){if(!p||p.m==='all')return true;return p.m==='month'?d.slice(0,7)===p.v:d.slice(0,4)===p.v}
 function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent||[]),o={};
-  const org=k=>{if(!o[k])o[k]={id:k,courts:0,shut:0,oth:0,cash:0,bank:0,pin:0,pout:0};return o[k]};
+  const org=k=>{if(!o[k])o[k]={id:k,courts:0,shut:0,oth:0,top:0,cash:0,bank:0,pin:0,pout:0};return o[k]};
   (S.orgs||[]).forEach(org);
   E.forEach(e=>{if(!inPer(e.d,p))return;const a=num(e.amt);
-    if(e.t==='pkg')org(e.by||'').courts+=a;else if(e.t==='stock')org(e.by||'').shut+=a;else if(e.t==='oth'||e.t==='top'){const x=org(e.by||'');x.oth+=a;if(e.t==='top')x.cash+=a}
+    if(e.t==='pkg')org(e.by||'').courts+=a;else if(e.t==='stock')org(e.by||'').shut+=a;else if(e.t==='oth')org(e.by||'').oth+=a;else if(e.t==='top')org(e.by||'').top+=a
     else if(e.t==='pay'||e.t==='xfer'){org(e.from||'').pout+=a;org(e.to||'').pin+=a}});
   list.forEach(s=>{if(!s.pk&&s.COURT)org(s.f.cby||'').courts+=s.COURT;s.f.oth.forEach(x=>org(x.by||'').oth+=num(x.amt));
     if(!ENT('stock').length&&s.shut)org(s.f.cby||'').shut+=s.shut});
   Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))org(S.fin[d].cby||'').courts+=num(S.fin[d].court)});
   const h=holds(list);Object.keys(h).forEach(k=>{org(k).cash+=h[k].cash;org(k).bank+=h[k].bank});
-  Object.values(o).forEach(x=>{x.put=x.courts+x.shut+x.oth;x.hold=x.cash+x.bank+x.pin-x.pout;x.pos=x.hold-x.put});
-  const spent=Object.values(o).reduce((a,x)=>a+x.put,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
+  /* v20: spend = courts+shuttles+other (real costs). put = spend + top-ups (own cash added to the kitty).
+     coll = fees collected; hold = fees + top-ups + paybacks in − out = cash he has. pos = hold − put = balance with him
+     (+ he holds kitty money, − kitty owes him). Σpos = collected − spent = kitty balance, always. */
+  Object.values(o).forEach(x=>{x.spend=x.courts+x.shut+x.oth;x.put=x.spend+x.top;x.coll=x.cash+x.bank;x.hold=x.coll+x.top+x.pin-x.pout;x.pos=x.hold-x.put});
+  const spent=Object.values(o).reduce((a,x)=>a+x.spend,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
   return{o,list,spent,coll,unpaid:list.reduce((a,s)=>a+s.due,0),bal:coll-spent,cph:visits?kinv/visits:0,visits}}
 /* automatic + manual entries, newest first */
 function entries(p){const out=[];allCalc().filter(s=>inPer(s.d,p)).forEach(s=>{

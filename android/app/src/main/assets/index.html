@@ -998,17 +998,20 @@ function bookings(p){const t=TODAY(),ds=Object.keys(S.days).filter(d=>isSched(d)
 /* ---------- Rebels: organisers' money ---------- */
 function inPer(d,p){if(!p||p.m==='all')return true;return p.m==='month'?d.slice(0,7)===p.v:d.slice(0,4)===p.v}
 function rebels(p){const all=allCalc(),list=all.filter(s=>inPer(s.d,p)),E=(S.ent||[]),o={};
-  const org=k=>{if(!o[k])o[k]={id:k,courts:0,shut:0,oth:0,cash:0,bank:0,pin:0,pout:0};return o[k]};
+  const org=k=>{if(!o[k])o[k]={id:k,courts:0,shut:0,oth:0,top:0,cash:0,bank:0,pin:0,pout:0};return o[k]};
   (S.orgs||[]).forEach(org);
   E.forEach(e=>{if(!inPer(e.d,p))return;const a=num(e.amt);
-    if(e.t==='pkg')org(e.by||'').courts+=a;else if(e.t==='stock')org(e.by||'').shut+=a;else if(e.t==='oth'||e.t==='top'){const x=org(e.by||'');x.oth+=a;if(e.t==='top')x.cash+=a}
+    if(e.t==='pkg')org(e.by||'').courts+=a;else if(e.t==='stock')org(e.by||'').shut+=a;else if(e.t==='oth')org(e.by||'').oth+=a;else if(e.t==='top')org(e.by||'').top+=a
     else if(e.t==='pay'||e.t==='xfer'){org(e.from||'').pout+=a;org(e.to||'').pin+=a}});
   list.forEach(s=>{if(!s.pk&&s.COURT)org(s.f.cby||'').courts+=s.COURT;s.f.oth.forEach(x=>org(x.by||'').oth+=num(x.amt));
     if(!ENT('stock').length&&s.shut)org(s.f.cby||'').shut+=s.shut});
   Object.keys(S.days).forEach(d=>{if(d>TODAY()&&isSched(d)&&inPer(d,p)&&!pkgsFor(d).length&&S.fin[d]&&num(S.fin[d].court))org(S.fin[d].cby||'').courts+=num(S.fin[d].court)});
   const h=holds(list);Object.keys(h).forEach(k=>{org(k).cash+=h[k].cash;org(k).bank+=h[k].bank});
-  Object.values(o).forEach(x=>{x.put=x.courts+x.shut+x.oth;x.hold=x.cash+x.bank+x.pin-x.pout;x.pos=x.hold-x.put});
-  const spent=Object.values(o).reduce((a,x)=>a+x.put,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
+  /* v20: spend = courts+shuttles+other (real costs). put = spend + top-ups (own cash added to the kitty).
+     coll = fees collected; hold = fees + top-ups + paybacks in − out = cash he has. pos = hold − put = balance with him
+     (+ he holds kitty money, − kitty owes him). Σpos = collected − spent = kitty balance, always. */
+  Object.values(o).forEach(x=>{x.spend=x.courts+x.shut+x.oth;x.put=x.spend+x.top;x.coll=x.cash+x.bank;x.hold=x.coll+x.top+x.pin-x.pout;x.pos=x.hold-x.put});
+  const spent=Object.values(o).reduce((a,x)=>a+x.spend,0),coll=list.reduce((a,s)=>a+s.ret,0),visits=list.reduce((a,s)=>a+s.pl,0),kinv=list.reduce((a,s)=>a+s.inv,0);
   return{o,list,spent,coll,unpaid:list.reduce((a,s)=>a+s.due,0),bal:coll-spent,cph:visits?kinv/visits:0,visits}}
 /* automatic + manual entries, newest first */
 function entries(p){const out=[];allCalc().filter(s=>inPer(s.d,p)).forEach(s=>{
@@ -1600,11 +1603,21 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
    (r.m==='month'?'<select class="sel" data-c="rpv">'+ms.map(m=>'<option value="'+m+'"'+(m===p.v?' selected':'')+'>'+mlab(m)+'</option>').join('')+'</select>':r.m==='year'?'<select class="sel" data-c="rpv">'+ys.map(y=>'<option'+(y===p.v?' selected':'')+'>'+y+'</option>').join('')+'</select>':'')+
    '<span style="flex:1"></span><button class="btn" style="height:44px;font-size:15px" data-a="entnew" data-x="oth">+ Add entry</button></div>';
   const tile=(l,v,c)=>'<div class="mt"><div>'+l+'</div><b class="d" style="color:'+(c||'var(--tx)')+'">'+v+'</b></div>';
-  const tiles='<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">'+tile('Spent',A0(R.spent))+tile('Collected',A0(R.coll),'var(--ok)')+tile('Unpaid',A0(R.unpaid),R.unpaid?'var(--y)':'')+tile('Kitty balance','AED '+sg(R.bal).replace('.00',''),R.bal<0?'var(--bad)':'var(--ok)')+tile('Cost per head',A(R.cph))+'</div>';
-  const orgs=(S.orgs||[]);const cards=orgs.length?'<div style="display:grid;grid-template-columns:repeat('+Math.min(3,orgs.length)+',minmax(0,1fr));gap:12px">'+orgs.map(o=>{const x=R.o[o]||{courts:0,shut:0,oth:0,put:0,cash:0,bank:0,pin:0,pout:0,hold:0},n=(R0.o[o]||{pos:0}).pos;
-    return '<div class="pn" style="gap:8px"><div class="sb"><b class="d" style="font-size:28px">'+esc(nameOf(o).toUpperCase())+'</b><span class="badge'+(n>=0?'':' ok')+'">'+(Math.abs(n)<.5?'Even':n<0?'Kitty owes '+esc(nameOf(o).split(' ')[0])+' '+A0(-n):esc(nameOf(o).split(' ')[0])+' owes kitty '+A0(n))+'</span></div>'+
-     '<div class="kv2"><span class="lab">PUT IN</span><b>'+A0(x.put)+'</b></div><div style="font-size:13px;color:var(--mu)">Courts '+A0(x.courts)+' · Shuttles '+A0(x.shut)+' · Other '+A0(x.oth)+'</div>'+
-     '<div class="kv2"><span class="lab">COLLECTED &amp; HOLDING</span><b style="color:var(--ok)">'+A0(x.hold)+'</b></div><div style="font-size:13px;color:var(--mu)">Cash '+A0(x.cash)+' · Bank '+A0(x.bank)+' · paybacks in '+A0(x.pin)+' / out '+A0(x.pout)+'</div>'+
+  const tiles='<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">'+tile('Spent',A0(R.spent))+tile('Collected',A0(R.coll),'var(--ok)')+tile('Unpaid',A0(R.unpaid),R.unpaid?'var(--y)':'')+tile(p.m==='all'?'Kitty balance':'Kitty gain · '+(p.m==='month'?'month':'year'),'AED '+sg(R.bal).replace('.00',''),R.bal<0?'var(--bad)':'var(--ok)')+tile('Cost per head',A(R.cph))+'</div>';
+  /* v20: who holds the kitty – all time, sums exactly to the all-time kitty balance */
+  const orgs=(S.orgs||[]),Z={courts:0,shut:0,oth:0,top:0,spend:0,put:0,cash:0,bank:0,coll:0,pin:0,pout:0,hold:0,pos:0},ox=o=>R0.o[o]||Object.assign({id:o},Z);
+  const extra=Object.values(R0.o).filter(x=>!orgs.includes(x.id)&&(Math.abs(x.put)>.5||Math.abs(x.hold)>.5));
+  const xn=x=>x.id&&P(x.id)?nameOf(x.id)+' (not organizer)':'Not assigned';
+  const bw=(nm,v)=>Math.abs(v)<.5?esc(nm)+' even':v>0?esc(nm)+' holds <b style="color:var(--ok)">'+A0(v)+'</b>':'kitty owes '+esc(nm)+' <b style="color:#FF9F43">'+A0(-v)+'</b>';
+  const split='<div class="pn" style="gap:6px;padding:12px 16px"><div class="sb"><span class="lab">WHO HOLDS THE KITTY · ALL TIME</span><b class="d" style="font-size:24px;color:'+(R0.bal<0?'var(--bad)':'var(--ok)')+'">AED '+sg(R0.bal).replace('.00','')+'</b></div>'+
+   '<div style="font-size:15px">'+[...orgs.map(o=>bw(nameOf(o),ox(o).pos)),...extra.map(x=>bw(xn(x),x.pos))].join(' · ')+'</div>'+
+   (extra.length?'<div class="warn yel">Some money has no organizer set – open those entries / payments and set Paid by or Collected by.</div>':'')+'</div>';
+  const cards=orgs.length?'<div style="display:grid;grid-template-columns:repeat('+Math.min(3,orgs.length)+',minmax(0,1fr));gap:12px">'+orgs.map(o=>{const x=ox(o),y=R.o[o]||Z,n=x.pos,fn=esc(nameOf(o).split(' ')[0]);
+    return '<div class="pn" style="gap:8px"><div class="sb"><b class="d" style="font-size:28px">'+esc(nameOf(o).toUpperCase())+'</b><span class="lab">ALL TIME</span></div>'+
+     '<div class="kv2"><span class="lab">PUT IN</span><b>'+A0(x.put)+'</b></div><div style="font-size:13px;color:var(--mu)">Courts '+A0(x.courts)+' · Shuttles '+A0(x.shut)+' · Other '+A0(x.oth)+(x.top?' · Top-ups '+A0(x.top):'')+'</div>'+
+     '<div class="kv2"><span class="lab">COLLECTED</span><b>'+A0(x.coll+x.top+x.pin-x.pout)+'</b></div><div style="font-size:13px;color:var(--mu)">Fees cash '+A0(x.cash)+' · bank '+A0(x.bank)+(x.top?' · top-ups '+A0(x.top):'')+' · paybacks in '+A0(x.pin)+' / out '+A0(x.pout)+'</div>'+
+     '<div class="kv2" style="border-top:1px solid rgba(143,176,204,.25);padding-top:6px"><span class="lab">BALANCE WITH '+fn.toUpperCase()+'</span><b class="d" style="font-size:24px;color:'+(n>=-.5?'var(--ok)':'#FF9F43')+'">'+(Math.abs(n)<.5?'Even':(n>0?'+':'−')+A0(Math.abs(n)))+'</b></div>'+
+     '<div style="font-size:13px;color:var(--mu)">'+(Math.abs(n)<.5?'Put in = collected':n>0?fn+' holds '+A0(n)+' of kitty money':'Kitty owes '+fn+' '+A0(-n)+' (out of pocket)')+(p.m!=='all'?' · this '+p.m+': put in '+A0(y.put)+', collected '+A0(y.coll):'')+'</div>'+
      '<div class="row" style="gap:8px;margin-top:4px"><button class="ol sm" data-a="entnew" data-x="pay" data-y="'+o+'">Record payback</button><button class="ol sm" data-a="entnew" data-x="xfer" data-y="'+o+'">Transfer</button></div></div>'}).join('')+'</div>':'<div class="warn yel">Pick up to 5 organizers in Settings – each gets a partner card here.</div>';
   const pk=ENT('pkg').slice().sort((a,b)=>b.d<a.d?-1:1),stc=stockLeft(),stocks=ENT('stock');
   const pkC=pk.map(e=>{const ds=(e.dates||[]).slice().sort(),pld=ds.filter(d=>d<=t&&S.games[d]&&S.games[d].st).length;
@@ -1617,9 +1630,11 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
   const flt=ui.ef||'all',EN=entries(p).filter(x=>flt==='all'||x.k===flt||(flt==='cash'||flt==='bank')&&x.k==='coll'&&x.lab.endsWith(' · '+flt)),tagC={put:'#FF9F43',coll:'#3DDC97',pb:'#5AA9E6'},tagL={put:'Put in',coll:'Collected',pb:'Payback'};
   const ent='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">ENTRIES</span><div class="row" style="gap:6px">'+[['all','All'],['put','Put in'],['coll','Collected'],['cash','Cash'],['bank','Bank'],['pb','Paybacks']].map(([k,l])=>'<button class="fc sm'+(flt===k?' on':'')+'" data-a="ef" data-x="'+k+'">'+l+'</button>').join('')+'</div></div>'+
    (EN.length?EN.slice(0,60).map(x=>'<div class="erow'+(x.id?' tap':'')+'"'+(x.id?' data-a="entedit" data-x="'+x.id+'"':'')+'><span style="width:84px;color:var(--mu)">'+dshort(x.d)+'</span><span class="etag" style="background:'+tagC[x.k]+'">'+tagL[x.k]+'</span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.lab)+(x.who?' · '+esc(nameOf(x.who)):'')+(x.auto?' <small style="color:var(--mu)">auto</small>':'')+'</span><b>'+A0(x.amt)+'</b></div>').join(''):'<div class="empty" style="padding:10px">No entries in this period.</div>')+'</section>';
-  const F=forecast(),BP=betterPlan(),tot=orgs.reduce((a,o)=>a+((R.o[o]||{}).put||0),0);
-  const fc='<section class="pn" style="gap:12px"><div class="lab">PARTNERS &amp; FORECAST</div>'+(orgs.length?'<table><thead><tr><th>ORGANISER</th><th>INVESTED</th><th>HOLDING</th><th>POSITION</th><th style="width:34%">SHARE OF INVESTMENT</th></tr></thead><tbody>'+orgs.map(o=>{const x=R.o[o]||{put:0,hold:0,pos:0},sh=tot?x.put/tot*100:0;
-    return '<tr><td><b>'+esc(nameOf(o))+'</b></td><td>'+A0(x.put)+'</td><td>'+A0(x.hold)+'</td><td style="font-weight:700;color:'+(x.pos>=0?'var(--ok)':'#FF9F43')+'">'+(x.pos>=0?'+':'−')+A0(Math.abs(x.pos)).replace('AED ','AED ')+'</td><td><div class="tl"><div style="width:'+sh+'%"></div></div><small>'+Math.round(sh)+'%</small></td></tr>'}).join('')+'</tbody></table><div style="font-size:12px;color:var(--mu)">Position = holding − invested · + green: holding more than put in (owes kitty) · − orange: out of pocket (kitty owes him)</div>':'')+
+  const F=forecast(),BP=betterPlan(),rows=[...orgs.map(o=>[nameOf(o),ox(o)]),...extra.map(x=>[xn(x),x])],tot=rows.reduce((a,r)=>a+r[1].put,0);
+  const fc='<section class="pn" style="gap:12px"><div class="sb"><span class="lab">PARTNERS &amp; FORECAST</span><span class="lab">ALL TIME</span></div>'+(rows.length?'<table><thead><tr><th>ORGANISER</th><th>INVESTED</th><th>COLLECTED</th><th>BALANCE WITH HIM</th><th style="width:30%">SHARE OF INVESTMENT</th></tr></thead><tbody>'+rows.map(([nm,x])=>{const sh=tot?x.put/tot*100:0;
+    return '<tr><td><b>'+esc(nm)+'</b></td><td>'+A0(x.put)+'</td><td>'+A0(x.hold)+'</td><td style="font-weight:700;color:'+(x.pos>=-.5?'var(--ok)':'#FF9F43')+'">'+(Math.abs(x.pos)<.5?'Even':(x.pos>0?'+':'−')+A0(Math.abs(x.pos)))+'</td><td><div class="tl"><div style="width:'+sh+'%"></div></div><small>'+Math.round(sh)+'%</small></td></tr>'}).join('')+
+    '<tr style="border-top:2px solid rgba(143,176,204,.4)"><td><b>Total</b></td><td><b>'+A0(tot)+'</b></td><td><b>'+A0(rows.reduce((a,r)=>a+r[1].hold,0))+'</b></td><td style="font-weight:700">AED '+sg(R0.bal).replace('.00','')+' = kitty</td><td></td></tr></tbody></table>'+
+    '<div style="font-size:12px;color:var(--mu)">Balance = collected − invested · + green: he holds that much kitty money · − orange: out of pocket, kitty owes him · balances add up to the kitty balance</div>':'')+
    '<div class="lab">NEXT 3 MONTHS AT CURRENT PACE</div>'+(F.n?'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+tile('Collect ≈',A0(F.coll),'var(--ok)')+tile('Spend ≈',A0(F.spend))+tile('Kitty gain ≈','AED '+sg(F.gain).replace('.00',''),F.gain<0?'var(--bad)':'var(--ok)')+'</div>'+[F.back,F.runout].filter(Boolean).map(x=>'<div class="tip"><span>→</span><span>'+esc(x)+'</span></div>').join(''):'<div style="color:var(--mu)">Needs a few sessions in the last 3 months.</div>')+
    (BP.acts.length?'<div style="background:var(--y);color:var(--bg);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><b style="letter-spacing:.12em;font-size:13px">BETTER RETURNS PLAN</b>'+BP.acts.map(a=>'<div class="sb" style="font-size:15px"><span>→ '+esc(a[0])+'</span><b>'+(a[1]?'+'+A0(a[1])+' / month':'')+'</b></div>').join('')+'<div class="sb" style="border-top:2px solid rgba(11,36,64,.25);padding-top:6px;font-weight:700"><span>All together</span><span>≈ +'+A0(BP.tot)+' / month</span></div></div>':'')+'</section>';
   const L6=[];for(let i=5;i>=0;i--){const d=pd(t.slice(0,7)+'-01');d.setMonth(d.getMonth()-i);L6.push(iso(d).slice(0,7))}
@@ -1633,10 +1648,10 @@ function vRebels(){const p=perOf(),R=rebels(p),R0=rebels({m:'all'}),t=TODAY(),r=
    '<div class="pn"><div class="lab">COST PER HEAD · DASHED = FEE</div>'+chartLine(lastS.map(s=>s.pl?s.inv/s.pl:0),lastS.map(s=>dshort(s.d)),lastS.length?lastS[lastS.length-1].FEE:0)+'</div>'+
    '<div class="pn"><div class="lab">NEW PLAYERS PER MONTH</div>'+chartBars([L6.map(m=>Object.values(firstSeen).filter(x=>x===m).length)],lab6,['#9BE36D'])+'</div></div>';
   const visits=R.list.reduce((a,s)=>a+s.pl,0),courtsN=R.list.reduce((a,s)=>a+s.c,0),games=R.list.reduce((a,s)=>a+s.ng,0),shut=R.list.reduce((a,s)=>a+s.shut,0);
-  const carry=orgs.map(o=>R0.o[o]||{pos:0}).sort((a,b)=>a.pos-b.pos),hold=orgs.map(o=>R0.o[o]||{hold:0}).sort((a,b)=>b.hold-a.hold);
+  const carry=orgs.map(o=>R0.o[o]||{pos:0}).sort((a,b)=>a.pos-b.pos),hold=orgs.map(o=>R0.o[o]||{pos:0}).sort((a,b)=>b.pos-a.pos);
   const tips=[visits?'Break-even fee ≈ AED '+Math.ceil(R.list.reduce((a,s)=>a+s.inv,0)/visits)+' per player':'',courtsN?'Players per court ≈ '+(visits/courtsN).toFixed(1)+' (aim for 6)':'',games?'Shuttle cost per game ≈ '+A(shut/games):'',
-    R.unpaid?A0(R.unpaid)+' unpaid in this period':'',carry.length&&carry[0].id&&carry[0].pos<-1?nameOf(carry[0].id)+' is carrying the most (out of pocket '+A0(-carry[0].pos)+')':'',hold.length&&hold[0].id&&hold[0].hold>0?nameOf(hold[0].id)+' is holding the most cash ('+A0(hold[0].hold)+')':''].filter(Boolean);
-  return chips+tiles+cards+'<div class="lab">BULK BUYS</div>'+vBook(p)+pkC+stC+ent+fc+charts+
+    R.unpaid?A0(R.unpaid)+' unpaid in this period':'',carry.length&&carry[0].id&&carry[0].pos<-1?nameOf(carry[0].id)+' is carrying the most (out of pocket '+A0(-carry[0].pos)+')':'',hold.length&&hold[0].id&&hold[0].pos>.5?nameOf(hold[0].id)+' is holding the most kitty money ('+A0(hold[0].pos)+')':''].filter(Boolean);
+  return chips+tiles+split+cards+'<div class="lab">BULK BUYS</div>'+vBook(p)+pkC+stC+ent+fc+charts+
    '<section style="background:var(--y);color:var(--bg);border-radius:20px;padding:16px 20px;display:flex;flex-direction:column;gap:6px"><b style="letter-spacing:.12em;font-size:13px">TIPS</b>'+(tips.length?tips.map(x=>'<div>→ '+esc(x)+'</div>').join(''):'<div>Add a few sessions to see tips.</div>')+'</section>'}
 function vBook(p){const B=bookings(p);if(!B.length)return '<div class="pn"><b>Court bookings</b><div class="empty" style="padding:10px">Schedule a session – its court booking appears here.</div></div>';
   return '<div class="pn" style="gap:10px"><div class="sb"><b>Court bookings</b><span style="font-size:13px;color:var(--mu)">From Schedule · tap Edit to enter price + paid by</span></div>'+B.map(M=>{const r=M.rows,tot=r.reduce((a,x)=>a+x.amt,0),ch=r.reduce((a,x)=>a+x.ch,0),pld=r.filter(x=>x.st==='Played').length,miss=r.filter(x=>!x.priced).length;
@@ -2473,7 +2488,7 @@ migrate();save();render();const H0=document.querySelector('.home');if(H0)H0.clas
 /* H3: never auto-login – the account picker opens under the logo animation */
 ui.lg={step:'pick'};lgRender();
 /* test hooks (headless checks) */
-window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui}};
+window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,rebels,vRebels,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui}};
 
 })();
 </script>
