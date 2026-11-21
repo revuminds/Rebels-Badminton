@@ -15,11 +15,11 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const dup=q=>q.some(id=>id&&(im[id]||0)>1);
   const lines='<div class="l1"></div><div class="l2" style="left:36%"></div><div class="l2" style="right:36%"></div><div class="net"></div>';
   const openC=C.map((c,i)=>i).filter(i=>!g.closed[i]);
-  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=g.qq[i]||[],pi=cpill(d,i,now);
+  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=qOf(g,i),pi=cpill(d,i,now),nk=full||cl?-1:nextFor(g,i),nx=nk>=0?g.up[nk]:null;
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const ed=ui.ced===i&&full&&L.run;
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):'')+(L.run||L.sa||L.sb||L.el?'<button class="tbtn nos" data-a="savenos" data-x="'+i+'" title="Save the game with no score – the 4 players send it from the live page">■ Save · score from players</button>':''):
-      '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
+      '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(nx?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
@@ -31,17 +31,22 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
       body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="vcourt">'+VCRT+
         [0,1,2,3].map(k=>'<div class="vbox b'+k+'">'+cp(k)+'</div>').join('')+'<div class="vmid">'+sc(L.sa,'a')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div>'+sc(L.sb,'b')+'</div><span class="vlab ta">TEAM A</span><span class="vlab tb">TEAM B</span></div>'}
     else{const last=g.last[i];body='<div class="vcourt free'+(cl?' shut':'')+'">'+VCRT+'<div class="cwait vwait">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+(last.sa||last.sb?last.sa+' – '+last.sb:'score pending')+'</b> '+esc(tn(last,1))+'</span>':'')+
-      '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
+      '<span>'+(cl?'Court closed · reopen it with the Courts button':nx?'Court free · ▶ Start next takes '+(nx.n?'G'+nx.n:'Upcoming #'+(nk+1)):g.up.length?'Court free · every upcoming game has a player on court – wait or edit one':'Court free')+'</span></div></div>'}
+    /* v23: queue = the games assigned to this court in Upcoming · names only */
+    const T2=q=>esc(q.slice(0,2).map(id=>id?nameOf(id):'?').join(' & '))+' <span class="vs">vs</span> '+esc(q.slice(2).map(id=>id?nameOf(id):'?').join(' & '));
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
-      (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span>'+row('q',i,k,x.q)+
-        '<div class="mvw"><button class="ol sm" data-a="mv" data-x="'+i+'.'+k+'">Move ▾</button>'+(ui.mv===i+'.'+k?'<div class="mvm"><button data-a="mvup" data-x="'+i+'.'+k+'">↩ Back to Upcoming</button>'+openC.filter(j=>j!==i).map(j=>'<button data-a="mvc" data-x="'+i+'.'+k+'" data-y="'+j+'">To '+esc(cname(d,j))+'</button>').join('')+'<button data-a="mvx" aria-label="Close">×</button></div>':'')+'</div></div>').join(''):
+      (Q.length?Q.map((x,k)=>'<div class="qnm"><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span><span class="qnt">'+T2(x.q)+'</span></div>').join(''):
        '<div class="qempty">Empty · tap Assign on an upcoming game, or drag one here</div>')+'</div>';
     return '<section class="cblock" data-drop="c" data-i="'+i+'">'+head+body+qb+'</section>'}).join('');
+  /* v23: warnings on upcoming games – a player on court now, or twice in the same round of the plan */
+  const fpR={};(g.fp||[]).forEach(x=>fpR[x.n]=x.r);const inR={};g.up.forEach(x=>{if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{if(id){const k=fpR[x.n]+'|'+id;(inR[k]=inR[k]||[]).push(x.n)}})});
+  const warn=x=>{const w=clashOf(g,x.q).map(o=>'⚠ '+nameOf(o.id)+' on '+cname(d,o.i));if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{const L=id&&inR[fpR[x.n]+'|'+id];if(L&&L.length>1)w.push('⚠ '+nameOf(id)+' also in G'+L.filter(n=>n!==x.n).join(', G')+' (same round)')});
+    return w.length?'<div class="gwarn">'+esc(w.join(' · '))+'</div>':''};
   const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+(g.fp?' · from your full session plan':' · auto-picked')+' · × removes a player, then tap a name in All players</div>'+
     (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)&&!g.fp?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+(x.n?'<span class="qtag">G'+x.n+' · '+esc(cno(d,x.c))+' · '+gType(x.q)+'</span>':'')+row('u',0,k,x.q)+
-      '<button class="gcb" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>Assign ▾</button></div>').join(''):
+      '<button class="gcb'+(x.ac!=null?' on':'')+'" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>'+(x.ac!=null?esc(cname(d,x.ac)):'Assign')+' ▾</button>'+warn(x)+'</div>').join(''):
      '<div class="qempty">Upcoming games appear once 4 players are checked in (Players button).</div>')+'</section>';
-  const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.qq.length;i++){const k=(g.qq[i]||[]).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
+  const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.cur.length;i++){const k=qOf(g,i).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
     const k=g.up.findIndex(x=>x.q.includes(id));return k>=0?'Upcoming #'+(k+1):''};
   const w=id=>g.since[id]!=null?now-g.since[id]:-1,rk=id=>!arrived(d,id)?2:leftAt(d,id)?3:0;
   const L=ids.slice().sort((a,b)=>rk(a)-rk(b)||w(b)-w(a)||nameOf(a).localeCompare(nameOf(b)));
@@ -57,7 +62,7 @@ const VCRT='<svg class="vsvg" viewBox="0 0 700 1440" preserveAspectRatio="none" 
  '<path d="M20 720H680" stroke="#111" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M20 712V728M680 712V728" stroke="#fff" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>';
 
 /* ---------- check the 4 players before the game starts ---------- */
-function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}
+function cfGame(g){const c=ui.cf;if(!c)return null;return g.up[c.k]||null}
 function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=x.q;
   const pool=onIds(d).filter(id=>!leftAt(d,id)||q.includes(id));
   const sel=k=>{const cur=q[k];return '<div class="row" style="gap:8px">'+(cur?pav(cur,38):'')+'<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · Level: '+LVS[lvOf(id)]+(arrived(d,id)?'':' · not checked in')+'</option>').join('')+'</select></div>'};
@@ -71,9 +76,11 @@ function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=
 
 /* ---------- Courts pop-up: the only place a court is closed (reopen within 10 min) ---------- */
 const CLOSE_MS=10*60e3;
-function vAsg(){const g=CG(),d=g.d,k=ui.asg-1,now=Date.now();if(!g||!g.up[k]){ui.asg=0;return ''}
+function vAsg(){const g=CG(),d=g.d,k=ui.asg-1;if(!g||!g.up[k]){ui.asg=0;return ''}const x=g.up[k],cl=clashOf(g,x.q);
   return '<div class="modal" data-a="asgx"><div class="pn" data-a="noop" style="gap:12px;width:min(520px,92vw)"><div class="sb"><div class="laby">ASSIGN TO COURT</div><button class="ib" data-a="asgx" aria-label="Close">×</button></div>'+
-   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=(g.qq[i]||[]).length,f=n>=3;return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(f?' · full':'')+'</small></span></button>'}).join('')+'</div></div>'}
+   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=qOf(g,i).filter(o=>o!==x).length,me=x.ac===i,bad=cl.filter(o=>o.i!==i),f=!me&&(n>=3||bad.length);
+     return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+(me?';border-color:var(--y)':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+(me?'✓ ':'')+esc(c.n)+' <small style="color:'+(bad.length?'var(--bad)':'var(--mu)')+';font-weight:500">'+(bad.length?'⚠ '+esc(bad.map(o=>nameOf(o.id)+' on '+cname(d,o.i)).join(', ')):'Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(n>=3?' · full':''))+'</small></span></button>'}).join('')+
+   (x.ac!=null?'<button class="ol" data-a="asgu">Unassign · back to Upcoming only</button>':'')+'</div></div>'}
 function vCts(){const g=CG(),d=g.d,now=Date.now();
   return '<div class="modal" data-a="closects"><div class="pn" data-a="noop" style="gap:12px;width:min(620px,92vw)"><div class="sb"><div class="laby">COURTS</div><button class="ib" data-a="closects">×</button></div>'+
    courtsOf(d).map((c,i)=>{const cl=g.closed[i],pi=cpill(d,i,now);return '<div class="ckr" style="padding:10px 14px"><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">'+(cl?'Closed at '+hm(cl):'Open · '+pi.t)+'</small></span>'+
@@ -93,11 +100,13 @@ function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
     const nq=x.q.slice();nq[pk.s]=id;if(nq.every(Boolean)&&!fmtGate(nq,'upcoming game'))return render();
     x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
   save();render();window.scrollTo(0,ui.pickY||0)}
-function moveGame(g,src,t,i,k){const a=String(src).split('.'),SL=gList(g,a[0],+a[1]),sk=+a[2],x=SL&&SL[sk];if(!x)return;
-  const TL=t==='u'?g.up:g.qq[i];if(!TL)return;if(t!=='u'&&g.closed[i])return toast(cname(g.d,i)+' is closed');
-  if(TL!==SL&&t!=='u'&&TL.length>=3)return toast(cname(g.d,i)+' queue is full (3)');
-  SL.splice(sk,1);if(k<0||k>TL.length)k=TL.length;else if(TL===SL&&sk<k)k--;TL.splice(k,0,x);x.m=1;
-  if(SL!==TL&&a[0]==='u')autoNext(g,'fill',null);save();render()}
+/* v23: assign a game to a court (it stays in Upcoming); blocked when one of its players is on another court */
+function assignGame(g,x,i){if(!x)return;if(g.closed[i])return toast(cname(g.d,i)+' is closed');const bad=clashOf(g,x.q).filter(o=>o.i!==i);
+  if(bad.length)return toast(bad.map(o=>nameOf(o.id)).join(', ')+' is on '+cname(g.d,bad[0].i)+' – can’t assign to '+cname(g.d,i));
+  if(x.ac!==i&&qOf(g,i).length>=3)return toast(cname(g.d,i)+' queue is full (3)');x.ac=i;x.m=1;save();render()}
+/* ☰ drag reorders Upcoming; dropping on a court assigns the game there */
+function moveGame(g,src,t,i,k){const a=String(src).split('.'),sk=+a[2],x=g.up[sk];if(!x)return;if(t==='q')return assignGame(g,x,i);
+  g.up.splice(sk,1);if(k<0||k>g.up.length)k=g.up.length;else if(sk<k)k--;g.up.splice(k,0,x);save();render()}
 Object.assign(act,{
  cts:()=>{ui.cts=1;render()},closects:()=>{ui.cts=0;render()},
  ctclose:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast('Stop & save the game on '+cname(g.d,i)+' first');
@@ -110,13 +119,10 @@ Object.assign(act,{
  pickx:()=>{ui.pick=null;render();window.scrollTo(0,ui.pickY||0)},
  gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);if(r.n&&g.fp){const f=g.fp.find(o=>o.n===r.n);if(f){f.q=NUL4();f.x=1}}ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
- ucourt:(x,y)=>moveGame(CG(),'u.0.'+x,'q',+y,-1),
- asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const k=ui.asg-1;ui.asg=0;moveGame(CG(),'u.0.'+k,'q',+x,-1)},
- mv:x=>{ui.mv=ui.mv===x?null:x;render()},mvx:()=>{ui.mv=null;render()},
- mvup:x=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'u',0,0)},
- mvc:(x,y)=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'q',+y,-1)},
+ asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const g=CG(),k=ui.asg-1;ui.asg=0;const o=g.up[k];if(o&&o.ac===+x)return render();assignGame(g,o,+x)},
+ asgu:()=>{const g=CG(),o=g.up[ui.asg-1];ui.asg=0;if(o)delete o.ac;save();render()},
  cfopen:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast(cname(g.d,i)+' still has a game');
-   if((g.qq[i]||[]).length)ui.cf={i,t:'q',k:0};else if(g.up.length){const k=g.fp?Math.max(0,g.up.findIndex(x=>x.c===i)):0;ui.cf={i,t:'u',k}}else return toast('No game waiting – add one in Upcoming');render()},
+   const k=nextFor(g,i);if(k<0)return toast(g.up.length?'Every upcoming game has a player on court – wait or edit one':'No game waiting – add one in Upcoming');ui.cf={i,t:'u',k};render()},
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */

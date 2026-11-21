@@ -14,7 +14,7 @@ let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}
 if(!S)S=blank();
-function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g)});const t=JSON.stringify(S);
+function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>g.up.filter(x=>x.ac===i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
   try{localStorage.setItem(KEY,t)}catch(e){toast('Could not save – export a backup')}
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}

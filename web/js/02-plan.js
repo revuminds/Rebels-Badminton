@@ -26,6 +26,8 @@ function G(d){let g=S.games[d];
   if(!Array.isArray(g.up))g.up=[];if(!Array.isArray(g.qq))g.qq=[];if(!g.closed)g.closed={};
   if(!g.v12&&g.st){g.qq=g.nxt.map(q=>q&&q.some(Boolean)?[{q:q.slice(),m:1}]:[]);g.nxt=g.nxt.map(()=>NUL4());g.v12=1}
   while(g.qq.length<n)g.qq.push([]);
+  /* v23: court queues live inside Upcoming (x.ac = assigned court); g.qq is only a copy for the live page (written in save) */
+  if(!g.v23){g.up=[].concat(...g.qq.map((L,i)=>(L||[]).map(x=>Object.assign(x,{ac:i,m:1}))),g.up);g.v23=1}
   if(running(g)){const onC=new Set(g.cur.flat().filter(Boolean)),t=Date.now();onIds(d).forEach(id=>{if(eligible(d,id)&&!onC.has(id)&&g.since[id]==null)g.since[id]=t})}
   return g}
 const k2=(a,b)=>a<b?a+'|'+b:b+'|'+a;
@@ -85,8 +87,8 @@ const blocked=(g,id,t)=>(g.strk[id]||0)>=2&&!(g.since[id]!=null&&t-g.since[id]>=
 const logIt=(g,m)=>{g.log.unshift({t:Date.now(),m});if(g.log.length>60)g.log.length=60};
 const onCourt=g=>new Set(g.cur.flat().filter(Boolean));
 /* how many upcoming/queued games each player is in */
-function inGames(g){const m={};const f=x=>x.q.forEach(id=>{if(id)m[id]=(m[id]||0)+1});g.up.forEach(f);g.qq.forEach(L=>L.forEach(f));return m}
-function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),prev:new Set()};g.qq.forEach(L=>L.forEach(x=>ctxAdd(c,x.q)));g.up.forEach(x=>ctxAdd(c,x.q));return c}
+function inGames(g){const m={};g.up.forEach(x=>x.q.forEach(id=>{if(id)m[id]=(m[id]||0)+1}));return m}
+function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),prev:new Set()};g.up.forEach(x=>ctxAdd(c,x.q));return c}
 function ctxAdd(c,q){q.forEach(id=>{if(id){c.proj[id]=(c.proj[id]||0)+1;c.inUp[id]=(c.inUp[id]||0)+1}});c.prev=new Set(q.filter(Boolean))}
 /* suggestion only: best players to fill `need` empty slots next to `keep` (fair share first, dummies last, levels mixed) */
 function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter(Boolean));
@@ -98,15 +100,15 @@ function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter
 /* the app keeps ≥5 upcoming games: 'fill' tops up / refills slots it emptied, 'all' also re-picks every upcoming game the admin has not touched.
    Queued games and anything the admin placed are never changed – except players who left or were turned off. */
 /* v14: players who just went on court are taken out of every later game (incl. manual ones) and refilled */
-function clearFrom(g,ids,skip){if(g.fp)return [];const s=new Set(ids.filter(Boolean)),hit=new Set();[...g.qq.flat(),...g.up].forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
+function clearFrom(g,ids,skip){if(g.fp)return [];const s=new Set(ids.filter(Boolean)),hit=new Set();g.up.forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
 function autoNext(g,mode,why){if(!running(g))return 0;if(g.fp){fpSync(g);return 0}const d=g.d,on=new Set(onIds(d));let ch=0;const rp=mode==='rp';if(rp)mode='all';
   const oc=onCourt(g),bad0=id=>id&&(!on.has(id)||!!leftAt(d,id));
   /* Re-pick button (rp): also clears on-court, not-checked-in and duplicate players – even in games the admin edited */
-  if(rp){const seen=new Set();[...g.qq.flat(),...g.up].forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
+  if(rp){const seen=new Set();g.up.forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
   const bad=bad0;
-  g.qq.forEach((L,i)=>{if(g.closed[i]&&L.length){g.up.unshift(...L);g.qq[i]=[];ch=1}});
-  if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m);if(g.up.length!==n0)ch=1}
-  const all=[...g.qq.flat(),...g.up];
+  g.up.forEach(x=>{if(x.ac!=null&&g.closed[x.ac]){delete x.ac;ch=1}});
+  if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m||x.ac!=null);if(g.up.length!==n0)ch=1}
+  const all=g.up.slice();
   all.forEach(x=>{if(x.q.some(bad)){x.q=x.q.map(id=>bad(id)?null:id);x.rf=1;ch=1}else if(!x.m&&x.q.some(v=>!v))x.rf=1});
   g.up=g.up.filter(x=>x.q.some(Boolean)||!x.m);
   const cx=ctxOf(g);
@@ -115,7 +117,8 @@ function autoNext(g,mode,why){if(!running(g))return 0;if(g.fp){fpSync(g);return 
   const lu=g.up[g.up.length-1];cx.prev=new Set(lu?lu.q.filter(Boolean):[]);
   for(let k=0;k<12&&g.up.length<5;k++){const ids=pickFor(g,NUL4(),4,cx);if(!ids)break;const q=orderQ(ids,g);g.up.push({q,m:0,a:q.slice()});ctxAdd(cx,q);ch=1}
   if(ch&&why)logIt(g,why);return ch}
-const gList=(g,t,i)=>t==='u'?g.up:g.qq[i];
+const gList=(g,t,i)=>t==='u'?g.up:null;
+const qOf=(g,i)=>g.up.filter(x=>x.ac===i);
 
 /* ---------- planned games (before Start session): whole booked time, per court ---------- */
 /* learned game length: real timed games (5–30 min), per level band; 15 min until 5 real games */
@@ -178,7 +181,7 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   const ns=noSx(q);if(ns.length)return toast('Set gender for '+ns.map(nameOf).join(', ')+' first (Players)');
   if(!fmtGate(q,'on '+cname(d,i)))return;
   const D=day(d);D.att=D.att||{};q.forEach(id=>{const a=D.att[id];if(!a||!a.a){D.att[id]={a:t};logIt(g,nameOf(id)+' checked in (sent on court)')}else if(a.l)a.l=0});
-  [g.up,...g.qq].forEach(L=>{const k=L.indexOf(x);if(k>=0)L.splice(k,1)});
+  {const k=g.up.indexOf(x);if(k>=0)g.up.splice(k,1)}
   const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.curN=g.curN||[];g.curN[i]=x.n||0;
@@ -223,12 +226,15 @@ const fpCur=g=>new Set((g.curN||[]).filter(Boolean));
 const fpStarted=g=>!!(g.hist.length||g.cur.some(q=>q&&q.every(Boolean)));
 /* live: Upcoming = the planned games not yet queued / on court / done (in game order). Edits in Upcoming / queues are kept in the plan. */
 function fpSync(g){if(!g.fp)return;const by={};g.fp.forEach(x=>by[x.n]=x);
-  [...g.qq.flat(),...g.up].forEach(x=>{const f=x.n&&by[x.n];if(f&&x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}});
-  const inQ=new Set(g.qq.flat().filter(x=>x.n).map(x=>x.n)),cur=fpCur(g),dn=fpDone(g);
-  g.up=g.fp.filter(x=>!x.x&&!dn.has(x.n)&&!inQ.has(x.n)&&!cur.has(x.n)&&x.q.some(Boolean)).map(x=>({q:x.q.slice(),m:1,n:x.n,c:x.c}))}
+  g.up.forEach(x=>{const f=x.n&&by[x.n];if(!f)return;if(x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}if(x.ac!=null)f.ac=x.ac;else delete f.ac});
+  const cur=fpCur(g),dn=fpDone(g),ok=x=>!x.x&&!dn.has(x.n)&&!cur.has(x.n)&&x.q.some(Boolean);
+  /* v23: your order in Upcoming (☰ drag) is kept; games new to Upcoming go in by game number */
+  const ord=[...new Set(g.up.filter(x=>x.n&&by[x.n]&&ok(by[x.n])).map(x=>x.n))],have=new Set(ord);
+  g.fp.forEach(x=>{if(!ok(x)||have.has(x.n))return;const k=ord.findIndex(m=>m>x.n);if(k<0)ord.push(x.n);else ord.splice(k,0,x.n)});
+  g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;return o})}
 /* keep: games already played, on court, queued, or edited by you (if all their players are still here) – the rest is re-planned */
-function planFull(g,re){const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
-  const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.qq.flat().filter(x=>x.n).map(x=>x.n)),ok=new Set(ids);
+function planFull(g,re){if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
+  const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.up.filter(x=>x.n&&x.ac!=null).map(x=>x.n)),ok=new Set(ids);
     g.fp.forEach(x=>{if(dn.has(x.n))keep[x.n]=Object.assign({},x,{dn:1});else if(cur.has(x.n)||inQ.has(x.n)||x.x)keep[x.n]=x;else if(x.m&&x.q.every(id=>id&&ok.has(id)))keep[x.n]=x})}
   const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
   g.fp=best.out.map(x=>{const y=Object.assign({},x);delete y.dn;return y});rotCourts(g,keep);g.fpAt=Date.now();if(running(g)){g.up=[];fpSync(g)}return 1}
@@ -243,3 +249,43 @@ function rotCourts(g,keep){keep=keep||{};const R={},cc={};g.fp.forEach(x=>(R[x.r
       mov.slice().sort((a,b)=>a.c-b.c).forEach((x,i)=>x.n=ns[i])}
     L.forEach(x=>x.q.forEach(id=>{if(id){cc[id]=cc[id]||{};cc[id][x.c]=(cc[id][x.c]||0)+1}}))});
   g.fp.sort((a,b)=>a.n-b.n)}
+
+/* ---------- v23: live (re-)plan on a round model ----------
+   Round 0 = the games on court now. Each court's remaining games follow in order: a busy court's next game is round 1,
+   a free court's next game starts now (round 0). Hard: nobody twice in a round, nobody on court now in round 1.
+   Soft (existing cap): max 2 in a row – only broken when a round can't be filled otherwise (fewer than 6 players per court).
+   Kept as they are: played, on court, not played, assigned (court queue) and edited games. */
+const JUST=5*60e3;
+function justPlayed(g,t){t=t||Date.now();const oc=onCourt(g),s=new Set();Object.keys(g.since||{}).forEach(id=>{if(!oc.has(id)&&t-g.since[id]<JUST&&g.hist.some(h=>h.ids&&h.ids.includes(id)&&t-(h.at||0)<JUST))s.add(id)});return s}
+function planLive(g,re){const d=g.d,ids=fullIds(g),C=courtsOf(d),t=Date.now();if(ids.length<4)return toast('Check in at least 4 players (with gender set) first'),0;
+  const fp=g.fp||[],dn=fpDone(g),cur=fpCur(g),ok=new Set(ids),open=C.map((c,i)=>!g.closed[i]),busyC=C.map((c,i)=>!!(g.cur[i]&&g.cur[i].every(Boolean)));
+  if(!open.some(Boolean))return toast('All courts are closed'),0;
+  const fixed=fp.filter(x=>dn.has(x.n)||cur.has(x.n)||x.x),pos=C.map(()=>[]),used=new Set(),kc=k=>{if(k!=null&&open[k])return k;let b=-1;open.forEach((o,i)=>{if(o&&(b<0||pos[i].length<pos[b].length))b=i});return b};
+  /* 1. games assigned to a court (its queue, in Upcoming order) */
+  g.up.forEach(x=>{if(x.ac==null||!open[x.ac]||!x.q.some(Boolean))return;const f=x.n?fp.find(o=>o.n===x.n):null;if(f)used.add(f.n);pos[x.ac].push({k:{q:x.q.slice(),m:1,ac:x.ac,pts:f&&f.pts},n0:x.n||1e9})});
+  /* 2. the rest of the plan (edited games kept), or – no plan yet – the session's remaining slots */
+  let nums;
+  if(re&&g.fp){const rest=fp.filter(x=>!fixed.includes(x)&&!used.has(x.n)).sort((a,b)=>a.n-b.n);nums=rest.map(x=>x.n).concat([...used]).sort((a,b)=>a-b);
+    rest.forEach(x=>{const c=kc(x.c);if(c<0)return;const keep=x.m&&x.q.every(id=>id&&ok.has(id));pos[c].push({k:keep?{q:x.q.slice(),m:1,pts:x.pts}:null,n0:x.n})})}
+  else{const man=g.up.filter(x=>x.ac==null&&x.m&&x.q.every(id=>id&&ok.has(id)));man.forEach(x=>{const c=kc(null);if(c>=0)pos[c].push({k:{q:x.q.slice(),m:1},n0:0})});
+    const sl=fullSlots(d),n=Math.max(0,sl.length-g.hist.length-busyC.filter(Boolean).length-pos.flat().length);
+    sl.slice(sl.length-n).forEach(s=>{const c=kc(s.c);if(c>=0)pos[c].push({k:null,n0:s.n})});nums=sl.slice(sl.length-pos.flat().length).map(s=>s.n)}
+  /* 3. rounds: a court's p-th remaining game is round p (+1 when the court is busy) */
+  const slots=[],keep={};let tn=0;pos.forEach((L,i)=>{L.sort((a,b)=>(a.k&&a.k.ac!=null?0:1)-(b.k&&b.k.ac!=null?0:1)||a.n0-b.n0);L.forEach((p,k)=>{const s={n:++tn,r:k+(busyC[i]?1:0),c:i};slots.push(s);if(p.k)keep[s.n]=Object.assign(p.k,{n:s.n,r:s.r,c:i})})});
+  slots.sort((a,b)=>a.r-b.r||a.c-b.c);
+  const oc=onCourt(g),jp=justPlayed(g,t),strk={};ids.forEach(id=>{if(oc.has(id)||jp.has(id))strk[id]=Math.max(1,g.strk[id]||1)});
+  const P1=ids.filter(id=>!isDum(d,id)),W1=P1.filter(isF).length,nP=P1.filter(id=>W1>=2||!isF(id)).length;
+  /* ≥ 6 players per open court: the 2-in-a-row cap is hard (a slot waits rather than a 3rd game in a row) */
+  const pre={cur:g.cur.filter(q=>q&&q.every(Boolean)),onC:oc,jp,strk,hard:nP>=6*open.filter(Boolean).length};
+  const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k,pre);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
+  /* 4. numbers: the free game numbers, in round order; on-court games become round B, the next rounds follow */
+  const B=fixed.filter(x=>!cur.has(x.n)).reduce((a,x)=>Math.max(a,x.r+1),0),out=best.out.slice().sort((a,b)=>a.r-b.r||a.c-b.c);
+  nums=nums.slice(0,out.length);let mx=Math.max(0,...fp.map(x=>x.n),...nums);while(nums.length<out.length)nums.push(++mx);nums.sort((a,b)=>a-b);
+  const nw=out.map((x,k)=>{const y={n:nums[k],r:B+x.r,c:x.c,q:x.q.slice(),a:(x.a||x.q).slice(),m:x.m?1:0};if(x.pts)y.pts=x.pts;if(x.ac!=null)y.ac=x.ac;return y});
+  g.fp=fixed.map(x=>cur.has(x.n)?Object.assign({},x,{r:B}):x).concat(nw).sort((a,b)=>a.n-b.n);g.fpAt=t;g.up=[];fpSync(g);return 1}
+/* players of q who are on a court now: [{id,i}] */
+function clashOf(g,q){const r=[];(q||[]).forEach(id=>{if(!id)return;const i=g.cur.findIndex(c=>c&&c.every(Boolean)&&c.includes(id));if(i>=0)r.push({id,i})});return r}
+/* ▶ Start next on free court i: games assigned to it first (your order), then unassigned ones in Upcoming order.
+   Never a game with a player on court; a game without players who just came off wins over one with them. -1 = none. */
+function nextFor(g,i){const jp=justPlayed(g);let b=null;g.up.forEach((x,k)=>{if(x.ac!=null&&x.ac!==i)return;if(clashOf(g,x.q).length)return;
+    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}

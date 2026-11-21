@@ -108,8 +108,8 @@ const act={
  shuffle:()=>{},
  /* v16 full session plan */
  fpplan:()=>{const g=CG();if(planFull(g,false)){logIt(g,'Full session planned · '+g.fp.length+' games');save();render();toast(pl(g.fp.length,'game')+' planned')}},
- fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, queued and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
- fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=[];g.qq=g.qq.map(L=>L.filter(x=>!x.n));autoNext(g,'fill',null)}else g.psig='';save();render()},
+ fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
+ fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=g.up.filter(x=>!x.n);autoNext(g,'fill',null)}else g.psig='';save();render()},
  fpo:()=>{ui.fpo=!ui.fpo;render()},
  fpprint:()=>{const g=CG();if(!g.fp)return;const ti='Game schedule '+g.d,el=$('#print');el.className='sp';el.innerHTML=vFullPrint(g);
    setTimeout(()=>{try{if(NB&&NB.printPortrait)NB.printPortrait('Rebels Badminton - '+ti);else if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
@@ -130,7 +130,7 @@ const act={
    if(y[1]==='+'&&!L.w&&gameWon(L.sa,L.sb,P))return toast('Game over at '+L.sa+' – '+L.sb+' (to '+P.pts+') · tap Stop & save');L[k]=Math.max(0,Math.min(c,L[k]+(y[1]==='+'?1:-1)));
    if(L.w&&L.w!==y[0]){L[k]=Math.min(L[k],c-1);L[o]=winOf(P,L[k])}save();render()},
  /* finance */
- dstrong:x=>{S.def.strong=+x;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},dpwr:x=>{S.def.pwr=+x;save();render()},
+ dstrong:x=>{S.def.strong=+x;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},dpwr:x=>{S.def.pwr=+x;save();render()},dtgt:x=>{S.def.tgt=+x;save();render()},
  theme:()=>{const l=!document.body.classList.contains('light');document.body.classList.toggle('light',l);try{localStorage.setItem('rebels.theme',l?'light':'dark')}catch(e){}render()},
  pf:(x,y)=>{ui.pf=ui.pf||{};ui.pf[x]=ui.pf[x]===y?'':y;$('#pgrid').innerHTML=vGrid();$('#pfl').innerHTML=vPfl()},
  gpo:()=>{ui.gpo=ui.gpo===0?1:0;render()},

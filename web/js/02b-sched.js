@@ -2,7 +2,8 @@
    Priority when rules conflict: 1 equal games / rest → 2 level balance → 3 partner variety → 4 opponent variety.
    Formats: MD (4 men) · WD (4 women) · XD (each team 1M+1W). 1W+3M and 3W+1M are never auto-scheduled.
    Fill-in (tick) players: no target; used for gaps and to give participants a cool-down after 2 games in a row. */
-const RATE=3;                                              /* target games per player per hour */
+const RATE=3;                                              /* games per player per hour the courts allow (10-min games, 8 per court) */
+const TGTS=()=>num(S.def.tgt)||6;                           /* v23: target games per player for the WHOLE session (Settings → Scheduling) */
 const STRONG=()=>S.def.strong==null?3:num(S.def.strong);    /* level index ≥ this = strong (3 = Intermediate +) */
 const PWR=()=>S.def.pwr==null?1:num(S.def.pwr);             /* power games per strong player per hour */
 const isStrong=id=>lvOf(id)>=STRONG();
@@ -54,16 +55,18 @@ function planCtx(g,ids){const d=g.d,Wall=ids.filter(isF).length,part=ids.filter(
 function pick4(L,want){const M=L.filter(id=>!isF(id)),W=L.filter(isF),c=[];if(M.length>=4)c.push(M.slice(0,4));if(W.length>=2&&M.length>=2)c.push(W.slice(0,2).concat(M.slice(0,2)));if(W.length>=4)c.push(W.slice(0,4));
   let b=null;c.forEach(q=>{const k=q.filter(id=>want.has(id)).length;if(!b||k>b.k)b={k,q}});return b&&b.k?b.q:null}
 const hourOf=(r,H)=>Math.min(H-1,Math.floor(r*FULL_MIN/60));
-function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po={},wd={},xd={},pw={},out=[];let em=0,b2=0,b3=0,gsum=0;
+function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={},po={},wd={},xd={},pw={},out=[];let em=0,b2=0,b3=0,gsum=0;
   const st={rt:P0.rt,pp,po,wd,xd,pol:P0.pol,wdTot:0,power:P0.power,owes:(id,h)=>P0.power&&P0.pwOK.has(id)&&(pw[id+'|'+h]||0)<PWR()};
   const pairs=q=>{pp[k2(q[0],q[1])]=(pp[k2(q[0],q[1])]||0)+1;pp[k2(q[2],q[3])]=(pp[k2(q[2],q[3])]||0)+1;[[0,2],[0,3],[1,2],[1,3]].forEach(([x,y])=>po[k2(q[x],q[y])]=(po[k2(q[x],q[y])]||0)+1);
     const nf=q.filter(isF).length;if(nf===4){q.forEach(w=>wd[w]=(wd[w]||0)+1);st.wdTot++}else if(nf===2)q.filter(isF).forEach(w=>xd[w]=(xd[w]||0)+1)};
-  g.hist.forEach(h=>{if(!h.n&&h.ids&&h.ids.every(Boolean)){h.ids.forEach(id=>c[id]=(c[id]||0)+1);pairs(h.ids)}});
-  const play=(q,r)=>{const full=q.every(Boolean);q.forEach(id=>{if(!id)return;c[id]=(c[id]||0)+1;strk[id]=last[id]===r-1?(strk[id]||0)+1:1;last[id]=r;
+  g.hist.forEach(h=>{if((pre||!h.n)&&h.ids&&h.ids.every(Boolean)){h.ids.forEach(id=>c[id]=(c[id]||0)+1);pairs(h.ids)}});
+  const play=(q,r)=>{const full=q.every(Boolean);q.forEach(id=>{if(!id)return;c[id]=(c[id]||0)+1;if(last[id]===r)return;strk[id]=last[id]===r-1?(strk[id]||0)+1:1;last[id]=r;
       if(!P0.dum.has(id)){if(strk[id]===2)b2++;else if(strk[id]>=3)b3++}});
     if(full){pairs(q);if(P0.power&&q.every(isStrong)){const h=hourOf(r,P0.H);q.forEach(id=>pw[id+'|'+h]=(pw[id+'|'+h]||0)+1)}}};
-  const R=slots.length?slots[slots.length-1].r+1:0;
-  for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();
+  /* v23 live: games on court now = round 0 (they count as games); players who just came off start with their streak */
+  if(pre){pre.cur.forEach(q=>play(q,0));Object.keys(pre.strk).forEach(id=>{if(pre.onC.has(id)){strk[id]=pre.strk[id]}else{last[id]=-1;strk[id]=pre.strk[id]}})}
+  const R=slots.length?Math.max(...slots.map(s=>s.r))+1:0;
+  for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();if(pre&&r<2)pre.onC.forEach(id=>busy.add(id));
     rs.forEach(s=>{const k=keep[s.n];if(!k)return;out.push(k);k.q.forEach(id=>id&&busy.add(id));play(k.q,r)});
     const free=rs.filter(s=>!keep[s.n]);if(!free.length)continue;const h=hourOf(r,P0.H);
     const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id];
@@ -75,7 +78,9 @@ function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po=
     if((mode===1||mode===3||urg)&&P0.power){const ow=new Set(fresh.filter(id=>st.owes(id,h)));if(ow.size>=(urg?1:2))F=pick4([...fresh.filter(id=>ow.has(id)),...fresh.filter(id=>P0.pwOK.has(id)&&!ow.has(id))],ow)}
     if(!F&&(mode===2||mode===3)&&P0.pol.wd&&(!P0.pol.quota||st.wdTot<P0.pol.quota)){const rs0=new Set(ks.filter(x=>x.t===0).map(x=>x.id)),fw=fresh.filter(isF),nd=new Set(fw.filter(w=>!wd[w]&&rs0.has(w)));if(nd.size&&fw.length>=4)F=fw.filter(w=>nd.has(w)).concat(fw.filter(w=>!nd.has(w))).slice(0,4)}
     if(F&&free.length)pool=F.concat(pool.filter(id=>!F.includes(id)));
-    const n=Math.min(free.length,Math.floor(pool.length/4)),sel=evenSel(pool,n),ng=sel.length/4;em+=free.length-ng;
+    const n=Math.min(free.length,Math.floor(pool.length/4)),tt={};ks.forEach(x=>tt[x.id]=x.t);
+    /* v23: keep the 2-in-a-row cap when the round can be filled without it (also when fixing the women count) */
+    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
     const gr=groupBest(sel,st,h);
     gr.forEach((q,k)=>{const s=free[k];gsum+=gcost2(q,st,h).c;out.push({n:s.n,r:s.r,c:s.c,q:q.slice(),a:q.slice(),m:0});play(q,r)})}
   /* score the whole plan */
@@ -87,7 +92,7 @@ function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po=
 /* achievable games per hour for participants (target 3/hr → max 8 players per court) */
 function rateInfo(g){const d=g.d,ids=fullIds(g),part=ids.filter(id=>!isDum(d,id)),nC=courtsOf(d).length,hrs=Math.max(.5,sessLenH(d));
   const slots=fullPer(d).reduce((a,n)=>a+n,0)*4,rate=part.length?Math.min(60/FULL_MIN,slots/part.length/hrs):0;
-  return{part:part.length,nC,rate,over:part.length>nC*8,tgt:Math.round(RATE*hrs)}}
+  return{part:part.length,nC,rate,over:part.length>nC*8,tgt:TGTS(),each:part.length?slots/part.length:0}}
 
 /* ---------- validation layer: every game before it is queued / sent / changed by hand ---------- */
 function checkGame(g,q,o){o=o||{};const d=g.d,e=[],ids=q.filter(Boolean);

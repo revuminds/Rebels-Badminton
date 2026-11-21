@@ -75,7 +75,7 @@ ok(!/\+971|fin|court":"116|paid|img|data:image|ph"|"pin"/.test(txt), 'live: no f
 ok(txt.includes('Guest') && !txt.includes(L.players[0].name), 'live: hidden player shown as Guest');
 ok((await call('GET', '/live')).ct.includes('text/html'), '/live page served without login');
 L.games[today].en = Date.now(); r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
-r = await call('GET', '/api/live'); ok(r.j.live === false && Object.keys(r.j).every(k => ['live', 'next'].includes(k)), 'after End session: "No live session" only');
+r = await call('GET', '/api/live'); ok(r.j.live === true && r.j.ended === true && !r.j.now.length && !r.j.next.length && !r.j.pick.length && r.j.results.every(x => !x.send && !x.fix), 'after End session (v23): read-only summary – no court, up next, names or score sending');
 L.games[today].en = 0; L.games[today].st = Date.now() - 4 * 3600e3; L.days[today].time = hhmm(Date.now() - 3.5 * 3600e3);
 r = await call('GET', '/api/data', null, A); await call('PUT', '/api/data', { base: r.j.rev, data: L }, A);
 ok((await call('GET', '/api/live')).j.live === false, 'auto-off at booked end + 1 h if not ended');

@@ -97,7 +97,7 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   const P = {}; (S.players || []).forEach(p => P[p.id] = p);
   const nm = id => !id ? '' : P[id] && !P[id].hidePub ? String(P[id].name || '') : 'Guest';
   const days = S.days || {}, games = S.games || {}, today = dubaiDay(now);
-  const D = days[today], g = games[today];
+  let D = days[today], g = games[today];
   const courts = d => (days[d] && days[d].courts && days[d].courts.length ? days[d].courts : [{ n: 'Court 1', h: 2 }]);
   const lenH = d => Math.max(0, ...courts(d).map(c => +c.h || 0));
   let on = false;
@@ -105,11 +105,17 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
     const st = tms(today, D.time), end = st + lenH(today) * 3600e3;
     on = (g && g.st ? true : now >= st - 30 * 60e3) && now <= end + 3600e3;      /* 30 min before start … End session (auto-off at booked end + 1 h) */
   }
+  /* v23: after End session the page stays up read-only (results + schedule, no score sending) for 48 h – unless a session's window is open (above) */
+  let day = today, ended = false;
+  if (!on) {
+    const ed = Object.keys(games).filter(d => games[d] && +games[d].en && now >= +games[d].en && now - games[d].en <= 48 * 3600e3 && days[d] && days[d].sch && !days[d].x).sort((a, b) => games[b].en - games[a].en)[0];
+    if (ed) { day = ed; ended = true; on = true; D = days[ed]; g = games[ed]; }
+  }
   if (!on) {
     const nx = Object.keys(days).filter(d => d >= today && days[d].sch && !days[d].x && !(games[d] && games[d].en) && !(d === today && tms(d, days[d].time) + lenH(d) * 3600e3 + 3600e3 < now)).sort()[0];
     return { live: false, next: nx ? { date: nx, time: days[nx].time || '', loc: days[nx].loc || '' } : null };
   }
-  const cn = i => String((courts(today)[i] || {}).n || 'Court ' + (i + 1));
+  const cn = i => String((courts(day)[i] || {}).n || 'Court ' + (i + 1));
   const team = (q, k) => (q || []).slice(k * 2, k * 2 + 2).map(nm);
   const ty = q => { const f = (q || []).filter(id => id && P[id] && P[id].sx === 'f').length; return f === 2 ? 'XD' : f >= 3 ? 'WD' : 'MD'; };
   const lock = {}, cor = {}; (subs || []).forEach(x => { if (x.st === 'p' || x.st === 'a') lock[x.k] = x.st; else if (/^c[par]$/.test(x.st) && (!cor[x.k] || (x.at || 0) >= cor[x.k].at)) cor[x.k] = { st: x.st[1], at: x.at || 0 }; });
@@ -117,7 +123,7 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   const gpts = o => +(o && o.pts) || +(g && g.pts) || 21, deuce = !!(g && g.deuce);
   const hist = g && Array.isArray(g.hist) ? g.hist : [];
   const doneN = new Set(hist.filter(h => h.n).map(h => h.n)), curN = (g && g.curN) || [];
-  const now_ = (g && g.cur || []).map((q, i) => {
+  const now_ = ended ? [] : (g && g.cur || []).map((q, i) => {
     if (!q || !q.every(Boolean)) return null; const L = (g.live || [])[i] || {};
     return { court: cn(i), n: curN[i] || null, ty: ty(q), a: team(q, 0), b: team(q, 1), sa: +L.sa || 0, sb: +L.sb || 0, run: !!L.run, start: L.run ? +L.start || 0 : 0, el: +L.el || 0, pts: +(L.pts || g.pts) || 21,
       me: mine(q), gk: L.run ? i + '-' + (+L.start || 0) : '' };
@@ -127,18 +133,18 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   /* v18: per court the queued / planned game first, then the app-picked Upcoming games (they have no court yet) */
   const next = [], seen = new Set(), full = q => q && q.every && q.length === 4 && q.every(Boolean), onC = new Set((g && g.cur || []).flat().filter(Boolean));
   const add = (q, n, c, nx) => { const k = q.join(); if (seen.has(k)) return; seen.add(k); next.push({ court: c == null ? '' : cn(c), n: n || null, ty: ty(q), a: team(q, 0), b: team(q, 1), me: mine(q), nx: !!nx }); };
-  courts(today).forEach((c, i) => {
+  if (!ended) courts(day).forEach((c, i) => {
     let q = qq[i] && qq[i][0] && qq[i][0].q, n = qq[i] && qq[i][0] && qq[i][0].n;
     if (!full(q) && full(nxt[i])) { q = nxt[i]; n = null; }
     if (!full(q) && fp.length) { const u = up.find(x => x.c === i && full(x.q)) || fp.find(x => x.c === i && !x.x && !doneN.has(x.n) && !curN.includes(x.n) && full(x.q)); if (u) { q = u.q; n = u.n || null; } }
     if (full(q)) add(q, n, i, 1);
   });
-  up.forEach(x => { if (full(x.q) && next.length < 8) add(x.q, x.n, x.c == null || !fp.length ? null : x.c); });
+  if (!ended) up.forEach(x => { if (full(x.q) && next.length < 8) add(x.q, x.n, x.c == null || !fp.length ? null : x.c); });
   const res = hist.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map(h => {
     const k = hKey(h), sc = !!(+h.sa || +h.sb), ok = !sc && Array.isArray(h.ids) && h.ids.length === 4 && h.ids.every(Boolean);
     const c4 = Array.isArray(h.ids) && h.ids.length === 4 && h.ids.every(Boolean), cs = cor[k] ? cor[k].st : null;
-    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: ok && !lock[k], sent: !sc && !!lock[k], me: mine(h.ids),
-      fix: sc && c4 && cs !== 'p', cor: sc ? cs : null };
+    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: !ended && ok && !lock[k], sent: !sc && !!lock[k], me: mine(h.ids),
+      fix: !ended && sc && c4 && cs !== 'p', cor: sc ? cs : null };
   });
   const st = {};
   hist.forEach(h => { if (!h.ids) return; const aw = h.sa > h.sb, tie = h.sa === h.sb; h.ids.forEach((id, i) => { if (!id || !P[id] || P[id].hidePub) return; const s = st[id] = st[id] || { name: nm(id), g: 0, w: 0 }; s.g++; if (!tie && (i < 2) === aw) s.w++; }); });
@@ -152,8 +158,8 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   const pk = new Set();
   Object.keys(D.on || {}).forEach(id => D.on[id] && pk.add(id)); Object.keys(D.att || {}).forEach(id => pk.add(id));
   ((g && g.ros) || []).concat(...((g && g.cur) || []), ...hist.map(h => h.ids || [])).forEach(id => id && pk.add(id));
-  const pick = [...pk].filter(id => P[id] && !P[id].hidePub && String(P[id].name || '').trim()).map(id => ({ _p: id, name: String(P[id].name) })).sort((a, b) => a.name.localeCompare(b.name));
-  return { live: true, date: today, time: D.time || '', loc: D.loc || '', started: !!(g && g.st), courts: courts(today).map((c, i) => cn(i)), now: now_, next, results: res, stats, sched, pick, at: now };
+  const pick = ended ? [] : [...pk].filter(id => P[id] && !P[id].hidePub && String(P[id].name || '').trim()).map(id => ({ _p: id, name: String(P[id].name) })).sort((a, b) => a.name.localeCompare(b.name));
+  return { live: true, ended, date: day, time: D.time || '', loc: D.loc || '', started: !!(g && g.st), courts: courts(day).map((c, i) => cn(i)), now: now_, next, results: res, stats, sched, pick, at: now };
 }
 const LIVE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#16181D"><title>Rebels Badminton · Live</title>
 <style>
@@ -166,7 +172,7 @@ body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.35 Outfit,system-
 main{max-width:1280px;margin:0 auto;padding:14px 12px calc(40px + env(safe-area-inset-bottom))}
 h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.02em}h1 b{color:var(--y)}
 h2{font-size:12px;letter-spacing:.16em;color:var(--mu);margin:20px 2px 8px;font-weight:700}
-.mu{color:var(--mu)}.live{color:var(--ok);font-weight:700}
+.mu{color:var(--mu)}.endb{margin-top:14px;border-left:4px solid var(--amb)}.live{color:var(--ok);font-weight:700}
 /* v21: broadcast-style red pulsing LIVE dot */
 .live.on{color:#FF4D4F}.live .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#FF3B30;margin-right:5px;vertical-align:1px;box-shadow:0 0 0 0 rgba(255,59,48,.7);animation:lp 1.2s ease-in-out infinite}
 @keyframes lp{0%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,48,.65)}50%{opacity:.35;box-shadow:0 0 0 6px rgba(255,59,48,0)}100%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,48,0)}}
@@ -286,16 +292,23 @@ function res(r){const aw=r.sc&&r.sa>r.sb,bw=r.sc&&r.sb>r.sa,A=T(r.a)+(r.sc?' ('+
    r.sc&&r.me&&PL()&&(r.fix||r.cor)?'<div class="ra">'+(r.cor==='p'?'<span class="pill">Correction sent · waiting for approval</span>':r.cor==='a'?'<span class="pill ok">Correction accepted</span>':r.cor==='r'?'<span class="pill bad">Correction rejected</span>':'')+
     (r.fix?'<button class="fbtn" data-a="fix" data-k="'+e(r.k)+'">✎ Suggest correction</button>':'')+'</div>':'')+'</div>'}
 function fit(){document.querySelectorAll('.ln').forEach(el=>{let f=16;el.style.fontSize='';while(el.scrollWidth>el.clientWidth+1&&f>9){f-=.5;el.style.fontSize=f+'px'}})}
-function drawMe(){const el=document.getElementById('me');if(!L||!L.live||!ME){el.innerHTML='';return}
+function drawMe(){const el=document.getElementById('me');if(!L||!L.live||L.ended||!ME){el.innerHTML='';return}
  el.innerHTML=PL()?'<span>Playing as <b>'+e(ME.name)+'</b></span>·<button class="lk" data-a="toguest">Change to guest</button>':'<span>Watching as <b>guest</b></span>·<button class="lk" data-a="choose">I’m playing – pick my name</button>'}
+function schedH(){return '<h2>GAME SCHEDULE</h2><div class="card" style="overflow-x:auto"><table class="sch"><thead><tr><th>#</th><th>COURT</th><th></th><th>TEAM A</th><th class="n">SCORE</th><th>TEAM B</th><th></th></tr></thead><tbody>'+L.sched.map(x=>{const aw=x.st==='done'&&x.sa>x.sb,bw=x.st==='done'&&x.sb>x.sa;return '<tr><td class="mu">'+x.n+'</td><td class="mu">'+e(x.court)+'</td><td><span class="fmt f'+x.ty+'">'+x.ty+'</span></td><td class="'+(aw?'w':'')+'">'+T(x.a)+'</td><td class="n"><b>'+(x.st==='done'?x.sa+' – '+x.sb:'')+'</b></td><td class="'+(bw?'w':'')+'">'+T(x.b)+'</td><td><span class="st '+x.st+'">'+(x.st==='done'?'Done':x.st==='now'?'On court':'Planned')+'</span></td></tr>'}).join('')+'</tbody></table></div>'}
+function statsH(){return '<h2>'+(L.ended?'SESSION':'TODAY')+' · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>'}
 function draw(){const v=document.getElementById('v'),sub=document.getElementById('sub');if(!L)return;drawMe();
  if(!L.live){sub.textContent='';v.innerHTML='<div class="card" style="margin-top:18px"><b>No live session</b>'+(L.next?' · next: '+e(dl(L.next.date))+' '+e(L.next.time)+' · '+e(L.next.loc):'')+'</div>';return}
- sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · '+(L.started?'<span class="live on"><i class="dot"></i>LIVE</span>':'<span class="live" style="color:var(--amb)">● STARTING SOON</span>');
+ sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · '+(L.ended?'<span class="live" style="color:var(--mu)">■ ENDED</span>':L.started?'<span class="live on"><i class="dot"></i>LIVE</span>':'<span class="live" style="color:var(--amb)">● STARTING SOON</span>');
+ if(L.ended){let h='<div class="card endb"><b>Session ended</b> · final results and schedule · read only</div>';
+  if(L.results.length)h+='<h2>RESULTS · NEWEST FIRST</h2><div class="card">'+L.results.map(res).join('')+'</div>';
+  if(L.sched.length)h+=schedH();
+  if(L.stats.length)h+=statsH();
+  v.innerHTML=h;fit();return}
  let h='<h2>ON COURT NOW</h2>'+(L.now.length?'<div class="cg" style="--c:'+cols(L.now.length)+'">'+L.now.map(onCourt).join('')+'</div>':'<div class="card mu">No game on court right now.</div>');
  if(L.next.length)h+='<h2>UP NEXT</h2><div class="cg" style="--c:'+cols(Math.min(L.next.length,Math.max(L.courts.length,1)))+'">'+L.next.map(upNext).join('')+'</div>';
- if(L.sched.length)h+='<h2>GAME SCHEDULE</h2><div class="card" style="overflow-x:auto"><table class="sch"><thead><tr><th>#</th><th>COURT</th><th></th><th>TEAM A</th><th class="n">SCORE</th><th>TEAM B</th><th></th></tr></thead><tbody>'+L.sched.map(x=>{const aw=x.st==='done'&&x.sa>x.sb,bw=x.st==='done'&&x.sb>x.sa;return '<tr><td class="mu">'+x.n+'</td><td class="mu">'+e(x.court)+'</td><td><span class="fmt f'+x.ty+'">'+x.ty+'</span></td><td class="'+(aw?'w':'')+'">'+T(x.a)+'</td><td class="n"><b>'+(x.st==='done'?x.sa+' – '+x.sb:'')+'</b></td><td class="'+(bw?'w':'')+'">'+T(x.b)+'</td><td><span class="st '+x.st+'">'+(x.st==='done'?'Done':x.st==='now'?'On court':'Planned')+'</span></td></tr>'}).join('')+'</tbody></table></div>';
+ if(L.sched.length)h+=schedH();
  if(L.results.length)h+='<h2>RESULTS · NEWEST FIRST</h2><div class="card">'+L.results.map(res).join('')+'</div>';
- if(L.stats.length)h+='<h2>TODAY · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>';
+ if(L.stats.length)h+=statsH();
  v.innerHTML=h;fit();hh();turnCheck()}
 /* v21: one court never taller than one screen – the court gets the height left under the header */
 let VW=innerWidth,VH=innerHeight;document.documentElement.style.setProperty('--vh',VH+'px');
@@ -307,7 +320,7 @@ function drawC(m){const P=L.pick||[];
   '<div class="lab" style="color:var(--tx)">TAP YOUR NAME</div>'+(P.length?'<div class="pk">'+P.map(x=>'<button data-a="pick" data-k="'+e(x.k)+'"'+(x.taken||M.busy?' disabled':'')+(x.taken?' title="Picked on another phone"':'')+'>'+e(x.name)+'</button>').join('')+'</div>':'<div class="mu">No players checked in yet.</div>')+
   '<div class="err">'+e(M.err)+'</div><div class="mu" style="font-size:13px">Greyed out = already picked on another phone. Wrong name taken? Ask the organiser to free it.</div><div class="btns"><button class="cx" data-a="guest">Watch as guest</button></div>')+'</div>'}
 /* send score: sender = the picked name */
-function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live){M=null}else return drawC(m)}
+function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live||L.ended){M=null}else return drawC(m)}
  const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!((M.fx?r.fix:r.send)&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
  const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
  m.className='on';m.innerHTML='<div class="sh"><div class="lab">'+(M.fx?'SUGGEST CORRECTION':'SEND SCORE')+' · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
@@ -346,8 +359,8 @@ document.addEventListener('contextmenu',ev=>{if(ev.target.closest&&ev.target.clo
 document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){const v=ev.target.value.replace(/[^0-9]/g,'').slice(0,2);if(v!==ev.target.value)ev.target.value=v;M[ev.target.id.slice(2)]=v;M.err='';document.getElementById('er').textContent=''}});
 async function load(){try{const r=await fetch('/api/live',{cache:'no-store',headers:PL()?{'X-Claim':ME.t}:{}});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());
  /* session over or a new session → forget the choice; name freed on the tablet → ask again */
- if(ME&&(!L.live||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}
- draw();if(L.live&&!ME&&!M)M={c:1,step:1,err:''};if(M&&M.c)drawM();else if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!(M.fx?r2.fix:r2.send)||!r2.me){M=null;drawM()}}}}catch(x){}}
+ if(ME&&(!L.live||L.ended||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}
+ draw();if(L.live&&!L.ended&&!ME&&!M)M={c:1,step:1,err:''};if(M&&M.c)drawM();else if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!(M.fx?r2.fix:r2.send)||!r2.me){M=null;drawM()}}}}catch(x){}}
 
 /* ===== v21: "Your turn" alert while this page is open. Tap 🔔 on your Up Next game = unlock sound, ask for notifications, keep the screen on.
    Shown once per game (rb.turn in localStorage). A locked phone / closed browser gets nothing (that needs Web Push – phase 2). ===== */
@@ -368,7 +381,7 @@ async function arm(s){if(TU.d!==(L&&L.date))TU={d:L.date,seen:[]};
 function wakeT(){TU.wake=!TU.wake;tuSave();TU.wake?wakeOn():wakeOff();draw()}
 async function notify(t,b,tag){try{if(!('Notification' in window)||Notification.permission!=='granted')return;const o={body:b,tag,renotify:true,vibrate:[300,120,300]};
  const r='serviceWorker' in navigator&&await navigator.serviceWorker.getRegistration('/live');if(r&&r.showNotification)return r.showNotification(t,o);new Notification(t,o)}catch(x){}}
-function turnCheck(){if(!L||!L.live||!PL())return;if(TU.d!==L.date){TU={d:L.date,seen:[],wake:TU.wake}}TU.seen=TU.seen||[];
+function turnCheck(){if(!L||!L.live||L.ended||!PL())return;if(TU.d!==L.date){TU={d:L.date,seen:[],wake:TU.wake}}TU.seen=TU.seen||[];
  const nw=Date.now()-off;(L.now||[]).forEach(x=>{if(x.me&&x.gk&&nw-x.start>15*60e3&&!TU.seen.includes(x.gk))TU.seen.push(x.gk)});   /* already playing for a while = no alert */
  const c=(L.now||[]).find(x=>x.me&&x.run&&x.gk&&!TU.seen.includes(x.gk));
  if(c){TU.seen.push(c.gk);TU.seen=TU.seen.slice(-40);TU.sel='';tuSave();wakeOff();
@@ -424,7 +437,7 @@ async function myClaim(tok, claims) {
 /* the live data as sent to phones: pick list with hash keys (no ids), the phone's own name, results it may send */
 async function livePublic(env, tok) {
   const st = await liveState(env), probe = liveData(st.S, Date.now(), st.subs);
-  const claims = await claimsReset(env, st.claims, probe.live), mine = await myClaim(tok, claims);
+  const claims = await claimsReset(env, st.claims, probe.live && !probe.ended), mine = await myClaim(tok, claims);
   const L = mine ? liveData(st.S, Date.now(), st.subs, mine.pid) : probe;
   if (!L.live) return { L, claims, mine: null, S: st.S, keys: {} };
   const taken = new Set(claims.map(c => c.pid)), keys = {};
@@ -435,7 +448,7 @@ async function livePublic(env, tok) {
 }
 async function liveClaim(req, env) {
   const b = await req.json().catch(() => ({})), { L, claims, mine, keys } = await livePublic(env, b.old);
-  if (!L.live) return J({ error: 'No live session right now' }, 409);
+  if (!L.live || L.ended) return J({ error: L.ended ? 'Session ended – the live page is read only' : 'No live session right now' }, 409);
   const x = L.pick.find(o => o.k === String(b.k || ''));
   if (!x) return J({ error: 'Name not found' }, 404);
   const pid = keys[x.k];
@@ -453,7 +466,7 @@ async function liveClaim(req, env) {
    One score per game: pending or accepted locks it; a rejected score reopens it. Nothing changes the data until the tablet accepts it. */
 async function liveScore(req, env) {
   const b = await req.json().catch(() => ({})), { L, mine, S } = await livePublic(env, b.t);
-  if (!L.live) return J({ error: 'No live session right now' }, 409);
+  if (!L.live || L.ended) return J({ error: L.ended ? 'Session ended – scores can no longer be sent' : 'No live session right now' }, 409);
   const r = L.results.find(x => x.k === String(b.k || '')), fix = !!b.c;
   if (!r) return J({ error: 'Game not found' }, 404);
   if (!fix && r.sc) return J({ error: 'This game already has a score' }, 409);

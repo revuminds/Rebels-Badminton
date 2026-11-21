@@ -306,6 +306,12 @@ tr.grp td{background:var(--bg);color:var(--y);font-weight:700;font-size:12px;let
 .gcb{height:44px;padding:0 12px;border-radius:10px;border:2px solid var(--y);background:transparent;color:var(--y);font-weight:700;font-size:13px;white-space:nowrap}
 .mvw{position:relative;flex:none}.mvm{position:absolute;right:0;top:48px;z-index:10;background:var(--rail);border:2px solid var(--bd);border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px;min-width:200px}
 .mvm button{height:44px;border:0;border-radius:9px;background:var(--pn);color:var(--tx);font-weight:600;font-size:14px;text-align:left;padding:0 12px}
+.gcb.on{background:var(--y);color:var(--bg)}
+/* v23: court queue = names only; warnings on upcoming games */
+.qnm{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:10px 12px;min-width:0}
+.qnt{flex:1;min-width:0;font-size:16px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}.qnt .vs{color:var(--y);font-weight:800;font-size:13px;margin:0 4px}
+.upbox .gcard{flex-wrap:wrap}.gwarn{flex-basis:100%;color:var(--bad);font-weight:700;font-size:14px;padding:2px 4px 2px 34px}
+.lvdot{width:14px;height:14px;min-width:14px;max-width:14px;min-height:14px;max-height:14px;flex:none;border-radius:50%;border:0;padding:0;background:var(--bd)}.lvdot.on{background:var(--y)}
 .upbox{border:3px solid var(--y);border-radius:18px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;background:var(--pn)}
 .uph{font:900 30px 'Big Shoulders Display',sans-serif;color:var(--y);letter-spacing:.04em}.ups{font-size:14px;color:var(--mu)}
 .apg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -526,7 +532,7 @@ let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}
 if(!S)S=blank();
-function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g)});const t=JSON.stringify(S);
+function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>g.up.filter(x=>x.ac===i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
   try{localStorage.setItem(KEY,t)}catch(e){toast('Could not save – export a backup')}
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}
@@ -654,6 +660,8 @@ function G(d){let g=S.games[d];
   if(!Array.isArray(g.up))g.up=[];if(!Array.isArray(g.qq))g.qq=[];if(!g.closed)g.closed={};
   if(!g.v12&&g.st){g.qq=g.nxt.map(q=>q&&q.some(Boolean)?[{q:q.slice(),m:1}]:[]);g.nxt=g.nxt.map(()=>NUL4());g.v12=1}
   while(g.qq.length<n)g.qq.push([]);
+  /* v23: court queues live inside Upcoming (x.ac = assigned court); g.qq is only a copy for the live page (written in save) */
+  if(!g.v23){g.up=[].concat(...g.qq.map((L,i)=>(L||[]).map(x=>Object.assign(x,{ac:i,m:1}))),g.up);g.v23=1}
   if(running(g)){const onC=new Set(g.cur.flat().filter(Boolean)),t=Date.now();onIds(d).forEach(id=>{if(eligible(d,id)&&!onC.has(id)&&g.since[id]==null)g.since[id]=t})}
   return g}
 const k2=(a,b)=>a<b?a+'|'+b:b+'|'+a;
@@ -713,8 +721,8 @@ const blocked=(g,id,t)=>(g.strk[id]||0)>=2&&!(g.since[id]!=null&&t-g.since[id]>=
 const logIt=(g,m)=>{g.log.unshift({t:Date.now(),m});if(g.log.length>60)g.log.length=60};
 const onCourt=g=>new Set(g.cur.flat().filter(Boolean));
 /* how many upcoming/queued games each player is in */
-function inGames(g){const m={};const f=x=>x.q.forEach(id=>{if(id)m[id]=(m[id]||0)+1});g.up.forEach(f);g.qq.forEach(L=>L.forEach(f));return m}
-function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),prev:new Set()};g.qq.forEach(L=>L.forEach(x=>ctxAdd(c,x.q)));g.up.forEach(x=>ctxAdd(c,x.q));return c}
+function inGames(g){const m={};g.up.forEach(x=>x.q.forEach(id=>{if(id)m[id]=(m[id]||0)+1}));return m}
+function ctxOf(g){const proj=counts(g,true),inUp={},c={proj,inUp,onC:onCourt(g),prev:new Set()};g.up.forEach(x=>ctxAdd(c,x.q));return c}
 function ctxAdd(c,q){q.forEach(id=>{if(id){c.proj[id]=(c.proj[id]||0)+1;c.inUp[id]=(c.inUp[id]||0)+1}});c.prev=new Set(q.filter(Boolean))}
 /* suggestion only: best players to fill `need` empty slots next to `keep` (fair share first, dummies last, levels mixed) */
 function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter(Boolean));
@@ -726,15 +734,15 @@ function pickFor(g,keep,need,cx){const d=g.d,t=Date.now(),ex=new Set(keep.filter
 /* the app keeps ≥5 upcoming games: 'fill' tops up / refills slots it emptied, 'all' also re-picks every upcoming game the admin has not touched.
    Queued games and anything the admin placed are never changed – except players who left or were turned off. */
 /* v14: players who just went on court are taken out of every later game (incl. manual ones) and refilled */
-function clearFrom(g,ids,skip){if(g.fp)return [];const s=new Set(ids.filter(Boolean)),hit=new Set();[...g.qq.flat(),...g.up].forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
+function clearFrom(g,ids,skip){if(g.fp)return [];const s=new Set(ids.filter(Boolean)),hit=new Set();g.up.forEach(x=>{if(x===skip)return;x.q=x.q.map(id=>{if(s.has(id)){hit.add(id);x.rf=1;return null}return id})});return [...hit]}
 function autoNext(g,mode,why){if(!running(g))return 0;if(g.fp){fpSync(g);return 0}const d=g.d,on=new Set(onIds(d));let ch=0;const rp=mode==='rp';if(rp)mode='all';
   const oc=onCourt(g),bad0=id=>id&&(!on.has(id)||!!leftAt(d,id));
   /* Re-pick button (rp): also clears on-court, not-checked-in and duplicate players – even in games the admin edited */
-  if(rp){const seen=new Set();[...g.qq.flat(),...g.up].forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
+  if(rp){const seen=new Set();g.up.forEach(x=>{x.q=x.q.map(id=>{if(!id)return id;if(oc.has(id)||!arrived(d,id)||seen.has(id)){x.rf=1;ch=1;return null}seen.add(id);return id})})}
   const bad=bad0;
-  g.qq.forEach((L,i)=>{if(g.closed[i]&&L.length){g.up.unshift(...L);g.qq[i]=[];ch=1}});
-  if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m);if(g.up.length!==n0)ch=1}
-  const all=[...g.qq.flat(),...g.up];
+  g.up.forEach(x=>{if(x.ac!=null&&g.closed[x.ac]){delete x.ac;ch=1}});
+  if(mode==='all'){const n0=g.up.length;g.up=g.up.filter(x=>x.m||x.ac!=null);if(g.up.length!==n0)ch=1}
+  const all=g.up.slice();
   all.forEach(x=>{if(x.q.some(bad)){x.q=x.q.map(id=>bad(id)?null:id);x.rf=1;ch=1}else if(!x.m&&x.q.some(v=>!v))x.rf=1});
   g.up=g.up.filter(x=>x.q.some(Boolean)||!x.m);
   const cx=ctxOf(g);
@@ -743,7 +751,8 @@ function autoNext(g,mode,why){if(!running(g))return 0;if(g.fp){fpSync(g);return 
   const lu=g.up[g.up.length-1];cx.prev=new Set(lu?lu.q.filter(Boolean):[]);
   for(let k=0;k<12&&g.up.length<5;k++){const ids=pickFor(g,NUL4(),4,cx);if(!ids)break;const q=orderQ(ids,g);g.up.push({q,m:0,a:q.slice()});ctxAdd(cx,q);ch=1}
   if(ch&&why)logIt(g,why);return ch}
-const gList=(g,t,i)=>t==='u'?g.up:g.qq[i];
+const gList=(g,t,i)=>t==='u'?g.up:null;
+const qOf=(g,i)=>g.up.filter(x=>x.ac===i);
 
 /* ---------- planned games (before Start session): whole booked time, per court ---------- */
 /* learned game length: real timed games (5–30 min), per level band; 15 min until 5 real games */
@@ -806,7 +815,7 @@ function sendCourt(g,i,x){const t=Date.now(),q=x.q,d=g.d;if(!running(g))return;i
   const ns=noSx(q);if(ns.length)return toast('Set gender for '+ns.map(nameOf).join(', ')+' first (Players)');
   if(!fmtGate(q,'on '+cname(d,i)))return;
   const D=day(d);D.att=D.att||{};q.forEach(id=>{const a=D.att[id];if(!a||!a.a){D.att[id]={a:t};logIt(g,nameOf(id)+' checked in (sent on court)')}else if(a.l)a.l=0});
-  [g.up,...g.qq].forEach(L=>{const k=L.indexOf(x);if(k>=0)L.splice(k,1)});
+  {const k=g.up.indexOf(x);if(k>=0)g.up.splice(k,1)}
   const cl=clearFrom(g,q,x);if(cl.length)logIt(g,cl.map(nameOf).join(', ')+' now on '+cname(d,i)+' → replaced in their later games');
   q.forEach(id=>{const w=g.since[id]!=null?t-g.since[id]:Infinity;g.strk[id]=w<REST?(g.strk[id]||0)+1:1;benchOff(g,id,t)});
   g.curN=g.curN||[];g.curN[i]=x.n||0;
@@ -851,12 +860,15 @@ const fpCur=g=>new Set((g.curN||[]).filter(Boolean));
 const fpStarted=g=>!!(g.hist.length||g.cur.some(q=>q&&q.every(Boolean)));
 /* live: Upcoming = the planned games not yet queued / on court / done (in game order). Edits in Upcoming / queues are kept in the plan. */
 function fpSync(g){if(!g.fp)return;const by={};g.fp.forEach(x=>by[x.n]=x);
-  [...g.qq.flat(),...g.up].forEach(x=>{const f=x.n&&by[x.n];if(f&&x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}});
-  const inQ=new Set(g.qq.flat().filter(x=>x.n).map(x=>x.n)),cur=fpCur(g),dn=fpDone(g);
-  g.up=g.fp.filter(x=>!x.x&&!dn.has(x.n)&&!inQ.has(x.n)&&!cur.has(x.n)&&x.q.some(Boolean)).map(x=>({q:x.q.slice(),m:1,n:x.n,c:x.c}))}
+  g.up.forEach(x=>{const f=x.n&&by[x.n];if(!f)return;if(x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}if(x.ac!=null)f.ac=x.ac;else delete f.ac});
+  const cur=fpCur(g),dn=fpDone(g),ok=x=>!x.x&&!dn.has(x.n)&&!cur.has(x.n)&&x.q.some(Boolean);
+  /* v23: your order in Upcoming (☰ drag) is kept; games new to Upcoming go in by game number */
+  const ord=[...new Set(g.up.filter(x=>x.n&&by[x.n]&&ok(by[x.n])).map(x=>x.n))],have=new Set(ord);
+  g.fp.forEach(x=>{if(!ok(x)||have.has(x.n))return;const k=ord.findIndex(m=>m>x.n);if(k<0)ord.push(x.n);else ord.splice(k,0,x.n)});
+  g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;return o})}
 /* keep: games already played, on court, queued, or edited by you (if all their players are still here) – the rest is re-planned */
-function planFull(g,re){const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
-  const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.qq.flat().filter(x=>x.n).map(x=>x.n)),ok=new Set(ids);
+function planFull(g,re){if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
+  const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.up.filter(x=>x.n&&x.ac!=null).map(x=>x.n)),ok=new Set(ids);
     g.fp.forEach(x=>{if(dn.has(x.n))keep[x.n]=Object.assign({},x,{dn:1});else if(cur.has(x.n)||inQ.has(x.n)||x.x)keep[x.n]=x;else if(x.m&&x.q.every(id=>id&&ok.has(id)))keep[x.n]=x})}
   const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
   g.fp=best.out.map(x=>{const y=Object.assign({},x);delete y.dn;return y});rotCourts(g,keep);g.fpAt=Date.now();if(running(g)){g.up=[];fpSync(g)}return 1}
@@ -872,11 +884,52 @@ function rotCourts(g,keep){keep=keep||{};const R={},cc={};g.fp.forEach(x=>(R[x.r
     L.forEach(x=>x.q.forEach(id=>{if(id){cc[id]=cc[id]||{};cc[id][x.c]=(cc[id][x.c]||0)+1}}))});
   g.fp.sort((a,b)=>a.n-b.n)}
 
+/* ---------- v23: live (re-)plan on a round model ----------
+   Round 0 = the games on court now. Each court's remaining games follow in order: a busy court's next game is round 1,
+   a free court's next game starts now (round 0). Hard: nobody twice in a round, nobody on court now in round 1.
+   Soft (existing cap): max 2 in a row – only broken when a round can't be filled otherwise (fewer than 6 players per court).
+   Kept as they are: played, on court, not played, assigned (court queue) and edited games. */
+const JUST=5*60e3;
+function justPlayed(g,t){t=t||Date.now();const oc=onCourt(g),s=new Set();Object.keys(g.since||{}).forEach(id=>{if(!oc.has(id)&&t-g.since[id]<JUST&&g.hist.some(h=>h.ids&&h.ids.includes(id)&&t-(h.at||0)<JUST))s.add(id)});return s}
+function planLive(g,re){const d=g.d,ids=fullIds(g),C=courtsOf(d),t=Date.now();if(ids.length<4)return toast('Check in at least 4 players (with gender set) first'),0;
+  const fp=g.fp||[],dn=fpDone(g),cur=fpCur(g),ok=new Set(ids),open=C.map((c,i)=>!g.closed[i]),busyC=C.map((c,i)=>!!(g.cur[i]&&g.cur[i].every(Boolean)));
+  if(!open.some(Boolean))return toast('All courts are closed'),0;
+  const fixed=fp.filter(x=>dn.has(x.n)||cur.has(x.n)||x.x),pos=C.map(()=>[]),used=new Set(),kc=k=>{if(k!=null&&open[k])return k;let b=-1;open.forEach((o,i)=>{if(o&&(b<0||pos[i].length<pos[b].length))b=i});return b};
+  /* 1. games assigned to a court (its queue, in Upcoming order) */
+  g.up.forEach(x=>{if(x.ac==null||!open[x.ac]||!x.q.some(Boolean))return;const f=x.n?fp.find(o=>o.n===x.n):null;if(f)used.add(f.n);pos[x.ac].push({k:{q:x.q.slice(),m:1,ac:x.ac,pts:f&&f.pts},n0:x.n||1e9})});
+  /* 2. the rest of the plan (edited games kept), or – no plan yet – the session's remaining slots */
+  let nums;
+  if(re&&g.fp){const rest=fp.filter(x=>!fixed.includes(x)&&!used.has(x.n)).sort((a,b)=>a.n-b.n);nums=rest.map(x=>x.n).concat([...used]).sort((a,b)=>a-b);
+    rest.forEach(x=>{const c=kc(x.c);if(c<0)return;const keep=x.m&&x.q.every(id=>id&&ok.has(id));pos[c].push({k:keep?{q:x.q.slice(),m:1,pts:x.pts}:null,n0:x.n})})}
+  else{const man=g.up.filter(x=>x.ac==null&&x.m&&x.q.every(id=>id&&ok.has(id)));man.forEach(x=>{const c=kc(null);if(c>=0)pos[c].push({k:{q:x.q.slice(),m:1},n0:0})});
+    const sl=fullSlots(d),n=Math.max(0,sl.length-g.hist.length-busyC.filter(Boolean).length-pos.flat().length);
+    sl.slice(sl.length-n).forEach(s=>{const c=kc(s.c);if(c>=0)pos[c].push({k:null,n0:s.n})});nums=sl.slice(sl.length-pos.flat().length).map(s=>s.n)}
+  /* 3. rounds: a court's p-th remaining game is round p (+1 when the court is busy) */
+  const slots=[],keep={};let tn=0;pos.forEach((L,i)=>{L.sort((a,b)=>(a.k&&a.k.ac!=null?0:1)-(b.k&&b.k.ac!=null?0:1)||a.n0-b.n0);L.forEach((p,k)=>{const s={n:++tn,r:k+(busyC[i]?1:0),c:i};slots.push(s);if(p.k)keep[s.n]=Object.assign(p.k,{n:s.n,r:s.r,c:i})})});
+  slots.sort((a,b)=>a.r-b.r||a.c-b.c);
+  const oc=onCourt(g),jp=justPlayed(g,t),strk={};ids.forEach(id=>{if(oc.has(id)||jp.has(id))strk[id]=Math.max(1,g.strk[id]||1)});
+  const P1=ids.filter(id=>!isDum(d,id)),W1=P1.filter(isF).length,nP=P1.filter(id=>W1>=2||!isF(id)).length;
+  /* ≥ 6 players per open court: the 2-in-a-row cap is hard (a slot waits rather than a 3rd game in a row) */
+  const pre={cur:g.cur.filter(q=>q&&q.every(Boolean)),onC:oc,jp,strk,hard:nP>=6*open.filter(Boolean).length};
+  const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k,pre);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
+  /* 4. numbers: the free game numbers, in round order; on-court games become round B, the next rounds follow */
+  const B=fixed.filter(x=>!cur.has(x.n)).reduce((a,x)=>Math.max(a,x.r+1),0),out=best.out.slice().sort((a,b)=>a.r-b.r||a.c-b.c);
+  nums=nums.slice(0,out.length);let mx=Math.max(0,...fp.map(x=>x.n),...nums);while(nums.length<out.length)nums.push(++mx);nums.sort((a,b)=>a-b);
+  const nw=out.map((x,k)=>{const y={n:nums[k],r:B+x.r,c:x.c,q:x.q.slice(),a:(x.a||x.q).slice(),m:x.m?1:0};if(x.pts)y.pts=x.pts;if(x.ac!=null)y.ac=x.ac;return y});
+  g.fp=fixed.map(x=>cur.has(x.n)?Object.assign({},x,{r:B}):x).concat(nw).sort((a,b)=>a.n-b.n);g.fpAt=t;g.up=[];fpSync(g);return 1}
+/* players of q who are on a court now: [{id,i}] */
+function clashOf(g,q){const r=[];(q||[]).forEach(id=>{if(!id)return;const i=g.cur.findIndex(c=>c&&c.every(Boolean)&&c.includes(id));if(i>=0)r.push({id,i})});return r}
+/* ▶ Start next on free court i: games assigned to it first (your order), then unassigned ones in Upcoming order.
+   Never a game with a player on court; a game without players who just came off wins over one with them. -1 = none. */
+function nextFor(g,i){const jp=justPlayed(g);let b=null;g.up.forEach((x,k)=>{if(x.ac!=null&&x.ac!==i)return;if(clashOf(g,x.q).length)return;
+    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}
+
 /* ===== v17 scheduler (spec B + E): fair full-session plan =====
    Priority when rules conflict: 1 equal games / rest → 2 level balance → 3 partner variety → 4 opponent variety.
    Formats: MD (4 men) · WD (4 women) · XD (each team 1M+1W). 1W+3M and 3W+1M are never auto-scheduled.
    Fill-in (tick) players: no target; used for gaps and to give participants a cool-down after 2 games in a row. */
-const RATE=3;                                              /* target games per player per hour */
+const RATE=3;                                              /* games per player per hour the courts allow (10-min games, 8 per court) */
+const TGTS=()=>num(S.def.tgt)||6;                           /* v23: target games per player for the WHOLE session (Settings → Scheduling) */
 const STRONG=()=>S.def.strong==null?3:num(S.def.strong);    /* level index ≥ this = strong (3 = Intermediate +) */
 const PWR=()=>S.def.pwr==null?1:num(S.def.pwr);             /* power games per strong player per hour */
 const isStrong=id=>lvOf(id)>=STRONG();
@@ -928,16 +981,18 @@ function planCtx(g,ids){const d=g.d,Wall=ids.filter(isF).length,part=ids.filter(
 function pick4(L,want){const M=L.filter(id=>!isF(id)),W=L.filter(isF),c=[];if(M.length>=4)c.push(M.slice(0,4));if(W.length>=2&&M.length>=2)c.push(W.slice(0,2).concat(M.slice(0,2)));if(W.length>=4)c.push(W.slice(0,4));
   let b=null;c.forEach(q=>{const k=q.filter(id=>want.has(id)).length;if(!b||k>b.k)b={k,q}});return b&&b.k?b.q:null}
 const hourOf=(r,H)=>Math.min(H-1,Math.floor(r*FULL_MIN/60));
-function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po={},wd={},xd={},pw={},out=[];let em=0,b2=0,b3=0,gsum=0;
+function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={},po={},wd={},xd={},pw={},out=[];let em=0,b2=0,b3=0,gsum=0;
   const st={rt:P0.rt,pp,po,wd,xd,pol:P0.pol,wdTot:0,power:P0.power,owes:(id,h)=>P0.power&&P0.pwOK.has(id)&&(pw[id+'|'+h]||0)<PWR()};
   const pairs=q=>{pp[k2(q[0],q[1])]=(pp[k2(q[0],q[1])]||0)+1;pp[k2(q[2],q[3])]=(pp[k2(q[2],q[3])]||0)+1;[[0,2],[0,3],[1,2],[1,3]].forEach(([x,y])=>po[k2(q[x],q[y])]=(po[k2(q[x],q[y])]||0)+1);
     const nf=q.filter(isF).length;if(nf===4){q.forEach(w=>wd[w]=(wd[w]||0)+1);st.wdTot++}else if(nf===2)q.filter(isF).forEach(w=>xd[w]=(xd[w]||0)+1)};
-  g.hist.forEach(h=>{if(!h.n&&h.ids&&h.ids.every(Boolean)){h.ids.forEach(id=>c[id]=(c[id]||0)+1);pairs(h.ids)}});
-  const play=(q,r)=>{const full=q.every(Boolean);q.forEach(id=>{if(!id)return;c[id]=(c[id]||0)+1;strk[id]=last[id]===r-1?(strk[id]||0)+1:1;last[id]=r;
+  g.hist.forEach(h=>{if((pre||!h.n)&&h.ids&&h.ids.every(Boolean)){h.ids.forEach(id=>c[id]=(c[id]||0)+1);pairs(h.ids)}});
+  const play=(q,r)=>{const full=q.every(Boolean);q.forEach(id=>{if(!id)return;c[id]=(c[id]||0)+1;if(last[id]===r)return;strk[id]=last[id]===r-1?(strk[id]||0)+1:1;last[id]=r;
       if(!P0.dum.has(id)){if(strk[id]===2)b2++;else if(strk[id]>=3)b3++}});
     if(full){pairs(q);if(P0.power&&q.every(isStrong)){const h=hourOf(r,P0.H);q.forEach(id=>pw[id+'|'+h]=(pw[id+'|'+h]||0)+1)}}};
-  const R=slots.length?slots[slots.length-1].r+1:0;
-  for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();
+  /* v23 live: games on court now = round 0 (they count as games); players who just came off start with their streak */
+  if(pre){pre.cur.forEach(q=>play(q,0));Object.keys(pre.strk).forEach(id=>{if(pre.onC.has(id)){strk[id]=pre.strk[id]}else{last[id]=-1;strk[id]=pre.strk[id]}})}
+  const R=slots.length?Math.max(...slots.map(s=>s.r))+1:0;
+  for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();if(pre&&r<2)pre.onC.forEach(id=>busy.add(id));
     rs.forEach(s=>{const k=keep[s.n];if(!k)return;out.push(k);k.q.forEach(id=>id&&busy.add(id));play(k.q,r)});
     const free=rs.filter(s=>!keep[s.n]);if(!free.length)continue;const h=hourOf(r,P0.H);
     const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id];
@@ -949,7 +1004,9 @@ function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po=
     if((mode===1||mode===3||urg)&&P0.power){const ow=new Set(fresh.filter(id=>st.owes(id,h)));if(ow.size>=(urg?1:2))F=pick4([...fresh.filter(id=>ow.has(id)),...fresh.filter(id=>P0.pwOK.has(id)&&!ow.has(id))],ow)}
     if(!F&&(mode===2||mode===3)&&P0.pol.wd&&(!P0.pol.quota||st.wdTot<P0.pol.quota)){const rs0=new Set(ks.filter(x=>x.t===0).map(x=>x.id)),fw=fresh.filter(isF),nd=new Set(fw.filter(w=>!wd[w]&&rs0.has(w)));if(nd.size&&fw.length>=4)F=fw.filter(w=>nd.has(w)).concat(fw.filter(w=>!nd.has(w))).slice(0,4)}
     if(F&&free.length)pool=F.concat(pool.filter(id=>!F.includes(id)));
-    const n=Math.min(free.length,Math.floor(pool.length/4)),sel=evenSel(pool,n),ng=sel.length/4;em+=free.length-ng;
+    const n=Math.min(free.length,Math.floor(pool.length/4)),tt={};ks.forEach(x=>tt[x.id]=x.t);
+    /* v23: keep the 2-in-a-row cap when the round can be filled without it (also when fixing the women count) */
+    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
     const gr=groupBest(sel,st,h);
     gr.forEach((q,k)=>{const s=free[k];gsum+=gcost2(q,st,h).c;out.push({n:s.n,r:s.r,c:s.c,q:q.slice(),a:q.slice(),m:0});play(q,r)})}
   /* score the whole plan */
@@ -961,7 +1018,7 @@ function schedOnce(g,ids,slots,keep,P0,att){const c={},last={},strk={},pp={},po=
 /* achievable games per hour for participants (target 3/hr → max 8 players per court) */
 function rateInfo(g){const d=g.d,ids=fullIds(g),part=ids.filter(id=>!isDum(d,id)),nC=courtsOf(d).length,hrs=Math.max(.5,sessLenH(d));
   const slots=fullPer(d).reduce((a,n)=>a+n,0)*4,rate=part.length?Math.min(60/FULL_MIN,slots/part.length/hrs):0;
-  return{part:part.length,nC,rate,over:part.length>nC*8,tgt:Math.round(RATE*hrs)}}
+  return{part:part.length,nC,rate,over:part.length>nC*8,tgt:TGTS(),each:part.length?slots/part.length:0}}
 
 /* ---------- validation layer: every game before it is queued / sent / changed by hand ---------- */
 function checkGame(g,q,o){o=o||{};const d=g.d,e=[],ids=q.filter(Boolean);
@@ -1494,8 +1551,9 @@ function erSave(){const e=ui.er,d=e.d,g=G(e.d),base=g.st||bookStart(d),bad=[];le
 /* ---------- v17 Games page: format badge, plan notes, games-per-player table ---------- */
 const tyB=q=>{const t=gType(q);return '<span class="fmt f'+t+'">'+t+'</span>'};
 function fpNotes(g){const d=g.d,ri=rateInfo(g),ids=fullIds(g),W=ids.filter(isF),L=[];
-  if(ri.over)L.push(['amb',ri.part+' players on '+pl(ri.nC,'court')+' (target needs ≤ '+ri.nC*8+') → about '+ri.rate.toFixed(1)+' games per hour each instead of '+RATE+'. Games are still shared fairly.']);
-  else if(ri.part)L.push(['ok',ri.part+' players · about '+Math.min(ri.rate,6).toFixed(1)+' games per hour each (target '+RATE+')']);
+  /* v23: whole session, not per hour – min/max = played + planned games of each player (fill-ins not counted) */
+  if(ri.part){const cn={};(g.fp||[]).forEach(x=>{if(!x.x&&x.q.every(Boolean))x.q.forEach(id=>cn[id]=(cn[id]||0)+1)});const pc=ids.filter(id=>!isDum(d,id)).map(id=>cn[id]||0);
+    L.push([ri.each+.05<ri.tgt?'amb':'ok',ri.part+' players · about '+ri.each.toFixed(1)+' games each this session (target '+ri.tgt+')'+(pc.length?' · min '+Math.min(...pc)+' · max '+Math.max(...pc):'')+(ri.each+.05<ri.tgt?' · too many players for '+ri.tgt+' each – add court time':'')])}
   if(W.length===1)L.push(['amb','Only 1 woman on – mixed games need 2 women, so '+nameOf(W[0])+' can only play via a manual swap (format override).']);
   const P0=planCtx(g,ids);if(P0.power)L.push(['ok','Power games: '+P0.pwOK.size+' strong players · each gets '+PWR()+' per hour; their other games are mentor games']);
   else if(ids.filter(isStrong).length)L.push(['mu','Fewer than 4 strong players who can form a legal game → mentor games only']);
@@ -1505,11 +1563,11 @@ function vGPP(g,ppl){const d=g.d,run=running(g),hrs=Math.max(.5,sessLenH(d)),now
   g.hist.forEach(h=>{if(h.sa===h.sb)return;(h.sa>h.sb?h.ids.slice(0,2):h.ids.slice(2)).forEach(id=>win[id]=(win[id]||0)+1)});
   let R=0;if(g.fp){R=Math.max(0,...g.fp.map(x=>x.r+1));g.fp.forEach(x=>{if(x.x)return;x.q.forEach(id=>{if(!id)return;(rr[id]=rr[id]||new Set()).add(x.r);if(!dn.has(x.n))pln[id]=(pln[id]||0)+1})})}
   const frac=run&&g.st?Math.min(1,playMs(g,now)/(hrs*3600e3)):g.en?1:0;
-  const rows=ppl.map(id=>{const fi=isDum(d,id),pres=g.st&&att(d,id)?Math.min(1,presentSec(g,id)/(hrs*3600)||1):1,tg=fi?0:Math.max(1,Math.round(RATE*hrs*pres)),pc=cnt[id]||0,pn=pln[id]||0;
+  const rows=ppl.map(id=>{const fi=isDum(d,id),pres=g.st&&att(d,id)?Math.min(1,presentSec(g,id)/(hrs*3600)||1):1,tg=fi?0:Math.max(1,Math.round(TGTS()*pres)),pc=cnt[id]||0,pn=pln[id]||0;
     const st=fi?'gr':frac?(pc>=Math.floor(tg*frac+1e-9)?'ok':'amb'):(pc+pn>=tg?'ok':'amb'),rs=g.fp?R-(rr[id]?rr[id].size:0):'–';
     return '<tr class="gpp '+st+'"><td>'+pwho(id,30)+'</td><td><span class="sxt'+(isF(id)?' f':'')+'">'+(isF(id)?'F':'M')+'</span></td><td class="n">'+pc+'</td><td class="n">'+pn+'</td><td class="n">'+(win[id]||0)+'</td><td class="n">'+rs+'</td><td class="n">'+(fi?'fill-in':tg)+'</td><td><span class="dot '+st+'"></span></td></tr>'}).join('');
   const open=ui.gpo!==0;
-  return '<section class="pn" style="gap:8px"><button class="mhead" data-a="gpo"><span class="lab">GAMES PER PLAYER · TARGET '+RATE+'/HOUR · GREEN ON TARGET · AMBER BEHIND</span><span>'+(open?'▴':'▾')+'</span></button>'+
+  return '<section class="pn" style="gap:8px"><button class="mhead" data-a="gpo"><span class="lab">GAMES PER PLAYER · TARGET '+TGTS()+'/SESSION · GREEN ON TARGET · AMBER BEHIND</span><span>'+(open?'▴':'▾')+'</span></button>'+
    (open?(ppl.length?'<div style="overflow-x:auto"><table class="gppt"><thead><tr><th>PLAYER</th><th>M/F</th><th class="n">PLAYED</th><th class="n">PLANNED</th><th class="n">WINS</th><th class="n">RESTED ROUNDS</th><th class="n">TARGET</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty" style="padding:12px">No players yet.</div>'):'')+'</section>'}
 
 /* ---------- v17 H6: live bench ("desk") status – longest-sitting player on top ---------- */
@@ -1754,7 +1812,8 @@ function sgWrap(h){let n=0;return h.replace(/<section class="pn">([\s\S]*?)<\/se
   return '<section class="pn sg open">'+hd+b.replace(/<div class="laby">[\s\S]*?<\/div>/,'')+'<div class="row" style="justify-content:flex-end"><button class="btn sm" data-a="sgsave">Save</button></div></section>'})}
 /* v17 Settings → Scheduling */
 function vSchedSet(){const st=STRONG(),pw=PWR();
-  return '<section class="pn"><div class="laby">SCHEDULING</div><div style="font-size:14px;color:var(--mu)">Target '+RATE+' games per player per hour (10-min games → up to 8 players per court). Fair order: equal games &amp; rest → level balance → new partners → new opponents. Fill-ins (tick in Games → Players) only fill gaps and rest players.</div>'+
+  return '<section class="pn"><div class="laby">SCHEDULING</div><div style="font-size:14px;color:var(--mu)">Target '+TGTS()+' games per player per session (e.g. 16 players × 6 = 96 player-slots = 2 courts × 2 h × 10-min games). Fair order: equal games &amp; rest → level balance → new partners → new opponents. Fill-ins (tick in Games → Players) only fill gaps and rest players.</div>'+
+   '<div class="row" style="flex-wrap:wrap;gap:8px"><span class="lab" style="margin-right:6px">TARGET GAMES PER PLAYER PER SESSION</span>'+[4,5,6,7,8].map(v=>'<button class="fc'+(TGTS()===v?' on':'')+'" data-a="dtgt" data-x="'+v+'">'+v+'</button>').join('')+'</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:8px"><span class="lab" style="margin-right:6px">STRONG PLAYERS</span>'+[[2,'Intermediate and up'],[3,'Int + and up'],[4,'Advanced only']].map(([v,l])=>'<button class="fc'+(st===v?' on':'')+'" data-a="dstrong" data-x="'+v+'">'+l+'</button>').join('')+'</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:8px"><span class="lab" style="margin-right:6px">POWER GAMES PER STRONG PLAYER PER HOUR</span>'+[0,1,2].map(v=>'<button class="fc'+(pw===v?' on':'')+'" data-a="dpwr" data-x="'+v+'">'+v+'</button>').join('')+'</div>'+
    '<div class="row" style="flex-wrap:wrap;gap:12px"><label class="fl">Bench alert amber (min)<input class="fin" type="number" inputmode="numeric" min="1" value="'+esc(S.def.bAmb||20)+'" data-i="d_bAmb"></label><label class="fl">Bench alert red (min)<input class="fin" type="number" inputmode="numeric" min="1" value="'+esc(S.def.bRed||30)+'" data-i="d_bRed"></label></div>'+
@@ -1893,8 +1952,8 @@ const act={
  shuffle:()=>{},
  /* v16 full session plan */
  fpplan:()=>{const g=CG();if(planFull(g,false)){logIt(g,'Full session planned · '+g.fp.length+' games');save();render();toast(pl(g.fp.length,'game')+' planned')}},
- fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, queued and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
- fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=[];g.qq=g.qq.map(L=>L.filter(x=>!x.n));autoNext(g,'fill',null)}else g.psig='';save();render()},
+ fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
+ fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=g.up.filter(x=>!x.n);autoNext(g,'fill',null)}else g.psig='';save();render()},
  fpo:()=>{ui.fpo=!ui.fpo;render()},
  fpprint:()=>{const g=CG();if(!g.fp)return;const ti='Game schedule '+g.d,el=$('#print');el.className='sp';el.innerHTML=vFullPrint(g);
    setTimeout(()=>{try{if(NB&&NB.printPortrait)NB.printPortrait('Rebels Badminton - '+ti);else if(NB&&NB.print)NB.print('Rebels Badminton - '+ti);else window.print()}catch(err){toast('PDF not available')}},300)},
@@ -1915,7 +1974,7 @@ const act={
    if(y[1]==='+'&&!L.w&&gameWon(L.sa,L.sb,P))return toast('Game over at '+L.sa+' – '+L.sb+' (to '+P.pts+') · tap Stop & save');L[k]=Math.max(0,Math.min(c,L[k]+(y[1]==='+'?1:-1)));
    if(L.w&&L.w!==y[0]){L[k]=Math.min(L[k],c-1);L[o]=winOf(P,L[k])}save();render()},
  /* finance */
- dstrong:x=>{S.def.strong=+x;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},dpwr:x=>{S.def.pwr=+x;save();render()},
+ dstrong:x=>{S.def.strong=+x;Object.values(S.games).forEach(g=>{if(!g.st)g.psig=''});save();render()},dpwr:x=>{S.def.pwr=+x;save();render()},dtgt:x=>{S.def.tgt=+x;save();render()},
  theme:()=>{const l=!document.body.classList.contains('light');document.body.classList.toggle('light',l);try{localStorage.setItem('rebels.theme',l?'light':'dark')}catch(e){}render()},
  pf:(x,y)=>{ui.pf=ui.pf||{};ui.pf[x]=ui.pf[x]===y?'':y;$('#pgrid').innerHTML=vGrid();$('#pfl').innerHTML=vPfl()},
  gpo:()=>{ui.gpo=ui.gpo===0?1:0;render()},
@@ -2081,11 +2140,11 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const dup=q=>q.some(id=>id&&(im[id]||0)>1);
   const lines='<div class="l1"></div><div class="l2" style="left:36%"></div><div class="l2" style="right:36%"></div><div class="net"></div>';
   const openC=C.map((c,i)=>i).filter(i=>!g.closed[i]);
-  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=g.qq[i]||[],pi=cpill(d,i,now);
+  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=qOf(g,i),pi=cpill(d,i,now),nk=full||cl?-1:nextFor(g,i),nx=nk>=0?g.up[nk]:null;
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const ed=ui.ced===i&&full&&L.run;
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):'')+(L.run||L.sa||L.sb||L.el?'<button class="tbtn nos" data-a="savenos" data-x="'+i+'" title="Save the game with no score – the 4 players send it from the live page">■ Save · score from players</button>':''):
-      '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
+      '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(nx?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
@@ -2097,17 +2156,22 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
       body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="vcourt">'+VCRT+
         [0,1,2,3].map(k=>'<div class="vbox b'+k+'">'+cp(k)+'</div>').join('')+'<div class="vmid">'+sc(L.sa,'a')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div>'+sc(L.sb,'b')+'</div><span class="vlab ta">TEAM A</span><span class="vlab tb">TEAM B</span></div>'}
     else{const last=g.last[i];body='<div class="vcourt free'+(cl?' shut':'')+'">'+VCRT+'<div class="cwait vwait">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+(last.sa||last.sb?last.sa+' – '+last.sb:'score pending')+'</b> '+esc(tn(last,1))+'</span>':'')+
-      '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
+      '<span>'+(cl?'Court closed · reopen it with the Courts button':nx?'Court free · ▶ Start next takes '+(nx.n?'G'+nx.n:'Upcoming #'+(nk+1)):g.up.length?'Court free · every upcoming game has a player on court – wait or edit one':'Court free')+'</span></div></div>'}
+    /* v23: queue = the games assigned to this court in Upcoming · names only */
+    const T2=q=>esc(q.slice(0,2).map(id=>id?nameOf(id):'?').join(' & '))+' <span class="vs">vs</span> '+esc(q.slice(2).map(id=>id?nameOf(id):'?').join(' & '));
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
-      (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span>'+row('q',i,k,x.q)+
-        '<div class="mvw"><button class="ol sm" data-a="mv" data-x="'+i+'.'+k+'">Move ▾</button>'+(ui.mv===i+'.'+k?'<div class="mvm"><button data-a="mvup" data-x="'+i+'.'+k+'">↩ Back to Upcoming</button>'+openC.filter(j=>j!==i).map(j=>'<button data-a="mvc" data-x="'+i+'.'+k+'" data-y="'+j+'">To '+esc(cname(d,j))+'</button>').join('')+'<button data-a="mvx" aria-label="Close">×</button></div>':'')+'</div></div>').join(''):
+      (Q.length?Q.map((x,k)=>'<div class="qnm"><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span><span class="qnt">'+T2(x.q)+'</span></div>').join(''):
        '<div class="qempty">Empty · tap Assign on an upcoming game, or drag one here</div>')+'</div>';
     return '<section class="cblock" data-drop="c" data-i="'+i+'">'+head+body+qb+'</section>'}).join('');
+  /* v23: warnings on upcoming games – a player on court now, or twice in the same round of the plan */
+  const fpR={};(g.fp||[]).forEach(x=>fpR[x.n]=x.r);const inR={};g.up.forEach(x=>{if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{if(id){const k=fpR[x.n]+'|'+id;(inR[k]=inR[k]||[]).push(x.n)}})});
+  const warn=x=>{const w=clashOf(g,x.q).map(o=>'⚠ '+nameOf(o.id)+' on '+cname(d,o.i));if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{const L=id&&inR[fpR[x.n]+'|'+id];if(L&&L.length>1)w.push('⚠ '+nameOf(id)+' also in G'+L.filter(n=>n!==x.n).join(', G')+' (same round)')});
+    return w.length?'<div class="gwarn">'+esc(w.join(' · '))+'</div>':''};
   const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+(g.fp?' · from your full session plan':' · auto-picked')+' · × removes a player, then tap a name in All players</div>'+
     (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)&&!g.fp?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+(x.n?'<span class="qtag">G'+x.n+' · '+esc(cno(d,x.c))+' · '+gType(x.q)+'</span>':'')+row('u',0,k,x.q)+
-      '<button class="gcb" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>Assign ▾</button></div>').join(''):
+      '<button class="gcb'+(x.ac!=null?' on':'')+'" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>'+(x.ac!=null?esc(cname(d,x.ac)):'Assign')+' ▾</button>'+warn(x)+'</div>').join(''):
      '<div class="qempty">Upcoming games appear once 4 players are checked in (Players button).</div>')+'</section>';
-  const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.qq.length;i++){const k=(g.qq[i]||[]).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
+  const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.cur.length;i++){const k=qOf(g,i).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
     const k=g.up.findIndex(x=>x.q.includes(id));return k>=0?'Upcoming #'+(k+1):''};
   const w=id=>g.since[id]!=null?now-g.since[id]:-1,rk=id=>!arrived(d,id)?2:leftAt(d,id)?3:0;
   const L=ids.slice().sort((a,b)=>rk(a)-rk(b)||w(b)-w(a)||nameOf(a).localeCompare(nameOf(b)));
@@ -2123,7 +2187,7 @@ const VCRT='<svg class="vsvg" viewBox="0 0 700 1440" preserveAspectRatio="none" 
  '<path d="M20 720H680" stroke="#111" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M20 712V728M680 712V728" stroke="#fff" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>';
 
 /* ---------- check the 4 players before the game starts ---------- */
-function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}
+function cfGame(g){const c=ui.cf;if(!c)return null;return g.up[c.k]||null}
 function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=x.q;
   const pool=onIds(d).filter(id=>!leftAt(d,id)||q.includes(id));
   const sel=k=>{const cur=q[k];return '<div class="row" style="gap:8px">'+(cur?pav(cur,38):'')+'<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · Level: '+LVS[lvOf(id)]+(arrived(d,id)?'':' · not checked in')+'</option>').join('')+'</select></div>'};
@@ -2137,9 +2201,11 @@ function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=
 
 /* ---------- Courts pop-up: the only place a court is closed (reopen within 10 min) ---------- */
 const CLOSE_MS=10*60e3;
-function vAsg(){const g=CG(),d=g.d,k=ui.asg-1,now=Date.now();if(!g||!g.up[k]){ui.asg=0;return ''}
+function vAsg(){const g=CG(),d=g.d,k=ui.asg-1;if(!g||!g.up[k]){ui.asg=0;return ''}const x=g.up[k],cl=clashOf(g,x.q);
   return '<div class="modal" data-a="asgx"><div class="pn" data-a="noop" style="gap:12px;width:min(520px,92vw)"><div class="sb"><div class="laby">ASSIGN TO COURT</div><button class="ib" data-a="asgx" aria-label="Close">×</button></div>'+
-   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=(g.qq[i]||[]).length,f=n>=3;return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(f?' · full':'')+'</small></span></button>'}).join('')+'</div></div>'}
+   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=qOf(g,i).filter(o=>o!==x).length,me=x.ac===i,bad=cl.filter(o=>o.i!==i),f=!me&&(n>=3||bad.length);
+     return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+(me?';border-color:var(--y)':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+(me?'✓ ':'')+esc(c.n)+' <small style="color:'+(bad.length?'var(--bad)':'var(--mu)')+';font-weight:500">'+(bad.length?'⚠ '+esc(bad.map(o=>nameOf(o.id)+' on '+cname(d,o.i)).join(', ')):'Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(n>=3?' · full':''))+'</small></span></button>'}).join('')+
+   (x.ac!=null?'<button class="ol" data-a="asgu">Unassign · back to Upcoming only</button>':'')+'</div></div>'}
 function vCts(){const g=CG(),d=g.d,now=Date.now();
   return '<div class="modal" data-a="closects"><div class="pn" data-a="noop" style="gap:12px;width:min(620px,92vw)"><div class="sb"><div class="laby">COURTS</div><button class="ib" data-a="closects">×</button></div>'+
    courtsOf(d).map((c,i)=>{const cl=g.closed[i],pi=cpill(d,i,now);return '<div class="ckr" style="padding:10px 14px"><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">'+(cl?'Closed at '+hm(cl):'Open · '+pi.t)+'</small></span>'+
@@ -2159,11 +2225,13 @@ function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
     const nq=x.q.slice();nq[pk.s]=id;if(nq.every(Boolean)&&!fmtGate(nq,'upcoming game'))return render();
     x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
   save();render();window.scrollTo(0,ui.pickY||0)}
-function moveGame(g,src,t,i,k){const a=String(src).split('.'),SL=gList(g,a[0],+a[1]),sk=+a[2],x=SL&&SL[sk];if(!x)return;
-  const TL=t==='u'?g.up:g.qq[i];if(!TL)return;if(t!=='u'&&g.closed[i])return toast(cname(g.d,i)+' is closed');
-  if(TL!==SL&&t!=='u'&&TL.length>=3)return toast(cname(g.d,i)+' queue is full (3)');
-  SL.splice(sk,1);if(k<0||k>TL.length)k=TL.length;else if(TL===SL&&sk<k)k--;TL.splice(k,0,x);x.m=1;
-  if(SL!==TL&&a[0]==='u')autoNext(g,'fill',null);save();render()}
+/* v23: assign a game to a court (it stays in Upcoming); blocked when one of its players is on another court */
+function assignGame(g,x,i){if(!x)return;if(g.closed[i])return toast(cname(g.d,i)+' is closed');const bad=clashOf(g,x.q).filter(o=>o.i!==i);
+  if(bad.length)return toast(bad.map(o=>nameOf(o.id)).join(', ')+' is on '+cname(g.d,bad[0].i)+' – can’t assign to '+cname(g.d,i));
+  if(x.ac!==i&&qOf(g,i).length>=3)return toast(cname(g.d,i)+' queue is full (3)');x.ac=i;x.m=1;save();render()}
+/* ☰ drag reorders Upcoming; dropping on a court assigns the game there */
+function moveGame(g,src,t,i,k){const a=String(src).split('.'),sk=+a[2],x=g.up[sk];if(!x)return;if(t==='q')return assignGame(g,x,i);
+  g.up.splice(sk,1);if(k<0||k>g.up.length)k=g.up.length;else if(sk<k)k--;g.up.splice(k,0,x);save();render()}
 Object.assign(act,{
  cts:()=>{ui.cts=1;render()},closects:()=>{ui.cts=0;render()},
  ctclose:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast('Stop & save the game on '+cname(g.d,i)+' first');
@@ -2176,13 +2244,10 @@ Object.assign(act,{
  pickx:()=>{ui.pick=null;render();window.scrollTo(0,ui.pickY||0)},
  gx:(x,y)=>{const g=CG(),r=gRef(g,x);if(!r)return;r.q[+y]=null;r.m=1;const a=String(x).split('.');if(!r.q.some(Boolean)){const L=gList(g,a[0],+a[1]);L.splice(L.indexOf(r),1);if(r.n&&g.fp){const f=g.fp.find(o=>o.n===r.n);if(f){f.q=NUL4();f.x=1}}ui.pick=null;autoNext(g,'fill',null)}save();render()},
  apick:x=>{if(ui.pick)return pickName(x);act.pmod(x)},
- ucourt:(x,y)=>moveGame(CG(),'u.0.'+x,'q',+y,-1),
- asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const k=ui.asg-1;ui.asg=0;moveGame(CG(),'u.0.'+k,'q',+x,-1)},
- mv:x=>{ui.mv=ui.mv===x?null:x;render()},mvx:()=>{ui.mv=null;render()},
- mvup:x=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'u',0,0)},
- mvc:(x,y)=>{ui.mv=null;const a=String(x).split('.');moveGame(CG(),'q.'+a[0]+'.'+a[1],'q',+y,-1)},
+ asg:x=>{ui.asg=+x+1;render()},asgx:()=>{ui.asg=0;render()},asgc:x=>{const g=CG(),k=ui.asg-1;ui.asg=0;const o=g.up[k];if(o&&o.ac===+x)return render();assignGame(g,o,+x)},
+ asgu:()=>{const g=CG(),o=g.up[ui.asg-1];ui.asg=0;if(o)delete o.ac;save();render()},
  cfopen:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast(cname(g.d,i)+' still has a game');
-   if((g.qq[i]||[]).length)ui.cf={i,t:'q',k:0};else if(g.up.length){const k=g.fp?Math.max(0,g.up.findIndex(x=>x.c===i)):0;ui.cf={i,t:'u',k}}else return toast('No game waiting – add one in Upcoming');render()},
+   const k=nextFor(g,i);if(k<0)return toast(g.up.length?'Every upcoming game has a player on court – wait or edit one':'No game waiting – add one in Upcoming');ui.cf={i,t:'u',k};render()},
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */
@@ -2334,7 +2399,7 @@ function vBackup(){if(!ADMIN())return '<section class="pn"><div class="laby">BAC
 /* viewer: read-only – only looking around is allowed */
 const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave'.split(' '));
 /* game manager: no finance, settings, backup, accounts */
-const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
+const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr dtgt ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
 const viewBlock=(a,x)=>(VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a))||(GM()&&(GM_NO.has(a)||(a==='tab'&&(x==='finance'||x==='settings'))||(a==='htab'&&x==='fin')));
 const SYACT=({
  synow:()=>syncNow(true),syurl:()=>{const u=String(ui.syu||'').trim().replace(/\/+$/,'');if(!/^https:\/\/[^ ]+$/.test(u))return toast('Address must start with https://');SY.url=u;SY.rev=0;ui.syu=null;sySave();toast('Saved · log in again to use it');lockApp()},
@@ -2342,14 +2407,23 @@ const SYACT=({
  snrest:x=>snapRestore(+x),snundo:()=>undoRestore(),
  pubhide:x=>{const p=P(x);if(!p)return;if(p.hidePub)delete p.hidePub;else p.hidePub=1;save();render()},
  liveshare:()=>{ui.lvs=1;render()},closelvs:()=>{ui.lvs=0;render()},livecopy:()=>{const u=liveUrl();try{navigator.clipboard.writeText(u).then(()=>toast('Link copied'),()=>toast(u))}catch(e){toast(u)}},liveopen:()=>openUrl(liveUrl()),
- livewa:()=>openUrl('https://wa.me/?text='+encodeURIComponent('Rebels Badminton · live games & scores: '+liveUrl()))
+ lvq:x=>{ui.lvq=(+x+2)%2;render()}
 });
 /* H4 live link: one fixed URL, no login */
 const liveUrl=()=>String(SY.url||DEF_URL).replace(/\/+$/,'')+'/live';
-function vLiveShare(){const u=liveUrl();return '<div class="modal" data-a="closelvs"><div class="pn" data-a="noop" style="gap:14px;width:min(480px,92vw);align-items:center;text-align:center"><div class="laby">SHARE LIVE LINK</div>'+
-  '<div style="font-size:14px;color:var(--mu)">Players open it on their phone – no login. On only from 30 min before the session until End session. Shows courts, live scores, schedule and results – never money, phones or photos.</div>'+
-  '<div style="background:#fff;padding:10px;border-radius:12px">'+QR.svg(u,260)+'</div><div style="font-weight:700;word-break:break-all">'+esc(u)+'</div>'+
-  '<div class="row" style="flex-wrap:wrap;justify-content:center"><button class="btn" data-a="livecopy">Copy link</button><button class="ol" data-a="livewa">WhatsApp</button><button class="ol" data-a="liveopen">Open</button><button class="gh" data-a="closelvs">Close</button></div></div></div>'}
+/* v23: two QR codes – open the live page · or WhatsApp with the message ready (the phone picks the chat/group) */
+const waMsg=u=>"Rebels, here's our live link 🏸 Open it, tap *Participant* and select your name. Check it out guys!\n"+u;
+const waLive=u=>'https://wa.me/?text='+encodeURIComponent(waMsg(u));
+function vLiveShare(){const u=liveUrl(),k=ui.lvq?1:0,QP=[{t:'Scan to open the live page',q:u,s:u},{t:'Scan to share on WhatsApp · the phone opens WhatsApp with the message ready – pick the Rebels group',q:waLive(u),s:'WhatsApp message + link'}];
+  return '<div class="modal" data-a="closelvs"><div class="pn" data-a="noop" style="gap:14px;width:min(480px,92vw);align-items:center;text-align:center"><div class="laby">SHARE LIVE LINK · '+(k?'WHATSAPP':'OPEN')+'</div>'+
+  '<div style="font-size:14px;color:var(--mu)">Players open it on their phone – no login. On from 30 min before the session. After End session it shows the results and schedule (read only) for 48 h, then turns off – or switches to the next session when that one opens. Courts, scores, schedule and results – never money, phones or photos.</div>'+
+  '<div class="lvsw row" style="gap:10px;flex-wrap:nowrap;justify-content:center;touch-action:pan-y"><button class="ib" data-a="lvq" data-x="'+(k-1)+'" aria-label="Previous QR">◀</button><div class="lvqr" data-k="'+k+'"><div style="background:#fff;padding:10px;border-radius:12px">'+QR.svg(QP[k].q,250)+'</div></div><button class="ib" data-a="lvq" data-x="'+(k+1)+'" aria-label="Next QR">▶</button></div>'+
+  '<div class="row" style="gap:8px;justify-content:center">'+QP.map((p,i)=>'<button class="lvdot'+(i===k?' on':'')+'" data-a="lvq" data-x="'+i+'" aria-label="QR '+(i+1)+'"></button>').join('')+'</div>'+
+  '<div style="font-weight:700">'+esc(QP[k].t)+'</div><div style="font-size:13px;color:var(--mu);word-break:break-all">'+esc(QP[k].s)+'</div>'+
+  '<div class="row" style="flex-wrap:wrap;justify-content:center"><button class="btn" data-a="livecopy">Copy link</button><button class="ol" data-a="liveopen">Open</button><button class="gh" data-a="closelvs">Close</button></div></div></div>'}
+/* swipe left / right on the QR to switch */
+let LVX=null;document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('.lvsw'))LVX=e.clientX});
+document.addEventListener('pointerup',e=>{if(LVX==null)return;const dx=e.clientX-LVX;LVX=null;if(Math.abs(dx)>40&&ui.lvs){ui.lvq=ui.lvq?0:1;render()}});
 
 /* ===== v17 H3: logins (username + password, no emails) =====
    Never auto-login: every app open (after the logo) → account picker. Accounts used on this device are remembered as tiles.
@@ -2564,7 +2638,7 @@ migrate();save();render();const H0=document.querySelector('.home');if(H0)H0.clas
 /* H3: never auto-login – the account picker opens under the logo animation */
 ui.lg={step:'pick'};lgRender();
 /* test hooks (headless checks) */
-window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,rebels,vRebels,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui}};
+window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,rebels,vRebels,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui},planLive,nextFor,saveGame,justPlayed,onCourt,clashOf,fpDone,fpCur,qOf,assignGame,waLive,TODAY,autoNext};
 
 })();
 </script>

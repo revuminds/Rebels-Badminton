@@ -127,7 +127,7 @@ function vBackup(){if(!ADMIN())return '<section class="pn"><div class="laby">BAC
 /* viewer: read-only – only looking around is allowed */
 const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave'.split(' '));
 /* game manager: no finance, settings, backup, accounts */
-const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
+const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr dtgt ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
 const viewBlock=(a,x)=>(VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a))||(GM()&&(GM_NO.has(a)||(a==='tab'&&(x==='finance'||x==='settings'))||(a==='htab'&&x==='fin')));
 const SYACT=({
  synow:()=>syncNow(true),syurl:()=>{const u=String(ui.syu||'').trim().replace(/\/+$/,'');if(!/^https:\/\/[^ ]+$/.test(u))return toast('Address must start with https://');SY.url=u;SY.rev=0;ui.syu=null;sySave();toast('Saved · log in again to use it');lockApp()},
@@ -135,11 +135,20 @@ const SYACT=({
  snrest:x=>snapRestore(+x),snundo:()=>undoRestore(),
  pubhide:x=>{const p=P(x);if(!p)return;if(p.hidePub)delete p.hidePub;else p.hidePub=1;save();render()},
  liveshare:()=>{ui.lvs=1;render()},closelvs:()=>{ui.lvs=0;render()},livecopy:()=>{const u=liveUrl();try{navigator.clipboard.writeText(u).then(()=>toast('Link copied'),()=>toast(u))}catch(e){toast(u)}},liveopen:()=>openUrl(liveUrl()),
- livewa:()=>openUrl('https://wa.me/?text='+encodeURIComponent('Rebels Badminton · live games & scores: '+liveUrl()))
+ lvq:x=>{ui.lvq=(+x+2)%2;render()}
 });
 /* H4 live link: one fixed URL, no login */
 const liveUrl=()=>String(SY.url||DEF_URL).replace(/\/+$/,'')+'/live';
-function vLiveShare(){const u=liveUrl();return '<div class="modal" data-a="closelvs"><div class="pn" data-a="noop" style="gap:14px;width:min(480px,92vw);align-items:center;text-align:center"><div class="laby">SHARE LIVE LINK</div>'+
-  '<div style="font-size:14px;color:var(--mu)">Players open it on their phone – no login. On only from 30 min before the session until End session. Shows courts, live scores, schedule and results – never money, phones or photos.</div>'+
-  '<div style="background:#fff;padding:10px;border-radius:12px">'+QR.svg(u,260)+'</div><div style="font-weight:700;word-break:break-all">'+esc(u)+'</div>'+
-  '<div class="row" style="flex-wrap:wrap;justify-content:center"><button class="btn" data-a="livecopy">Copy link</button><button class="ol" data-a="livewa">WhatsApp</button><button class="ol" data-a="liveopen">Open</button><button class="gh" data-a="closelvs">Close</button></div></div></div>'}
+/* v23: two QR codes – open the live page · or WhatsApp with the message ready (the phone picks the chat/group) */
+const waMsg=u=>"Rebels, here's our live link 🏸 Open it, tap *Participant* and select your name. Check it out guys!\n"+u;
+const waLive=u=>'https://wa.me/?text='+encodeURIComponent(waMsg(u));
+function vLiveShare(){const u=liveUrl(),k=ui.lvq?1:0,QP=[{t:'Scan to open the live page',q:u,s:u},{t:'Scan to share on WhatsApp · the phone opens WhatsApp with the message ready – pick the Rebels group',q:waLive(u),s:'WhatsApp message + link'}];
+  return '<div class="modal" data-a="closelvs"><div class="pn" data-a="noop" style="gap:14px;width:min(480px,92vw);align-items:center;text-align:center"><div class="laby">SHARE LIVE LINK · '+(k?'WHATSAPP':'OPEN')+'</div>'+
+  '<div style="font-size:14px;color:var(--mu)">Players open it on their phone – no login. On from 30 min before the session. After End session it shows the results and schedule (read only) for 48 h, then turns off – or switches to the next session when that one opens. Courts, scores, schedule and results – never money, phones or photos.</div>'+
+  '<div class="lvsw row" style="gap:10px;flex-wrap:nowrap;justify-content:center;touch-action:pan-y"><button class="ib" data-a="lvq" data-x="'+(k-1)+'" aria-label="Previous QR">◀</button><div class="lvqr" data-k="'+k+'"><div style="background:#fff;padding:10px;border-radius:12px">'+QR.svg(QP[k].q,250)+'</div></div><button class="ib" data-a="lvq" data-x="'+(k+1)+'" aria-label="Next QR">▶</button></div>'+
+  '<div class="row" style="gap:8px;justify-content:center">'+QP.map((p,i)=>'<button class="lvdot'+(i===k?' on':'')+'" data-a="lvq" data-x="'+i+'" aria-label="QR '+(i+1)+'"></button>').join('')+'</div>'+
+  '<div style="font-weight:700">'+esc(QP[k].t)+'</div><div style="font-size:13px;color:var(--mu);word-break:break-all">'+esc(QP[k].s)+'</div>'+
+  '<div class="row" style="flex-wrap:wrap;justify-content:center"><button class="btn" data-a="livecopy">Copy link</button><button class="ol" data-a="liveopen">Open</button><button class="gh" data-a="closelvs">Close</button></div></div></div>'}
+/* swipe left / right on the QR to switch */
+let LVX=null;document.addEventListener('pointerdown',e=>{if(e.target.closest&&e.target.closest('.lvsw'))LVX=e.clientX});
+document.addEventListener('pointerup',e=>{if(LVX==null)return;const dx=e.clientX-LVX;LVX=null;if(Math.abs(dx)>40&&ui.lvs){ui.lvq=ui.lvq?0:1;render()}});

@@ -168,8 +168,9 @@ function erSave(){const e=ui.er,d=e.d,g=G(e.d),base=g.st||bookStart(d),bad=[];le
 /* ---------- v17 Games page: format badge, plan notes, games-per-player table ---------- */
 const tyB=q=>{const t=gType(q);return '<span class="fmt f'+t+'">'+t+'</span>'};
 function fpNotes(g){const d=g.d,ri=rateInfo(g),ids=fullIds(g),W=ids.filter(isF),L=[];
-  if(ri.over)L.push(['amb',ri.part+' players on '+pl(ri.nC,'court')+' (target needs ≤ '+ri.nC*8+') → about '+ri.rate.toFixed(1)+' games per hour each instead of '+RATE+'. Games are still shared fairly.']);
-  else if(ri.part)L.push(['ok',ri.part+' players · about '+Math.min(ri.rate,6).toFixed(1)+' games per hour each (target '+RATE+')']);
+  /* v23: whole session, not per hour – min/max = played + planned games of each player (fill-ins not counted) */
+  if(ri.part){const cn={};(g.fp||[]).forEach(x=>{if(!x.x&&x.q.every(Boolean))x.q.forEach(id=>cn[id]=(cn[id]||0)+1)});const pc=ids.filter(id=>!isDum(d,id)).map(id=>cn[id]||0);
+    L.push([ri.each+.05<ri.tgt?'amb':'ok',ri.part+' players · about '+ri.each.toFixed(1)+' games each this session (target '+ri.tgt+')'+(pc.length?' · min '+Math.min(...pc)+' · max '+Math.max(...pc):'')+(ri.each+.05<ri.tgt?' · too many players for '+ri.tgt+' each – add court time':'')])}
   if(W.length===1)L.push(['amb','Only 1 woman on – mixed games need 2 women, so '+nameOf(W[0])+' can only play via a manual swap (format override).']);
   const P0=planCtx(g,ids);if(P0.power)L.push(['ok','Power games: '+P0.pwOK.size+' strong players · each gets '+PWR()+' per hour; their other games are mentor games']);
   else if(ids.filter(isStrong).length)L.push(['mu','Fewer than 4 strong players who can form a legal game → mentor games only']);
@@ -179,11 +180,11 @@ function vGPP(g,ppl){const d=g.d,run=running(g),hrs=Math.max(.5,sessLenH(d)),now
   g.hist.forEach(h=>{if(h.sa===h.sb)return;(h.sa>h.sb?h.ids.slice(0,2):h.ids.slice(2)).forEach(id=>win[id]=(win[id]||0)+1)});
   let R=0;if(g.fp){R=Math.max(0,...g.fp.map(x=>x.r+1));g.fp.forEach(x=>{if(x.x)return;x.q.forEach(id=>{if(!id)return;(rr[id]=rr[id]||new Set()).add(x.r);if(!dn.has(x.n))pln[id]=(pln[id]||0)+1})})}
   const frac=run&&g.st?Math.min(1,playMs(g,now)/(hrs*3600e3)):g.en?1:0;
-  const rows=ppl.map(id=>{const fi=isDum(d,id),pres=g.st&&att(d,id)?Math.min(1,presentSec(g,id)/(hrs*3600)||1):1,tg=fi?0:Math.max(1,Math.round(RATE*hrs*pres)),pc=cnt[id]||0,pn=pln[id]||0;
+  const rows=ppl.map(id=>{const fi=isDum(d,id),pres=g.st&&att(d,id)?Math.min(1,presentSec(g,id)/(hrs*3600)||1):1,tg=fi?0:Math.max(1,Math.round(TGTS()*pres)),pc=cnt[id]||0,pn=pln[id]||0;
     const st=fi?'gr':frac?(pc>=Math.floor(tg*frac+1e-9)?'ok':'amb'):(pc+pn>=tg?'ok':'amb'),rs=g.fp?R-(rr[id]?rr[id].size:0):'–';
     return '<tr class="gpp '+st+'"><td>'+pwho(id,30)+'</td><td><span class="sxt'+(isF(id)?' f':'')+'">'+(isF(id)?'F':'M')+'</span></td><td class="n">'+pc+'</td><td class="n">'+pn+'</td><td class="n">'+(win[id]||0)+'</td><td class="n">'+rs+'</td><td class="n">'+(fi?'fill-in':tg)+'</td><td><span class="dot '+st+'"></span></td></tr>'}).join('');
   const open=ui.gpo!==0;
-  return '<section class="pn" style="gap:8px"><button class="mhead" data-a="gpo"><span class="lab">GAMES PER PLAYER · TARGET '+RATE+'/HOUR · GREEN ON TARGET · AMBER BEHIND</span><span>'+(open?'▴':'▾')+'</span></button>'+
+  return '<section class="pn" style="gap:8px"><button class="mhead" data-a="gpo"><span class="lab">GAMES PER PLAYER · TARGET '+TGTS()+'/SESSION · GREEN ON TARGET · AMBER BEHIND</span><span>'+(open?'▴':'▾')+'</span></button>'+
    (open?(ppl.length?'<div style="overflow-x:auto"><table class="gppt"><thead><tr><th>PLAYER</th><th>M/F</th><th class="n">PLAYED</th><th class="n">PLANNED</th><th class="n">WINS</th><th class="n">RESTED ROUNDS</th><th class="n">TARGET</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty" style="padding:12px">No players yet.</div>'):'')+'</section>'}
 
 /* ---------- v17 H6: live bench ("desk") status – longest-sitting player on top ---------- */
