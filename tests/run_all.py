@@ -41,6 +41,7 @@ def local_login(pg):
 def ui_login(pg, u, p):
     pg.evaluate("RB.act.lgother()"); pg.fill('#lgu', u); pg.fill('#lgp', p); pg.click('[data-a="lgpw"]'); pg.wait_for_timeout(2500)
     if pg.is_visible('[data-a="lgnoface"]'): pg.click('[data-a="lgnoface"]')
+    if pg.locator('[data-a="qpno"]').count() and pg.is_visible('[data-a="qpno"]'): pg.click('[data-a="qpno"]'); pg.wait_for_timeout(300)   # v20 quick PIN offer
 
 with sync_playwright() as p:
     b = p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])

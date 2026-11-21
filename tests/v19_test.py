@@ -119,6 +119,7 @@ try:
         tg.goto(APP); tg.wait_for_timeout(400); tg.evaluate("document.querySelector('#wel')&&document.querySelector('#wel').click()"); tg.wait_for_timeout(700)
         tg.evaluate("RB.act.lgother()"); tg.fill('#lgu', 'games'); tg.fill('#lgp', PW['games']); tg.click('[data-a="lgpw"]'); tg.wait_for_timeout(2500)
         if tg.is_visible('[data-a="lgnoface"]'): tg.click('[data-a="lgnoface"]')
+        if tg.locator('[data-a="qpno"]').count() and tg.is_visible('[data-a="qpno"]'): tg.click('[data-a="qpno"]'); tg.wait_for_timeout(400)
         tg.evaluate("RB.syncNow(true)"); tg.wait_for_timeout(2500); tg.evaluate("RB.act.tab('games')")
         for _ in range(10):
             tg.evaluate("RB.subsPoll(true)"); tg.wait_for_timeout(700)

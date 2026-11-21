@@ -18,7 +18,7 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=g.qq[i]||[],pi=cpill(d,i,now);
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const ed=ui.ced===i&&full&&L.run;
-    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):''):
+    const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):'')+(L.run||L.sa||L.sb||L.el?'<button class="tbtn nos" data-a="savenos" data-x="'+i+'" title="Save the game with no score – the 4 players send it from the live page">■ Save · score from players</button>':''):
       '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(Q.length||g.up.length?'':' disabled')+'>▶ Start next</button>';
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
@@ -27,8 +27,10 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
     if(full){const cp=k=>'<div class="cpl'+(isSel('c',i,0,k)?' on':'')+'">'+pwho(q[k],36)+(!L.run||ed?'<button class="swp" data-a="cswap" data-x="'+i+'" data-y="'+k+'" aria-label="Swap '+esc(nameOf(q[k]))+'">⇄ Swap</button>':'')+'</div>';
       const sc=(v,side)=>'<div class="scg"><button class="sc" data-a="sc" data-x="'+i+'" data-y="'+side+'-">−</button><span class="scn">'+v+'</span><button class="sc p" data-a="sc" data-x="'+i+'" data-y="'+side+'+">+</button></div>';
       const wb=s=>'<button class="wonb'+(L.w===s?' on':'')+'" data-a="won" data-x="'+i+'" data-y="'+s+'">'+(L.w===s?'✓ ':'')+(s==='a'?'◀ A won':'B won ▶')+'</button>';
-      body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="court big">'+lines+'<div class="side">'+cp(0)+cp(1)+'</div><div class="cmid"><div class="row" style="gap:6px">'+sc(L.sa,'a')+sc(L.sb,'b')+'</div><div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div></div><div class="side r">'+cp(2)+cp(3)+'</div></div>'}
-    else{const last=g.last[i];body='<div class="court big'+(cl?' shut':'')+'">'+lines+'<div class="cwait" style="flex-direction:column;gap:10px">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+last.sa+' – '+last.sb+'</b> '+esc(tn(last,1))+'</span>':'')+
+      /* v21: vertical court graphic – Team A in the top service boxes, Team B at the bottom, score + winner on the net */
+      body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="vcourt">'+VCRT+
+        [0,1,2,3].map(k=>'<div class="vbox b'+k+'">'+cp(k)+'</div>').join('')+'<div class="vmid">'+sc(L.sa,'a')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div>'+sc(L.sb,'b')+'</div><span class="vlab ta">TEAM A</span><span class="vlab tb">TEAM B</span></div>'}
+    else{const last=g.last[i];body='<div class="vcourt free'+(cl?' shut':'')+'">'+VCRT+'<div class="cwait vwait">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+(last.sa||last.sb?last.sa+' – '+last.sb:'score pending')+'</b> '+esc(tn(last,1))+'</span>':'')+
       '<span>'+(cl?'Court closed · reopen it with the Courts button':Q.length?'Court free · NEXT is ready – tap ▶ Start next':g.up.length?'Court free · ▶ Start next takes Upcoming #1':'Court free')+'</span></div></div>'}
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
       (Q.length?Q.map((x,k)=>'<div class="gcard'+(dup(x.q)?' dup':'')+'" data-drop="q" data-i="'+i+'" data-k="'+k+'"><span class="hdl" data-drag="q.'+i+'.'+k+'" aria-label="Drag">≡</span><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span>'+row('q',i,k,x.q)+
@@ -48,7 +50,11 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const allp='<section class="pn" id="allp" style="gap:10px"><div class="sb"><span class="lab">WAITING · ALL PLAYERS</span><span class="laby" style="font-size:12px">'+(pk?(pk.t==='c'?'Tap a name to swap onto '+esc(cname(d,pk.i)):'Tap a name to fill the slot')+' · <button class="lnk" data-a="pickx">Cancel</button>':'Tap × on a player, then a name here')+'</span></div>'+
     (L.length?'<div class="apg">'+L.map(card).join('')+'</div>':'<div class="empty" style="padding:12px">No players on.</div>')+'</section>';
   const nc=C.length;
-  return '<div class="cgrid" style="--cols:'+(nc<=3?nc:Math.ceil(nc/2))+'">'+courts+'</div>'+up+allp}
+  return '<div class="cgrid" data-n="'+Math.min(nc,3)+'" style="--cols:'+Math.min(nc,2)+'">'+courts+'</div>'+up+allp}
+/* v21: court drawing (same look as the live page): blue surround, green court, white lines, black net. Stretched to fit – never taller than the screen. */
+const VCRT='<svg class="vsvg" viewBox="0 0 700 1440" preserveAspectRatio="none" aria-hidden="true"><rect width="700" height="1440" fill="#2D6FA8"/><rect x="45" y="50" width="610" height="1340" fill="#2E8B57"/>'+
+ '<g fill="none" stroke="#fff" stroke-width="3"><rect x="45" y="50" width="610" height="1340" vector-effect="non-scaling-stroke"/><path vector-effect="non-scaling-stroke" d="M91 50V1390M609 50V1390M45 126H655M45 1314H655M45 522H655M45 918H655M350 50V522M350 918V1390"/></g>'+
+ '<path d="M20 720H680" stroke="#111" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M20 712V728M680 712V728" stroke="#fff" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>';
 
 /* ---------- check the 4 players before the game starts ---------- */
 function cfGame(g){const c=ui.cf;if(!c)return null;const L=c.t==='u'?g.up:g.qq[c.i];return L&&L[c.k]||null}
@@ -114,6 +120,9 @@ Object.assign(act,{
  closecf:()=>{ui.cf=null;render()},
  cfok:()=>{const g=CG(),c=ui.cf,x=cfGame(g);ui.cf=null;if(x)sendCourt(g,c.i,x);else render()},
  /* Stop always saves the game, even with no score – winner/score can be added later in Game Summary */
+ /* v21: close the game now, no score – it shows as "Score pending" and the 4 players send the real score from the live page */
+ savenos:x=>{const g=CG(),i=+x,L=g.live[i];if(!L||!(g.cur[i]||[]).every(Boolean))return;if(ui.ced===i){ui.ced=null;ui.pick=null}const t=Date.now();L.sa=0;L.sb=0;L.w='';
+   saveGame(g,i,t);const h=g.hist[0];if(h&&h.at===t){h.sp=1;logIt(g,cname(g.d,i)+': game saved with no score · score pending from players')}save();render();toast('Saved · score pending – the 4 players can send it from the live page')},
  timer:x=>{const g=CG(),i=+x,L=g.live[i];if(!L)return;if(ui.ced===i){ui.ced=null;ui.pick=null}if(!L.run&&!L.sa&&!L.sb&&!L.el){g.live[i]=Object.assign({},L,{run:true,start:Date.now()});save();return render()}
    saveGame(g,i);save();render();toast(L.sa||L.sb?'Game saved':'Game saved · tap it in Game Summary to add the score')}
 });

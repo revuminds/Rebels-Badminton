@@ -37,6 +37,8 @@ async function schema(env) {
     /* v18: scores sent from the live page – one open (pending/accepted) score per game, enforced by the unique index */
     db.prepare('CREATE TABLE IF NOT EXISTS subs(id INTEGER PRIMARY KEY AUTOINCREMENT, d TEXT NOT NULL, k TEXT NOT NULL, st TEXT NOT NULL, who INTEGER, byn TEXT, sa INTEGER, sb INTEGER, at INTEGER, ip TEXT, rv INTEGER, rby TEXT)'),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS subs_open ON subs(d,k) WHERE st IN ('p','a')"),
+    /* v21: score corrections from the live page (st cp = pending, ca = accepted, cr = rejected) – one pending correction per game */
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS subs_cor ON subs(d,k) WHERE st='cp'"),
     /* v19: names picked on the live page – one phone per name per session (off=1 = freed / reset); th = SHA-256 of the phone's claim token */
     db.prepare('CREATE TABLE IF NOT EXISTS claims(id INTEGER PRIMARY KEY AUTOINCREMENT, d TEXT NOT NULL, pid TEXT NOT NULL, th TEXT NOT NULL, nm TEXT, at INTEGER, ip TEXT, off INTEGER DEFAULT 0)'),
     db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS claims_on ON claims(d,pid) WHERE off=0'),
@@ -110,29 +112,33 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   const cn = i => String((courts(today)[i] || {}).n || 'Court ' + (i + 1));
   const team = (q, k) => (q || []).slice(k * 2, k * 2 + 2).map(nm);
   const ty = q => { const f = (q || []).filter(id => id && P[id] && P[id].sx === 'f').length; return f === 2 ? 'XD' : f >= 3 ? 'WD' : 'MD'; };
-  const lock = {}; (subs || []).forEach(x => { lock[x.k] = x.st; });
+  const lock = {}, cor = {}; (subs || []).forEach(x => { if (x.st === 'p' || x.st === 'a') lock[x.k] = x.st; else if (/^c[par]$/.test(x.st) && (!cor[x.k] || (x.at || 0) >= cor[x.k].at)) cor[x.k] = { st: x.st[1], at: x.at || 0 }; });
+  const mine = q => !!mePid && Array.isArray(q) && q.includes(mePid);
   const gpts = o => +(o && o.pts) || +(g && g.pts) || 21, deuce = !!(g && g.deuce);
   const hist = g && Array.isArray(g.hist) ? g.hist : [];
   const doneN = new Set(hist.filter(h => h.n).map(h => h.n)), curN = (g && g.curN) || [];
   const now_ = (g && g.cur || []).map((q, i) => {
     if (!q || !q.every(Boolean)) return null; const L = (g.live || [])[i] || {};
-    return { court: cn(i), n: curN[i] || null, ty: ty(q), a: team(q, 0), b: team(q, 1), sa: +L.sa || 0, sb: +L.sb || 0, run: !!L.run, start: L.run ? +L.start || 0 : 0, el: +L.el || 0, pts: +(L.pts || g.pts) || 21 };
+    return { court: cn(i), n: curN[i] || null, ty: ty(q), a: team(q, 0), b: team(q, 1), sa: +L.sa || 0, sb: +L.sb || 0, run: !!L.run, start: L.run ? +L.start || 0 : 0, el: +L.el || 0, pts: +(L.pts || g.pts) || 21,
+      me: mine(q), gk: L.run ? i + '-' + (+L.start || 0) : '' };
   }).filter(Boolean);
   const fp = g && Array.isArray(g.fp) ? g.fp : [];
   const qq = (g && g.qq) || [], up = (g && g.up) || [], nxt = (g && g.nxt) || [];
   /* v18: per court the queued / planned game first, then the app-picked Upcoming games (they have no court yet) */
   const next = [], seen = new Set(), full = q => q && q.every && q.length === 4 && q.every(Boolean), onC = new Set((g && g.cur || []).flat().filter(Boolean));
-  const add = (q, n, c) => { const k = q.join(); if (seen.has(k)) return; seen.add(k); next.push({ court: c == null ? '' : cn(c), n: n || null, ty: ty(q), a: team(q, 0), b: team(q, 1) }); };
+  const add = (q, n, c, nx) => { const k = q.join(); if (seen.has(k)) return; seen.add(k); next.push({ court: c == null ? '' : cn(c), n: n || null, ty: ty(q), a: team(q, 0), b: team(q, 1), me: mine(q), nx: !!nx }); };
   courts(today).forEach((c, i) => {
     let q = qq[i] && qq[i][0] && qq[i][0].q, n = qq[i] && qq[i][0] && qq[i][0].n;
     if (!full(q) && full(nxt[i])) { q = nxt[i]; n = null; }
     if (!full(q) && fp.length) { const u = up.find(x => x.c === i && full(x.q)) || fp.find(x => x.c === i && !x.x && !doneN.has(x.n) && !curN.includes(x.n) && full(x.q)); if (u) { q = u.q; n = u.n || null; } }
-    if (full(q)) add(q, n, i);
+    if (full(q)) add(q, n, i, 1);
   });
   up.forEach(x => { if (full(x.q) && next.length < 8) add(x.q, x.n, x.c == null || !fp.length ? null : x.c); });
   const res = hist.slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map(h => {
     const k = hKey(h), sc = !!(+h.sa || +h.sb), ok = !sc && Array.isArray(h.ids) && h.ids.length === 4 && h.ids.every(Boolean);
-    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: ok && !lock[k], sent: !sc && !!lock[k], me: !!mePid && Array.isArray(h.ids) && h.ids.includes(mePid) };
+    const c4 = Array.isArray(h.ids) && h.ids.length === 4 && h.ids.every(Boolean), cs = cor[k] ? cor[k].st : null;
+    return { k, court: cn((h.c || 1) - 1), n: h.n || null, ty: ty(h.ids), a: team(h.ids, 0), b: team(h.ids, 1), sa: +h.sa || 0, sb: +h.sb || 0, pts: gpts(h), deuce, sc, send: ok && !lock[k], sent: !sc && !!lock[k], me: mine(h.ids),
+      fix: sc && c4 && cs !== 'p', cor: sc ? cs : null };
   });
   const st = {};
   hist.forEach(h => { if (!h.ids) return; const aw = h.sa > h.sb, tie = h.sa === h.sb; h.ids.forEach((id, i) => { if (!id || !P[id] || P[id].hidePub) return; const s = st[id] = st[id] || { name: nm(id), g: 0, w: 0 }; s.g++; if (!tie && (i < 2) === aw) s.w++; }); });
@@ -161,6 +167,33 @@ main{max-width:1280px;margin:0 auto;padding:14px 12px calc(40px + env(safe-area-
 h1{font-size:22px;margin:0;font-weight:700;letter-spacing:.02em}h1 b{color:var(--y)}
 h2{font-size:12px;letter-spacing:.16em;color:var(--mu);margin:20px 2px 8px;font-weight:700}
 .mu{color:var(--mu)}.live{color:var(--ok);font-weight:700}
+/* v21: broadcast-style red pulsing LIVE dot */
+.live.on{color:#FF4D4F}.live .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#FF3B30;margin-right:5px;vertical-align:1px;box-shadow:0 0 0 0 rgba(255,59,48,.7);animation:lp 1.2s ease-in-out infinite}
+@keyframes lp{0%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,48,.65)}50%{opacity:.35;box-shadow:0 0 0 6px rgba(255,59,48,0)}100%{opacity:1;box-shadow:0 0 0 0 rgba(255,59,48,0)}}
+@media (prefers-reduced-motion:reduce){.live .dot{animation:none}}
+/* v21: court graphic – inline SVG stretched to fit (never taller than one screen), names in the 4 half-court boxes, score + timer on the net */
+.vc{background:var(--pn);border-radius:18px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0;container-type:inline-size}
+.vch{display:flex;align-items:center;gap:8px;font-size:14px;min-height:26px;padding:0 4px}.vch b{font-size:18px}
+.vct{position:relative;width:100%;height:min(calc(100cqw * 2.06),calc(100dvh - var(--hh,150px)));min-height:300px;border-radius:12px;overflow:hidden}
+.vct svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vbx{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:2px;min-width:0}
+.vbx span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(10,30,22,.62);border-radius:10px;padding:5px 9px;font-weight:700;font-size:clamp(14px,6.2cqw,24px);line-height:1.15}
+.vbx span.mine{outline:3px solid #FFD43B;color:#FFD43B}
+.vnet{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.vsc{font-size:clamp(30px,13cqw,54px);font-weight:700;line-height:1;background:rgba(10,30,22,.72);border-radius:12px;padding:4px 14px;min-width:2.2em;text-align:center}
+.vtm{display:flex;align-items:center;gap:6px;background:#111;border:2px solid #fff;border-radius:99px;padding:3px 12px;font-weight:700;font-size:clamp(16px,6cqw,24px);color:var(--ok)}
+.vtm svg{width:1em;height:1em;position:static}
+/* v21: your turn */
+#turn{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:14px}#turn.on{display:flex}
+#turn .tb{background:var(--pn);border:3px solid var(--ok);border-radius:22px;width:min(560px,100%);padding:22px 18px;display:flex;flex-direction:column;gap:14px;text-align:center}
+#turn .tt{font-size:30px;font-weight:800}#turn .tg{font-size:20px;font-weight:700;line-height:1.3}#turn .tc{font-size:26px;font-weight:800;color:var(--ok)}
+#turn button{min-height:64px;border-radius:14px;border:0;background:var(--ok);color:#06210F;font:800 22px Outfit,system-ui,sans-serif}
+.al{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px}
+.abtn{min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--ok);background:transparent;color:var(--ok);font:700 15px Outfit,system-ui,sans-serif}
+.abtn.on{background:rgba(52,199,123,.16)}.anote{font-size:12px;color:var(--mu)}
+.mine-c{outline:3px solid #FFD43B;outline-offset:-3px}
+.pill.ok{background:rgba(52,199,123,.14);color:var(--ok)}.pill.bad{background:rgba(229,56,59,.14);color:#FF6B6E}
+.fbtn{min-height:44px;padding:0 14px;border-radius:12px;border:2px solid var(--bd);background:transparent;color:var(--tx);font:700 15px Outfit,system-ui,sans-serif}
 .sub{font-size:14px;margin-top:2px}
 .cg{display:grid;grid-template-columns:repeat(var(--c,1),minmax(0,1fr));gap:12px}
 .cc{background:var(--pn);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -209,7 +242,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-top:1px s
 @media (max-width:640px){.cg{grid-template-columns:1fr}.sc{font-size:40px;min-width:56px}.pc{font-size:16px;padding:6px 10px}}
 @media (orientation:portrait) and (max-width:1000px){.cg{grid-template-columns:1fr}}
 </style></head>
-<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div class="me" id="me"></div><div id="v"></div></main><div id="m"></div><div id="toast"></div>
+<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div class="me" id="me"></div><div id="v"></div></main><div id="m"></div><div id="turn" role="alertdialog" aria-live="assertive"></div><div id="toast"></div>
 <script>
 const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const t2=x=>{const z=n=>String(n).padStart(2,'0'),s=Math.max(0,Math.floor(x));return z(Math.floor(s/60))+':'+z(s%60)};
@@ -226,26 +259,44 @@ const PL=()=>!!(ME&&ME.m==='p'&&ME.t);
 const T=a=>e(a.join(' & ')),chips=a=>'<div class="nms">'+a.map(n=>'<span class="pc">'+e(n)+'</span>').join('')+'</div>';
 const fh=t=>'<div class="fh"><span class="fmt f'+t+'">'+t+'</span>'+TYN[t]+'</div>';
 const cols=n=>n<=3?n:Math.ceil(n/2);
-function onCourt(c){const now=Date.now()-off;
- return '<div class="cc"><div class="ch"><b>'+e(c.court)+'</b><span class="mu">· Points '+c.pts+'</span>'+(c.n?'<span class="mu">· Game '+c.n+'</span>':'')+'<span class="tm" data-t="'+(c.run?c.start:'')+'">'+(c.run?t2((now-c.start)/1000):t2(c.el))+'</span></div>'+fh(c.ty)+
-  '<div class="ct"><i class="l1"></i><i class="l2"></i><i class="net"></i><div class="tr">'+chips(c.a)+'<span class="sc">'+c.sa+'</span></div><div class="tr">'+chips(c.b)+'<span class="sc">'+c.sb+'</span></div></div></div>'}
-function upNext(c){return '<div class="cc"><div class="ch"><b>'+(c.court?e(c.court):'Next free court')+'</b>'+(c.n?'<span class="mu">· Game '+c.n+'</span>':'')+'</div>'+fh(c.ty)+
-  '<div class="ut">'+chips(c.a)+'<span class="vs">VS</span>'+chips(c.b)+'</div></div>'}
+const CRT='<svg viewBox="0 0 700 1440" preserveAspectRatio="none" aria-hidden="true"><rect width="700" height="1440" fill="#2D6FA8"/><rect x="45" y="50" width="610" height="1340" fill="#2E8B57"/>'+
+ '<g fill="none" stroke="#fff" stroke-width="3" vector-effect="non-scaling-stroke"><rect x="45" y="50" width="610" height="1340" vector-effect="non-scaling-stroke"/>'+
+ '<path vector-effect="non-scaling-stroke" d="M91 50V1390M609 50V1390M45 126H655M45 1314H655M45 522H655M45 918H655M350 50V522M350 918V1390"/></g>'+
+ '<path d="M20 720H680" stroke="#111" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M20 712V728M680 712V728" stroke="#fff" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>';
+const SHU='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a3 3 0 0 0 3-3H9a3 3 0 0 0 3 3z" fill="#fff"/><path d="M9 18 5 3h14l-4 15z" fill="none" stroke="#fff" stroke-width="1.6"/><path d="M12 3v15M8.5 3l2 15M15.5 3l-2 15" stroke="#fff" stroke-width="1"/></svg>';
+const nb=(n,cls)=>'<span'+(PL()&&ME.name&&n===ME.name?' class="mine"':'')+'>'+e(n)+'</span>';
+/* names sit in the service boxes: Team A top (left / right), Team B bottom */
+const BX=['left:6.4%;width:43.6%;top:8.8%;height:27.5%','left:50%;width:43.6%;top:8.8%;height:27.5%','left:6.4%;width:43.6%;top:63.8%;height:27.5%','left:50%;width:43.6%;top:63.8%;height:27.5%'];
+
+function onCourt(c){const now=Date.now()-off,n=c.a.concat(c.b);
+ return '<div class="vc'+(c.me&&PL()?' mine-c':'')+'"><div class="vch"><b>'+e(c.court)+'</b><span class="fmt f'+c.ty+'">'+c.ty+'</span><span class="mu">'+(c.n?'Game '+c.n+' · ':'')+'to '+c.pts+'</span></div>'+
+  '<div class="vct">'+CRT+n.map((x,i)=>'<div class="vbx" style="'+BX[i]+'">'+nb(x)+'</div>').join('')+
+  '<div class="vnet"><span class="vsc" aria-label="Team A score">'+c.sa+'</span><span class="vtm">'+SHU+'<span data-t="'+(c.run?c.start:'')+'">'+(c.run?t2((now-c.start)/1000):t2(c.el))+'</span></span><span class="vsc" aria-label="Team B score">'+c.sb+'</span></div></div></div>'}
+function upNext(c){const mine=c.me&&PL(),on=mine&&TU.sel===sig(c);
+ return '<div class="cc'+(mine?' mine-c':'')+'"><div class="ch"><b>'+(c.court?e(c.court):'Next free court')+'</b>'+(c.n?'<span class="mu">· Game '+c.n+'</span>':'')+(mine?'<span class="pill ok">Your game</span>':'')+'</div>'+fh(c.ty)+
+  '<div class="ut">'+chips(c.a)+'<span class="vs">VS</span>'+chips(c.b)+'</div>'+
+  (mine?'<div class="al"><button class="abtn'+(on?' on':'')+'" data-a="arm" data-s="'+e(sig(c))+'">'+(on?'🔔 Alert on':'🔔 Alert me when it starts')+'</button>'+
+   (on&&'wakeLock' in navigator?'<button class="abtn'+(TU.wake?' on':'')+'" data-a="wake">'+(TU.wake?'☀ Screen stays on':'☀ Keep screen on')+'</button>':'')+'</div>'+
+   (on?'<div class="anote">'+(TU.wake?'Keeping the screen on uses battery · turns off when your game starts. ':'')+'Alerts only while this page is open – a locked phone gets no alert.</div>':''):'')+'</div>'}
 function res(r){const aw=r.sc&&r.sa>r.sb,bw=r.sc&&r.sb>r.sa,A=T(r.a)+(r.sc?' ('+r.sa+')':''),B=T(r.b)+(r.sc?' ('+r.sb+')':'');
  return '<div class="rl"><span class="ln">'+e(r.court)+' · '+(aw?'<b class="w">'+A+'</b>':A)+' vs '+(bw?'<b class="w">'+B+'</b>':B)+(r.sc?'':' <span class="mu">· no score yet</span>')+'</span>'+
-  (r.send&&r.me&&PL()?'<div class="ra"><button class="sbtn" data-a="open" data-k="'+e(r.k)+'">Send score</button></div>':r.sent?'<div class="ra"><span class="pill">Score sent · waiting for approval</span></div>':'')+'</div>'}
+  (r.send&&r.me&&PL()?'<div class="ra"><button class="sbtn" data-a="open" data-k="'+e(r.k)+'">Send score</button></div>':r.sent?'<div class="ra"><span class="pill">Score sent · waiting for approval</span></div>':
+   r.sc&&r.me&&PL()&&(r.fix||r.cor)?'<div class="ra">'+(r.cor==='p'?'<span class="pill">Correction sent · waiting for approval</span>':r.cor==='a'?'<span class="pill ok">Correction accepted</span>':r.cor==='r'?'<span class="pill bad">Correction rejected</span>':'')+
+    (r.fix?'<button class="fbtn" data-a="fix" data-k="'+e(r.k)+'">✎ Suggest correction</button>':'')+'</div>':'')+'</div>'}
 function fit(){document.querySelectorAll('.ln').forEach(el=>{let f=16;el.style.fontSize='';while(el.scrollWidth>el.clientWidth+1&&f>9){f-=.5;el.style.fontSize=f+'px'}})}
 function drawMe(){const el=document.getElementById('me');if(!L||!L.live||!ME){el.innerHTML='';return}
  el.innerHTML=PL()?'<span>Playing as <b>'+e(ME.name)+'</b></span>·<button class="lk" data-a="toguest">Change to guest</button>':'<span>Watching as <b>guest</b></span>·<button class="lk" data-a="choose">I’m playing – pick my name</button>'}
 function draw(){const v=document.getElementById('v'),sub=document.getElementById('sub');if(!L)return;drawMe();
  if(!L.live){sub.textContent='';v.innerHTML='<div class="card" style="margin-top:18px"><b>No live session</b>'+(L.next?' · next: '+e(dl(L.next.date))+' '+e(L.next.time)+' · '+e(L.next.loc):'')+'</div>';return}
- sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · <span class="live">● '+(L.started?'LIVE':'STARTING SOON')+'</span>';
+ sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · '+(L.started?'<span class="live on"><i class="dot"></i>LIVE</span>':'<span class="live" style="color:var(--amb)">● STARTING SOON</span>');
  let h='<h2>ON COURT NOW</h2>'+(L.now.length?'<div class="cg" style="--c:'+cols(L.now.length)+'">'+L.now.map(onCourt).join('')+'</div>':'<div class="card mu">No game on court right now.</div>');
  if(L.next.length)h+='<h2>UP NEXT</h2><div class="cg" style="--c:'+cols(Math.min(L.next.length,Math.max(L.courts.length,1)))+'">'+L.next.map(upNext).join('')+'</div>';
  if(L.sched.length)h+='<h2>GAME SCHEDULE</h2><div class="card" style="overflow-x:auto"><table class="sch"><thead><tr><th>#</th><th>COURT</th><th></th><th>TEAM A</th><th class="n">SCORE</th><th>TEAM B</th><th></th></tr></thead><tbody>'+L.sched.map(x=>{const aw=x.st==='done'&&x.sa>x.sb,bw=x.st==='done'&&x.sb>x.sa;return '<tr><td class="mu">'+x.n+'</td><td class="mu">'+e(x.court)+'</td><td><span class="fmt f'+x.ty+'">'+x.ty+'</span></td><td class="'+(aw?'w':'')+'">'+T(x.a)+'</td><td class="n"><b>'+(x.st==='done'?x.sa+' – '+x.sb:'')+'</b></td><td class="'+(bw?'w':'')+'">'+T(x.b)+'</td><td><span class="st '+x.st+'">'+(x.st==='done'?'Done':x.st==='now'?'On court':'Planned')+'</span></td></tr>'}).join('')+'</tbody></table></div>';
  if(L.results.length)h+='<h2>RESULTS · NEWEST FIRST</h2><div class="card">'+L.results.map(res).join('')+'</div>';
  if(L.stats.length)h+='<h2>TODAY · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>';
- v.innerHTML=h;fit()}
+ v.innerHTML=h;fit();hh();turnCheck()}
+/* v21: one court never taller than one screen – the court gets the height left under the header */
+function hh(){const c=document.querySelector('.vct');if(!c)return;const top=document.querySelector('.cg').getBoundingClientRect().top+scrollY,x=c.parentNode.offsetHeight-c.offsetHeight;document.documentElement.style.setProperty('--hh',Math.round(Math.min(top,innerHeight*.45)+x+6)+'px')}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',3000)}
 /* chooser: Guest or Player → tap your own name (names picked on another phone are greyed out) */
 function drawC(m){const P=L.pick||[];
@@ -254,24 +305,26 @@ function drawC(m){const P=L.pick||[];
   '<div class="err">'+e(M.err)+'</div><div class="mu" style="font-size:13px">Greyed out = already picked on another phone. Wrong name taken? Ask the organiser to free it.</div><div class="btns"><button class="cx" data-a="guest">Watch as guest</button></div>')+'</div>'}
 /* send score: sender = the picked name */
 function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live){M=null}else return drawC(m)}
- const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!(r.send&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
+ const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!((M.fx?r.fix:r.send)&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
  const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="number" inputmode="numeric" min="0" max="'+cap(r)+'" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
- m.className='on';m.innerHTML='<div class="sh"><div class="lab">SEND SCORE · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
-  '<div class="mu" id="sas">Sending as <b style="color:var(--tx)">'+e(ME.name)+'</b></div>'+
+ m.className='on';m.innerHTML='<div class="sh"><div class="lab">'+(M.fx?'SUGGEST CORRECTION':'SEND SCORE')+' · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
+  '<div class="mu" id="sas">Sending as <b style="color:var(--tx)">'+e(ME.name)+'</b>'+(M.fx?' · saved now: <b style="color:var(--tx)">'+r.sa+' – '+r.sb+'</b>':'')+'</div>'+
   '<div class="lab" style="color:var(--tx)">FINAL SCORE</div>'+row('sa',r.a)+row('sb',r.b)+'<div class="err" id="er">'+e(M.err)+'</div>'+
-  '<div class="btns"><button class="cx" data-a="close">Cancel</button><button class="ok" data-a="send"'+(M.busy?' disabled':'')+'>'+(M.busy?'Sending…':'Send score')+'</button></div>'+
-  '<div class="mu" style="font-size:13px">The organiser checks it on the tablet before it counts. One score per game.</div></div>'}
+  '<div class="btns"><button class="cx" data-a="close">Cancel</button><button class="ok" data-a="send"'+(M.busy?' disabled':'')+'>'+(M.busy?'Sending…':M.fx?'Send correction':'Send score')+'</button></div>'+
+  '<div class="mu" style="font-size:13px">'+(M.fx?'The organiser checks it on the tablet · the saved score stays until accepted. One correction at a time.':'The organiser checks it on the tablet before it counts. One score per game.')+'</div></div>'}
 async function post(u,b){const x=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return{s:x.status,j:await x.json().catch(()=>({}))}}
 async function send(){const r=L.results.find(x=>x.k===M.k);if(!r)return;const sa=parseInt(M.sa,10),sb=parseInt(M.sb,10);
- M.err=isNaN(sa)||isNaN(sb)?'Enter both scores':sErr(sa,sb,r);if(M.err)return drawM();
- M.busy=1;drawM();try{const x=await post('/api/live/score',{k:M.k,t:ME.t,sa,sb});
-  if(x.s===200){M=null;drawM();toast('Score sent · waiting for approval');load();return}M.busy=0;M.err=x.j.error||'Not sent – try again';
+ M.err=isNaN(sa)||isNaN(sb)?'Enter both scores':sErr(sa,sb,r)||(M.fx&&sa===r.sa&&sb===r.sb?'Same as the saved score':'');if(M.err)return drawM();
+ const fx=!!M.fx;M.busy=1;drawM();try{const x=await post('/api/live/score',fx?{k:M.k,t:ME.t,sa,sb,c:1}:{k:M.k,t:ME.t,sa,sb});
+  if(x.s===200){M=null;drawM();toast(fx?'Correction sent · waiting for approval':'Score sent · waiting for approval');load();return}M.busy=0;M.err=x.j.error||'Not sent – try again';
   if(x.s===401){meSave(null);M=null;drawM();toast('Your name was freed – pick it again');load();return}if(x.s===409)load()}catch(err){M.busy=0;M.err='No internet – try again'}drawM()}
 async function pick(k){M.busy=1;M.err='';drawM();try{const x=await post('/api/live/claim',{k,old:ME&&ME.t});M.busy=0;
   if(x.s===200){meSave({d:x.j.d,m:'p',t:x.j.t,name:x.j.name});M=null;drawM();toast('Playing as '+x.j.name);load();return}M.err=x.j.error||'Not picked – try again';load()}catch(err){M.busy=0;M.err='No internet – try again'}drawM()}
 async function toGuest(){const t=ME&&ME.t;meSave({d:L.date,m:'g'});draw();if(t)try{await post('/api/live/release',{t})}catch(x){}load()}
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-a]');if(!b){if(ev.target.id==='m'&&M&&!M.c){M=null;drawM()}return}const a=b.dataset.a;
  if(a==='toguest')return toGuest();if(a==='choose'){M={c:1,step:2,err:''};return drawM()}
+ if(a==='arm')return arm(b.dataset.s);if(a==='wake')return wakeT();if(a==='turnok')return turnOk();
+ if(a==='fix'){const r=L.results.find(x=>x.k===b.dataset.k);M={k:b.dataset.k,sa:r?String(r.sa):'',sb:r?String(r.sb):'',err:'',fx:1};return drawM()}
  if(a==='open'){M={k:b.dataset.k,sa:'',sb:'',err:''};drawM()}else if(!M)return;
  else if(a==='guest'){if(M.busy)return;M=null;drawM();toGuest()}else if(a==='player'){M.step=2;drawM()}else if(a==='pick'){if(!M.busy)pick(b.dataset.k)}
  else if(a==='close'){M=null;drawM()}
@@ -280,12 +333,46 @@ document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){M
 async function load(){try{const r=await fetch('/api/live',{cache:'no-store',headers:PL()?{'X-Claim':ME.t}:{}});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());
  /* session over or a new session → forget the choice; name freed on the tablet → ask again */
  if(ME&&(!L.live||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}
- draw();if(L.live&&!ME&&!M)M={c:1,step:1,err:''};if(M&&M.c)drawM();else if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!r2.send||!r2.me){M=null;drawM()}}}}catch(x){}}
+ draw();if(L.live&&!ME&&!M)M={c:1,step:1,err:''};if(M&&M.c)drawM();else if(M&&!M.busy){const r2=L.results.find(x=>x.k===M.k);if(!r2||!(M.fx?r2.fix:r2.send)||!r2.me){M=null;drawM()}}}}catch(x){}}
+
+/* ===== v21: "Your turn" alert while this page is open. Tap 🔔 on your Up Next game = unlock sound, ask for notifications, keep the screen on.
+   Shown once per game (rb.turn in localStorage). A locked phone / closed browser gets nothing (that needs Web Push – phase 2). ===== */
+let TU={};try{TU=JSON.parse(localStorage.getItem('rb.turn')||'{}')||{}}catch(x){}
+const tuSave=()=>{try{localStorage.setItem('rb.turn',JSON.stringify(TU))}catch(x){}};
+const sig=c=>c.a.concat(c.b).join('|');
+let AC=null,WL=null;
+function beep(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();[0,.32].forEach(t=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=880;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(.0001,AC.currentTime+t);g.gain.exponentialRampToValueAtTime(.35,AC.currentTime+t+.02);g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+t+.25);o.start(AC.currentTime+t);o.stop(AC.currentTime+t+.27)})}catch(x){}}
+async function wakeOn(){if(!TU.wake||!TU.sel||WL||!('wakeLock' in navigator)||document.visibilityState!=='visible')return;try{WL=await navigator.wakeLock.request('screen');WL.addEventListener('release',()=>{WL=null})}catch(x){WL=null}}
+function wakeOff(){try{WL&&WL.release()}catch(x){}WL=null}
+async function arm(s){if(TU.d!==(L&&L.date))TU={d:L.date,seen:[]};
+ if(TU.sel===s){TU.sel='';tuSave();wakeOff();draw();return toast('Alert off')}
+ TU.sel=s;if(TU.wake==null)TU.wake=true;tuSave();
+ try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume();const b=AC.createBuffer(1,1,22050),src=AC.createBufferSource();src.buffer=b;src.connect(AC.destination);src.start(0)}catch(x){}   /* unlock sound with this tap */
+ try{if('Notification' in window&&Notification.permission==='default')await Notification.requestPermission()}catch(x){}
+ try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/live-sw.js',{scope:'/live'}).catch(()=>{})}catch(x){}
+ wakeOn();draw();toast('🔔 We’ll alert you when your game starts')}
+function wakeT(){TU.wake=!TU.wake;tuSave();TU.wake?wakeOn():wakeOff();draw()}
+async function notify(t,b,tag){try{if(!('Notification' in window)||Notification.permission!=='granted')return;const o={body:b,tag,renotify:true,vibrate:[300,120,300]};
+ const r='serviceWorker' in navigator&&await navigator.serviceWorker.getRegistration('/live');if(r&&r.showNotification)return r.showNotification(t,o);new Notification(t,o)}catch(x){}}
+function turnCheck(){if(!L||!L.live||!PL())return;if(TU.d!==L.date){TU={d:L.date,seen:[],wake:TU.wake}}TU.seen=TU.seen||[];
+ const nw=Date.now()-off;(L.now||[]).forEach(x=>{if(x.me&&x.gk&&nw-x.start>15*60e3&&!TU.seen.includes(x.gk))TU.seen.push(x.gk)});   /* already playing for a while = no alert */
+ const c=(L.now||[]).find(x=>x.me&&x.run&&x.gk&&!TU.seen.includes(x.gk));
+ if(c){TU.seen.push(c.gk);TU.seen=TU.seen.slice(-40);TU.sel='';tuSave();wakeOff();
+  const g=T(c.a)+' vs '+T(c.b);document.getElementById('turn').innerHTML='<div class="tb"><div class="tt">🏸 It’s your turn!</div><div class="tg">'+g+'</div><div class="tc">'+e(c.court)+'</div><button data-a="turnok">OK · On my way</button></div>';
+  document.getElementById('turn').className='on';try{navigator.vibrate&&navigator.vibrate([400,150,400,150,400])}catch(x){}beep();
+  notify('🏸 It’s your turn! · '+c.court,c.a.join(' & ')+' vs '+c.b.join(' & ')+' — '+c.court,c.gk);return}
+ /* optional heads-up: your game is next on a court */
+ const n=(L.next||[]).find(x=>x.me&&x.nx&&x.court);if(n){const k='n|'+n.court+'|'+sig(n);if(!TU.seen.includes(k)){TU.seen.push(k);tuSave();toast('⏭ You’re up next on '+n.court);try{navigator.vibrate&&navigator.vibrate(200)}catch(x){}}}}
+function turnOk(){const t=document.getElementById('turn');t.className='';t.innerHTML=''}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){load();wakeOn()}});
 load();setInterval(load,10000);
 setInterval(()=>{const now=Date.now()-off;document.querySelectorAll('[data-t]').forEach(el=>{const s=+el.dataset.t;if(s)el.textContent=t2((now-s)/1000)})},1000);
-addEventListener('resize',fit);
+addEventListener('resize',()=>{fit();hh()});
 </script></body></html>`;
 
+/* v21: tiny service worker – only so Android Chrome can show the "your turn" notification (and tap → back to /live). No caching, no push. */
+const LIVE_SW = `self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
+self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(l=>{const c=l.find(x=>x.url.indexOf('/live')>=0);return c?c.focus():self.clients.openWindow('/live')}))});`;
 /* ---------- data for each role ---------- */
 function forRole(txt, role) {
   if (role !== 'games') return { data: txt };
@@ -302,7 +389,7 @@ function mergeGM(curTxt, inc) {      /* game manager upload: only game keys chan
 
 async function liveState(env) {
   const d = await getDoc(env); let S = {}; try { S = JSON.parse(d ? d.data : '{}'); } catch (e) {}
-  const subs = (await env.DB.prepare("SELECT k,st FROM subs WHERE d=? AND st IN ('p','a')").bind(dubaiDay()).all()).results;
+  const subs = (await env.DB.prepare("SELECT k,st,at FROM subs WHERE d=? AND st IN ('p','a','cp','ca','cr')").bind(dubaiDay()).all()).results;
   const claims = (await env.DB.prepare('SELECT d,pid,th,nm,at FROM claims WHERE off=0').all()).results;
   return { S, subs, claims };
 }
@@ -351,10 +438,13 @@ async function liveClaim(req, env) {
 async function liveScore(req, env) {
   const b = await req.json().catch(() => ({})), { L, mine, S } = await livePublic(env, b.t);
   if (!L.live) return J({ error: 'No live session right now' }, 409);
-  const r = L.results.find(x => x.k === String(b.k || ''));
+  const r = L.results.find(x => x.k === String(b.k || '')), fix = !!b.c;
   if (!r) return J({ error: 'Game not found' }, 404);
-  if (r.sc) return J({ error: 'This game already has a score' }, 409);
-  if (!r.send) return J({ error: 'Score already sent · waiting for approval' }, 409);
+  if (!fix && r.sc) return J({ error: 'This game already has a score' }, 409);
+  if (!fix && !r.send) return J({ error: 'Score already sent · waiting for approval' }, 409);
+  /* v21: correction of a score already saved on the tablet – one pending correction per game */
+  if (fix && !r.sc) return J({ error: 'No score saved yet – send the score instead' }, 409);
+  if (fix && !r.fix) return J({ error: 'Correction sent · waiting for approval' }, 409);
   /* v19: the sender is the phone's picked name (claim token checked on every score) and must have played in this game */
   if (!mine) return J({ error: 'Pick your name first', claim: 1 }, 401);
   const h = (((S.games || {})[L.date] || {}).hist || []).find(o => hKey(o) === r.k), who = h ? h.ids.indexOf(mine.pid) : -1, sa = +b.sa, sb = +b.sb;
@@ -362,12 +452,13 @@ async function liveScore(req, env) {
   if (!Number.isInteger(sa) || !Number.isInteger(sb) || sa < 0 || sb < 0) return J({ error: 'Enter both scores' }, 400);
   const P = { pts: r.pts, deuce: r.deuce }, e = scoreErr(sa, sb, P);
   if (e) return J({ error: e }, 400);
+  if (fix && sa === r.sa && sb === r.sb) return J({ error: 'Same as the saved score' }, 400);
   if (!gameWon(sa, sb, P)) return J({ error: 'Not a finished game – one side must reach ' + r.pts }, 400);
   const ip = await sha('ip|' + (req.headers.get('CF-Connecting-IP') || '') + '|' + dubaiDay());
   if (((await env.DB.prepare('SELECT COUNT(*) AS n FROM subs WHERE d=? AND ip=?').bind(dubaiDay(), ip).first()) || {}).n >= 30) return J({ error: 'Too many scores from this phone today' }, 429);
   const byn = L.me.name || r.a.concat(r.b)[who] || '';
-  try { await env.DB.prepare("INSERT INTO subs(d,k,st,who,byn,sa,sb,at,ip) VALUES(?,?,'p',?,?,?,?,?,?)").bind(dubaiDay(), r.k, who, byn, sa, sb, Date.now(), ip).run(); }
-  catch (x) { return J({ error: 'Score already sent · waiting for approval' }, 409); }
+  try { await env.DB.prepare('INSERT INTO subs(d,k,st,who,byn,sa,sb,at,ip) VALUES(?,?,?,?,?,?,?,?,?)').bind(dubaiDay(), r.k, fix ? 'cp' : 'p', who, byn, sa, sb, Date.now(), ip).run(); }
+  catch (x) { return J({ error: fix ? 'Correction sent · waiting for approval' : 'Score already sent · waiting for approval' }, 409); }
   return J({ ok: 1 });
 }
 
@@ -465,7 +556,7 @@ async function api(req, env, ctx, url) {
   if (path === '/api/subs' && m === 'GET') {
     if (!admin && !gm) return deny();
     const d = /^\d{4}-\d{2}-\d{2}$/.test(url.searchParams.get('d') || '') ? url.searchParams.get('d') : dubaiDay();
-    return J({ d, list: (await env.DB.prepare("SELECT id,k,who,byn,sa,sb,at FROM subs WHERE d=? AND st='p' ORDER BY at").bind(d).all()).results });
+    return J({ d, list: (await env.DB.prepare("SELECT id,k,st,who,byn,sa,sb,at FROM subs WHERE d=? AND st IN ('p','cp') ORDER BY at").bind(d).all()).results });
   }
   mm = path.match(/^\/api\/subs\/(\d+)$/);
   if (mm && m === 'POST') {
@@ -474,10 +565,11 @@ async function api(req, env, ctx, url) {
     if (!st) return J({ error: 'bad request' }, 400);
     const x = await env.DB.prepare('SELECT * FROM subs WHERE id=?').bind(+mm[1]).first();
     if (!x) return J({ error: 'not found' }, 404);
-    if (x.st !== 'p') return J({ error: 'already reviewed', st: x.st }, 409);
+    if (x.st !== 'p' && x.st !== 'cp') return J({ error: 'already reviewed', st: x.st }, 409);
+    const co = x.st === 'cp', nst = co ? 'c' + st : st;
     const sa = st === 'a' && Number.isInteger(b.sa) ? b.sa : x.sa, sb = st === 'a' && Number.isInteger(b.sb) ? b.sb : x.sb;
-    await env.DB.prepare('UPDATE subs SET st=?,sa=?,sb=?,rv=?,rby=? WHERE id=? AND st=?').bind(st, sa, sb, Date.now(), me.u, x.id, 'p').run();
-    await audit(env, me.u, 'Live score ' + (st === 'a' ? 'accepted' : 'rejected') + ': ' + sa + '–' + sb + ' from ' + (x.byn || '?') + ' (game ' + x.k + ')' + (st === 'a' && (sa !== x.sa || sb !== x.sb) ? ' · sent as ' + x.sa + '–' + x.sb : ''));
+    await env.DB.prepare('UPDATE subs SET st=?,sa=?,sb=?,rv=?,rby=? WHERE id=? AND st=?').bind(nst, sa, sb, Date.now(), me.u, x.id, x.st).run();
+    await audit(env, me.u, 'Live score ' + (co ? 'correction ' : '') + (st === 'a' ? 'accepted' : 'rejected') + ': ' + sa + '–' + sb + ' from ' + (x.byn || '?') + ' (game ' + x.k + ')' + (st === 'a' && (sa !== x.sa || sb !== x.sb) ? ' · sent as ' + x.sa + '–' + x.sb : ''));
     return J({ ok: 1 });
   }
   /* v19: names picked on the live page – admin + game manager see them and can free a wrongly picked one */
@@ -520,6 +612,7 @@ export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url), path = url.pathname;
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+    if (path === '/live-sw.js') return new Response(LIVE_SW, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' } });
     if (path === '/live' || path === '/live/') return new Response(LIVE_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
     if (path.startsWith('/api/')) {
       if (!env.DB) return J({ error: 'cloud not set up' }, 503);

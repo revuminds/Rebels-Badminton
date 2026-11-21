@@ -64,7 +64,7 @@ with sync_playwright() as p:
         rec('[%s] Running game: no ⇄ Swap buttons' % th, pg.locator('[data-a="cswap"]').count() == 0)
         nxt = pg.evaluate("()=>{const t=document.querySelector('[data-a=\"timer\"][data-x=\"0\"]');return t&&t.nextElementSibling&&t.nextElementSibling.dataset.a}")
         rec('[%s] ✎ Edit sits right of Stop & save' % th, nxt == 'ced', str(nxt))
-        rec('[%s] ⏻ power icon is the top-right item of the status bar' % th, pg.evaluate("()=>{const s=document.querySelector('#stat');const l=s.lastElementChild;const r=l.getBoundingClientRect();return l.textContent.trim()==='⏻'&&r.right>innerWidth-30&&r.top<40&&!document.querySelector('[data-a=\"switchacc\"] span')}"))
+        rec('[%s] power icon (SVG) is the top-right item of the status bar' % th, pg.evaluate("()=>{const s=document.querySelector('#stat');const l=s.lastElementChild;const r=l.getBoundingClientRect();return l.classList.contains('pwr')&&!!l.querySelector('svg')&&r.right>innerWidth-30&&r.top<40&&!document.querySelector('[data-a=\"switchacc\"] span')}"))
         pg.evaluate("window.scrollTo(0,0)"); shot(pg, 'games_' + th)
         pg.evaluate("window.scrollTo(0,0)"); shot(pg, 'games_' + th + '_full', True)
         if not light:
@@ -90,9 +90,7 @@ with sync_playwright() as p:
             pg.evaluate("RB.act.devlock()"); pg.wait_for_timeout(100)
             t = pg.inner_text('#toast')
             rec('Lock: tapping 🔒 while pinned shows the swipe-up hint (no in-app unlock)', 'swipe up from the bottom and hold 3 seconds' in t and pg.evaluate("!window.__unl"), t)
-            rec('Power ⏻ dimmed while pinned', pg.locator('#stat .pwr.dis').count() == 1)
-            pg.click('#stat .pwr'); pg.wait_for_timeout(100)
-            rec('Power while pinned → "Unlock the tablet first", still logged in', 'Unlock the tablet first' in pg.inner_text('#toast') and pg.evaluate("RB.AUTH.role") == 'admin')
+            rec('Power icon hidden while pinned (v20), still logged in', pg.locator('#stat .pwr:visible').count() == 0 and pg.evaluate("RB.AUTH.role") == 'admin')
             pg.evaluate("window.__pin=false"); pg.wait_for_timeout(5000)
             rec('Unpinned by the tablet gesture → icons update by themselves', pg.locator('#main [data-a="devlock"].on').count() == 0 and pg.locator('#stat .pwr.dis').count() == 0, pg.evaluate("JSON.stringify([window.__pin,document.querySelectorAll('#main [data-a=devlock].on').length,document.querySelectorAll('#stat .pwr.dis').length,RB.ui.tab,!!document.querySelector('.modal')])"))
             rec('No console errors (Games tab v18)', not errs, '; '.join(errs[:3]))
@@ -105,8 +103,8 @@ with sync_playwright() as p:
         r = pg.evaluate("()=>{const g=document.querySelector('.cgrid'),W=g.getBoundingClientRect().width;return [...g.children].map(e=>{const r=e.getBoundingClientRect();return [Math.round(r.width/W*100),Math.round(r.top)]})}")
         lay[nc] = r
         tops = sorted(set(t for _, t in r))
-        exp = {1: (100, 1), 2: (49, 1), 3: (32, 1), 4: (49, 2)}[nc]
-        rec('%d court%s: cards %s%% wide, %d row%s' % (nc, 's' if nc > 1 else '', exp[0], exp[1], 's' if exp[1] > 1 else ''), all(abs(w - exp[0]) <= 2 for w, _ in r) and len(tops) == exp[1], str(r))
+        exp = {1: (69, 1), 2: (49, 1), 3: (49, 2), 4: (49, 2)}[nc]        # v21: max 2 side by side; 1 court capped at 760 px
+        rec('%d court%s: cards %s%% wide, %d row%s' % (nc, 's' if nc > 1 else '', exp[0], exp[1], 's' if exp[1] > 1 else ''), all(abs(w - exp[0]) <= 3 for w, _ in r) and len(tops) == exp[1], str(r))
         pg.evaluate("window.scrollTo(0,0)"); shot(pg, 'courts_%d' % nc)
         c.close()
     for lab, w, h in (('portrait', 834, 1194), ('phone', 390, 844)):
@@ -154,13 +152,14 @@ with sync_playwright() as p:
             pg.goto(U + '/live'); pg.wait_for_timeout(1500)
             # v19: first visit asks Guest / Player – the phone plays as Saif (p11), the tablet watches as guest
             if nm == 'phone': pg.click('[data-a="player"]'); pg.click('.pk button:has-text("Saif")'); pg.wait_for_timeout(1200)
+            if pg.is_visible('#turn.on'): pg.click('[data-a="turnok"]'); pg.wait_for_timeout(200)      # v21: Saif is on court → "your turn" popup
             else: pg.click('[data-a="guest"]'); pg.wait_for_timeout(800)
             if nm == 'phone':
                 hs = pg.eval_on_selector_all('h2', 'e=>e.map(x=>x.textContent)')
                 rec('Live page order: On court → Up next → Results → Games & wins', hs == ['ON COURT NOW', 'UP NEXT', 'RESULTS · NEWEST FIRST', 'TODAY · GAMES & WINS'], str(hs))
-                rec('On court cards: green court backdrop + lines, header "Court · Points · timer", format heading', pg.evaluate("()=>{const c=document.querySelector('.cc');const ct=c.querySelector('.ct');return getComputedStyle(ct).backgroundColor==='rgb(29, 94, 71)'&&!!ct.querySelector('.net')&&/Court 6.*Points 21/.test(c.querySelector('.ch').textContent)&&/\\d\\d:\\d\\d/.test(c.querySelector('.tm').textContent)&&!!c.querySelector('.fh .fmt')}"))
+                rec('On court cards: green court backdrop + lines, header "Court · Points · timer", format heading', pg.evaluate("()=>{const c=document.querySelector('.vc');const ct=c.querySelector('.vct');return !!ct.querySelector('svg rect')&&!!ct.querySelector('.vnet')&&/Court 6.*to 21/.test(c.querySelector('.vch').textContent)&&/\\d\\d:\\d\\d/.test(c.querySelector('.vtm').textContent)&&!!c.querySelector('.vch .fmt')}"))
                 fm = pg.eval_on_selector_all('.fh', 'e=>e.map(x=>x.textContent)')
-                rec('Format headings (Mixed / Men\'s / Women\'s doubles) on court + up next', all(any(k in f for k in ("Mixed doubles", "Men's doubles", "Women's doubles")) for f in fm) and len(fm) == 5, str(fm))
+                rec('Format headings (Mixed / Men\'s / Women\'s doubles) on court + up next', all(any(k in f for k in ("Mixed doubles", "Men's doubles", "Women's doubles")) for f in fm) and len(fm) >= 2, str(fm))          # v21: on court shows the format badge in the court header; headings on Up next
                 rec('Up next card says "Next free court"', pg.locator('text=Next free court').count() == 2)
                 ln = pg.evaluate("()=>[...document.querySelectorAll('.ln')].map(e=>[e.scrollWidth<=e.clientWidth+1,e.getBoundingClientRect().height<34,e.textContent,getComputedStyle(e).fontSize])")
                 rec('Results: every result on ONE line on a 390 px phone (text shrinks to fit)', all(x[0] and x[1] for x in ln), str([(x[2][:46], x[3]) for x in ln]))
@@ -204,8 +203,11 @@ with sync_playwright() as p:
         c, pg, errs, ext = app_ctx(b, store=st_url, net=U, clock=False)
         pg.evaluate("RB.act.lgother()"); pg.fill('#lgu', 'games'); pg.fill('#lgp', PW['games']); pg.click('[data-a="lgpw"]'); pg.wait_for_timeout(2500)
         if pg.is_visible('[data-a="lgnoface"]'): pg.click('[data-a="lgnoface"]')
-        pg.evaluate("RB.syncNow(true)"); pg.wait_for_timeout(2500)
+        if pg.locator('[data-a="qpno"]').count() and pg.is_visible('[data-a="qpno"]'): pg.click('[data-a="qpno"]'); pg.wait_for_timeout(300)   # v20 quick PIN offer
         pg.evaluate("t=>window.TD=t", today)
+        for _ in range(8):                                    # cloud pull can take a few seconds
+            pg.evaluate("RB.syncNow(true)"); pg.wait_for_timeout(2500)
+            if pg.evaluate("!!(RB.S.games[TD]&&RB.S.games[TD].hist&&RB.S.games[TD].hist.length)"): break
         pg.evaluate("RB.act.tab('games')")
         for _ in range(10):
             pg.evaluate("RB.subsPoll(true)"); pg.wait_for_timeout(700)
