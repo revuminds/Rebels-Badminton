@@ -172,7 +172,7 @@ with sync_playwright() as p:
                 # send a score as a player
                 k0 = L['results'][0]['k']
                 pg.click('[data-a="open"][data-k="%s"]' % k0); pg.wait_for_timeout(200)
-                rec('Send score (v19): sender = picked name, no who-picker, no typing', pg.locator('.who').count() == 0 and 'Saif' in pg.inner_text('#sas') and pg.locator('.sh input[type=text]').count() == 0, pg.inner_text('#sas'))
+                rec('Send score (v19): sender = picked name, no who-picker, no typing', pg.locator('.who').count() == 0 and 'Saif' in pg.inner_text('#sas') and pg.locator('.sh input[type=text]:not([inputmode=numeric])').count() == 0, pg.inner_text('#sas'))
                 pg.fill('#insa', '21'); pg.fill('#insb', '25'); pg.click('[data-a="send"]'); pg.wait_for_timeout(300)
                 rec('Send score: invalid score refused on the phone (vs game points)', 'Max 21' in pg.inner_text('#er'), pg.inner_text('#er'))
                 pg.fill('#insb', '17'); shot(pg, 'live_phone_send')

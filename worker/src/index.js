@@ -174,7 +174,8 @@ h2{font-size:12px;letter-spacing:.16em;color:var(--mu);margin:20px 2px 8px;font-
 /* v21: court graphic – inline SVG stretched to fit (never taller than one screen), names in the 4 half-court boxes, score + timer on the net */
 .vc{background:var(--pn);border-radius:18px;padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0;container-type:inline-size}
 .vch{display:flex;align-items:center;gap:8px;font-size:14px;min-height:26px;padding:0 4px}.vch b{font-size:18px}
-.vct{position:relative;width:100%;height:min(calc(100cqw * 2.06),calc(100dvh - var(--hh,150px)));min-height:300px;border-radius:12px;overflow:hidden}
+/* v22: 100svh (address bar shown) – stable while the phone scrolls; --vh = height measured once, re-measured only on rotation/width change */
+.vct{position:relative;width:100%;height:min(calc(100cqw * 2.06),calc(100vh - var(--hh,150px)));height:min(calc(100cqw * 2.06),calc(var(--vh,100svh) - var(--hh,150px)));min-height:300px;border-radius:12px;overflow:hidden}
 .vct svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .vbx{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:2px;min-width:0}
 .vbx span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(10,30,22,.62);border-radius:10px;padding:5px 9px;font-weight:700;font-size:clamp(14px,6.2cqw,24px);line-height:1.15}
@@ -227,8 +228,9 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-top:1px s
 .who{display:grid;grid-template-columns:1fr 1fr;gap:8px}.who button{min-height:56px;border-radius:12px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font:700 17px Outfit,system-ui,sans-serif;padding:0 8px}
 .who button.on{border-color:var(--ok);background:rgba(52,199,123,.16);color:var(--ok)}
 .srow{display:flex;align-items:center;gap:8px;background:var(--bg);border-radius:14px;padding:8px}.srow span{flex:1;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.srow button{width:52px;height:52px;border-radius:12px;border:0;background:var(--line);color:var(--tx);font-size:26px;font-weight:700}
-.srow input{width:76px;height:56px;border-radius:12px;border:2px solid var(--bd);background:var(--pn);color:var(--tx);font:700 30px Outfit,system-ui,sans-serif;text-align:center}
+.sh,.srow,.srow button,.srow input{touch-action:manipulation}
+.srow button{width:60px;height:60px;min-width:48px;border-radius:14px;border:0;background:var(--line);color:var(--tx);font-size:30px;font-weight:700;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.srow button:active,.srow button.hold{background:var(--bd)}
+.srow input{width:80px;height:60px;border-radius:12px;border:2px solid var(--bd);background:var(--pn);color:var(--tx);font:700 30px Outfit,system-ui,sans-serif;text-align:center}
 .err{color:var(--amb);font-weight:700;min-height:20px}
 .btns{display:flex;gap:10px}.btns button{flex:1;min-height:54px;border-radius:12px;font:700 17px Outfit,system-ui,sans-serif}
 .cx{border:2px solid var(--bd);background:transparent;color:var(--tx)}.ok{border:0;background:var(--ok);color:#06210F}.ok:disabled{opacity:.4}
@@ -296,7 +298,8 @@ function draw(){const v=document.getElementById('v'),sub=document.getElementById
  if(L.stats.length)h+='<h2>TODAY · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>';
  v.innerHTML=h;fit();hh();turnCheck()}
 /* v21: one court never taller than one screen – the court gets the height left under the header */
-function hh(){const c=document.querySelector('.vct');if(!c)return;const top=document.querySelector('.cg').getBoundingClientRect().top+scrollY,x=c.parentNode.offsetHeight-c.offsetHeight;document.documentElement.style.setProperty('--hh',Math.round(Math.min(top,innerHeight*.45)+x+6)+'px')}
+let VW=innerWidth,VH=innerHeight;document.documentElement.style.setProperty('--vh',VH+'px');
+function hh(){const c=document.querySelector('.vct');if(!c)return;const top=document.querySelector('.cg').getBoundingClientRect().top+scrollY,x=c.parentNode.offsetHeight-c.offsetHeight;document.documentElement.style.setProperty('--hh',Math.round(Math.min(top,VH*.45)+x+6)+'px')}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',3000)}
 /* chooser: Guest or Player → tap your own name (names picked on another phone are greyed out) */
 function drawC(m){const P=L.pick||[];
@@ -306,7 +309,7 @@ function drawC(m){const P=L.pick||[];
 /* send score: sender = the picked name */
 function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live){M=null}else return drawC(m)}
  const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!((M.fx?r.fix:r.send)&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
- const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="number" inputmode="numeric" min="0" max="'+cap(r)+'" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
+ const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
  m.className='on';m.innerHTML='<div class="sh"><div class="lab">'+(M.fx?'SUGGEST CORRECTION':'SEND SCORE')+' · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
   '<div class="mu" id="sas">Sending as <b style="color:var(--tx)">'+e(ME.name)+'</b>'+(M.fx?' · saved now: <b style="color:var(--tx)">'+r.sa+' – '+r.sb+'</b>':'')+'</div>'+
   '<div class="lab" style="color:var(--tx)">FINAL SCORE</div>'+row('sa',r.a)+row('sb',r.b)+'<div class="err" id="er">'+e(M.err)+'</div>'+
@@ -328,8 +331,19 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('[data-a]');if(
  if(a==='open'){M={k:b.dataset.k,sa:'',sb:'',err:''};drawM()}else if(!M)return;
  else if(a==='guest'){if(M.busy)return;M=null;drawM();toGuest()}else if(a==='player'){M.step=2;drawM()}else if(a==='pick'){if(!M.busy)pick(b.dataset.k)}
  else if(a==='close'){M=null;drawM()}
- else if(a==='up'||a==='dn'){const s=b.dataset.s;M[s]=String(Math.max(0,(parseInt(M[s],10)||0)+(a==='up'?1:-1)));M.err='';drawM()}else if(a==='send')send()});
-document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){M[ev.target.id.slice(2)]=ev.target.value;M.err='';document.getElementById('er').textContent=''}});
+ else if(a==='send')send()});
+/* v22: +/− = one step per tap, press-and-hold repeats and speeds up; value changed in place (no redraw) so the hold survives; clamped 0..max */
+function stepS(s,d){const r=L&&M&&L.results.find(x=>x.k===M.k);if(!r)return;const v=Math.min(cap(r),Math.max(0,(parseInt(M[s],10)||0)+d));M[s]=String(v);M.err='';
+ const i=document.getElementById('in'+s);if(i)i.value=M[s];const er=document.getElementById('er');if(er)er.textContent=''}
+let HD=null;function holdEnd(){if(!HD)return;clearTimeout(HD.t);HD.b.classList.remove('hold');HD=null}
+document.addEventListener('pointerdown',ev=>{const b=ev.target.closest('.srow button[data-a]');if(!b||!M||M.busy||ev.button>0)return;ev.preventDefault();holdEnd();
+ const s=b.dataset.s,d=b.dataset.a==='up'?1:-1;stepS(s,d);if(navigator.vibrate)try{navigator.vibrate(8)}catch(x){}
+ HD={b,n:0};b.classList.add('hold');try{b.setPointerCapture(ev.pointerId)}catch(x){}
+ const tick=()=>{if(!HD)return;HD.n++;stepS(s,d);HD.t=setTimeout(tick,HD.n<5?220:HD.n<15?110:55)};HD.t=setTimeout(tick,450)});
+['pointerup','pointercancel','lostpointercapture','blur'].forEach(t=>addEventListener(t,holdEnd,true));
+document.addEventListener('pointerleave',ev=>{if(HD&&ev.target===HD.b)holdEnd()},true);
+document.addEventListener('contextmenu',ev=>{if(ev.target.closest&&ev.target.closest('.srow button'))ev.preventDefault()});
+document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){const v=ev.target.value.replace(/[^0-9]/g,'').slice(0,2);if(v!==ev.target.value)ev.target.value=v;M[ev.target.id.slice(2)]=v;M.err='';document.getElementById('er').textContent=''}});
 async function load(){try{const r=await fetch('/api/live',{cache:'no-store',headers:PL()?{'X-Claim':ME.t}:{}});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());
  /* session over or a new session → forget the choice; name freed on the tablet → ask again */
  if(ME&&(!L.live||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}
@@ -367,7 +381,9 @@ function turnOk(){const t=document.getElementById('turn');t.className='';t.inner
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){load();wakeOn()}});
 load();setInterval(load,10000);
 setInterval(()=>{const now=Date.now()-off;document.querySelectorAll('[data-t]').forEach(el=>{const s=+el.dataset.t;if(s)el.textContent=t2((now-s)/1000)})},1000);
-addEventListener('resize',()=>{fit();hh()});
+/* v22: ignore height-only resizes (mobile address bar showing/hiding while scrolling) – only a width change / rotation re-measures */
+function reVH(){if(innerWidth===VW)return;VW=innerWidth;VH=innerHeight;document.documentElement.style.setProperty('--vh',VH+'px');fit();hh()}
+addEventListener('resize',reVH);addEventListener('orientationchange',()=>setTimeout(()=>{VW=-1;reVH()},250));
 </script></body></html>`;
 
 /* v21: tiny service worker – only so Android Chrome can show the "your turn" notification (and tap → back to /live). No caching, no push. */
