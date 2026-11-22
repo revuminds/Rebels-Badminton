@@ -16,7 +16,7 @@ window.__dl=()=>render();
 const lockBtn=()=>pinned()?'<button class="dlock on" data-a="devlock" aria-label="Tablet locked – how to unlock">'+UNLOCK_SVG+'</button>':'<button class="dlock" data-a="devlock" aria-label="Tablet unlocked – tap to lock">'+LOCK_SVG.replace(/22/g,'26')+'</button>';
 let PINNED=null;setInterval(()=>{if(!NB||!NB.isPinned)return;const p=pinned();if(PINNED!==null&&p!==PINNED)render();PINNED=p},2000);
 const LOGO_SRC=()=>$('#lg').src;
-function vNav(){return '<img class="logo" src="'+$('#sk').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].filter(t=>!GM()||(t!=='finance'&&t!=='settings')).map(t=>'<button class="tab'+((t==='home'?ui.scr==='home':ui.tab===t&&ui.scr==='app')?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+'<span class="tlb" data-m="'+(t==='settings'?'More':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
+function vNav(){return '<img class="logo lgD" src="'+$('#sk').src+'" alt="Rebels Badminton"><img class="logo lgL" src="'+$('#skl').src+'" alt="Rebels Badminton">'+['home','players','games','finance','settings'].filter(t=>!GM()||(t!=='finance'&&t!=='settings')).map(t=>'<button class="tab'+((t==='home'?ui.scr==='home':ui.tab===t&&ui.scr==='app')?' on':'')+(t==='settings'?' gear':'')+'" data-a="tab" data-x="'+t+'">'+ICON[t]+'<span class="tlb" data-m="'+(t==='settings'?'More':'')+'">'+t[0].toUpperCase()+t.slice(1)+'</span>'+(t==='settings'&&S.newRules?'<i class="ndot"></i>':'')+'</button>').join('')}
 const backBtn='<button class="ib back" data-a="home" aria-label="Back to home">'+BACK_SVG+'</button>';
 
 /* ---------- HOME ---------- */
@@ -38,10 +38,10 @@ function vHome(){const t=TODAY(),up=upcoming().slice(0,6),ps=sessions().filter(d
 /* ---------- SCHEDULE SESSION ---------- */
 const TIMES=(()=>{const a=[];for(let m=0;m<=23*60+30;m+=30)a.push(z(Math.floor(m/60))+':'+z(m%60));return a})();
 function nextSessDate(){const t=TODAY(),all=Object.keys(S.days).filter(d=>isSched(d)).sort(),last=all[all.length-1];let d=last?addD(last,7):addD(t,7);while(d<=t)d=addD(d,7);while(S.days[d]&&isSched(d))d=addD(d,7);return d}
-function openSched(d,ret){const t=TODAY();if(d&&S.days[d]){const D=S.days[d],g=S.games[d];ui.sc={d,orig:d,ret:ret||'home',time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(g&&g.st),ended:!!(g&&g.en)}}
+function openSched(d,ret){const t=TODAY();if(d&&S.days[d]){const D=S.days[d],g=S.games[d];ui.sc={d,orig:d,ret:ret||'home',time:D.time||'20:00',loc:D.loc,courts:JSON.parse(JSON.stringify(courtsOf(d))),rep:!!D.ser,started:!!(g&&g.st),ended:!!(g&&g.en),live:!!(g&&g.st&&!g.en)}}
   else{const last=Object.keys(S.days).filter(x=>isSched(x)).sort().pop(),L=last?S.days[last]:null;ui.sc={d:isSched(t)?nextSessDate():t,orig:'',time:L?L.time:'20:00',loc:L?L.loc:(S.locs[0]||''),courts:[{n:'Court 1',h:2}],rep:false}}
   ui.scr='sched';render();window.scrollTo(0,0)}
-function vSched(){const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started,lockV=s.started&&!s.ended;
+function vSched(){if(ui.sc&&ui.sc.live)ui.sc.courts=JSON.parse(JSON.stringify(courtsOf(ui.sc.d)));const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started,lockV=s.started&&!s.ended;
   const st=tms(s.d||t,s.time),fm=ms=>t12(hm(ms));
   const dchip=(d,l)=>'<button class="dchip'+(s.d===d?' on':'')+'" data-a="scd" data-x="'+d+'"'+(lock?' disabled':'')+'>'+l+'</button>';
   const chips=dchip(t,'Today · '+DN[pd(t).getDay()]+' '+pd(t).getDate())+(nx!==t?dchip(nx,dlab(nx)):'')+(s.d!==t&&s.d!==nx?dchip(s.d,dlab(s.d)):'')+'<input type="date" class="sel dpick" data-c="scdate" min="'+t+'" value="'+s.d+'"'+(lock?' disabled':'')+' aria-label="Calendar">';
@@ -52,15 +52,15 @@ function vSched(){const s=ui.sc,t=TODAY(),nx=nextSessDate(),lock=s.started,lockV
     '<div style="font-size:13px;color:var(--mu);align-self:end;padding-bottom:12px">'+fm(st)+' – '+fm(st+num(c.h)*3600e3)+' · ≈ '+Math.floor(num(c.h)*60/sl)+' games</div></div>').join('');
   const bars=C.map(c=>'<div class="row" style="gap:10px"><div style="width:90px;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(c.n)+'</div><div class="tl"><div style="width:'+(num(c.h)/span*100)+'%"></div></div></div>').join('');
   const ticks=[];for(let h=0;h<=span;h+=span>3?1:.5)ticks.push(fm(st+h*3600e3));
-  return '<div class="scr"><div class="row" style="gap:16px">'+backBtn+'<h1 style="flex:1">'+(s.orig?'EDIT <span>SESSION</span>':'SCHEDULE <span>SESSION</span>')+'</h1>'+(s.orig?'':'<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="sclast">⧉ Same as last session</button>')+'</div>'+
+  return '<div class="scr"><div class="row" style="gap:16px">'+(s.ret==='players'?'<button class="ib back" data-a="scback" aria-label="Back to Players">'+BACK_SVG+'</button>':backBtn)+'<h1 style="flex:1">'+(s.orig?'EDIT <span>SESSION</span>':'SCHEDULE <span>SESSION</span>')+'</h1>'+(s.orig?'':'<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="sclast">⧉ Same as last session</button>')+'</div>'+
    (s.ended?'<div class="warn yel">Finished session · date is fixed. Time, venue and court hours can be corrected.</div>':lock?'<div class="warn yel">Session already started · date and venue are fixed. Court hours can still change here or on the Games page.</div>':'')+
    '<div class="schg"><section class="pn" style="gap:18px;padding:20px"><div><div class="lab">DATE</div><div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">'+chips+'</div></div>'+
    '<label class="fl">START TIME<select class="sel big" data-c="sctime"'+(lockV?' disabled':'')+'>'+TIMES.map(v=>'<option value="'+v+'"'+(v===s.time?' selected':'')+'>'+t12(v)+'</option>').join('')+'</select></label>'+
    '<div class="fl">LOCATION'+(ui.scNew?'<div class="row"><input id="nloc" class="gei" placeholder="New location name"><button class="btn" style="height:48px" data-a="saveloc">Save</button><button class="gh" data-a="cancelloc">×</button></div>':
      '<select class="sel big" data-c="scloc"'+(lockV?' disabled':'')+'>'+locs.map(n=>'<option'+(n===s.loc?' selected':'')+'>'+esc(n)+'</option>').join('')+'<option value="__new">+ New location</option></select>')+'</div>'+
-   '<div class="fl">NUMBER OF COURTS<div class="row" style="gap:12px"><button class="ib xl" data-a="scn" data-x="-1">−</button><div class="d" style="flex:1;text-align:center;font-size:52px;color:var(--y)">'+C.length+'</div><button class="ib xl" data-a="scn" data-x="1">+</button></div></div>'+
+   (lockV?'':'<div class="fl">NUMBER OF COURTS<div class="row" style="gap:12px"><button class="ib xl" data-a="scn" data-x="-1">−</button><div class="d" style="flex:1;text-align:center;font-size:52px;color:var(--y)">'+C.length+'</div><button class="ib xl" data-a="scn" data-x="1">+</button></div></div>')+
    '<button class="fc'+(s.rep?' on':'')+'" style="height:52px" data-a="screp">'+(s.rep?'✓ Repeat weekly · next 4 weeks':'Repeat weekly')+'</button></section>'+
-   '<section style="display:flex;flex-direction:column;gap:12px;min-width:0"><div class="sb"><b style="font-size:18px">Courts booked</b><span style="font-size:13px;color:var(--mu)">All start at '+fm(st)+' · each can end at its own time</span></div>'+crow+
+   '<section style="display:flex;flex-direction:column;gap:12px;min-width:0"><div class="sb"><b style="font-size:18px">Courts booked</b><span style="font-size:13px;color:var(--mu)">'+(lockV?'Session running · same courts editor as ⋯ More → Courts':'All start at '+fm(st)+' · each can end at its own time')+'</span></div>'+(lockV?vCourtEd(s.d,'sched'):crow)+
    '<div class="pn"><div class="lab">TIMELINE</div>'+bars+'<div class="sb" style="padding-left:100px;font-size:12px;color:var(--mu)">'+ticks.map(x=>'<span>'+x+'</span>').join('')+'</div></div></section></div>'+
    '<div class="sfoot"><div class="row" style="flex:1;gap:28px"><div><i>Court-hours</i><b>'+hrsL(ch)+'</b></div><div><i>Game slots ('+Math.round(gameMin(null))+' + '+num(S.def.chg)+' min)</i><b style="color:var(--ok)">≈ '+slots+' games</b></div><div><i>Players for 4–5 games each</i><b>'+Math.ceil(slots*4/5)+'–'+Math.floor(slots*4/4)+' players</b></div></div>'+
    (s.orig&&!s.ended?'<button class="ol" style="height:60px;font-size:17px;border-color:var(--y);color:var(--y)" data-a="scplayers">Players →</button>':'')+'<button class="btn sh" style="height:60px;font-size:18px" data-a="scsave">'+(s.orig?'Save changes':'Continue → Players')+'</button></div></div>'}
@@ -72,7 +72,7 @@ function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date
     if(!(g0&&g0.en))return toast('There is already a session on '+dlab(s.d)+' – use Edit on Home')}
   if(s.orig&&s.orig!==s.d){const D0=S.days[s.orig];if(D0&&D0.ser){const sr=S.series.find(x=>x.id===D0.ser);if(sr){sr.skip=sr.skip||[];sr.skip.push(s.orig)}}moveDate(s.orig,s.d)}
   if(S.days[s.d]&&S.days[s.d].x)delete S.days[s.d];
-  if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=s.courts.map(c=>({n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
+  if(S.delD)delete S.delD[s.d];const D=S.days[s.d]||mkDay(s.d);D.sch=1;delete D.x;D.time=s.time;D.loc=s.loc;D.courts=(s.live?courtsOf(s.d):s.courts).map(c=>Object.assign({},c,{n:(c.n||'').trim()||'Court',h:num(c.h)}));if(!D.on)D.on={};if(!D.att)D.att={};
   if(s.loc&&!S.locs.includes(s.loc))S.locs.push(s.loc);
   if(s.rep&&!D.ser){const id='w'+Date.now();S.series.push({id,from:s.d,time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts)),skip:[]});D.ser=id}
   else if(s.rep&&D.ser){const sr=S.series.find(x=>x.id===D.ser);if(sr)Object.assign(sr,{time:D.time,loc:D.loc,courts:JSON.parse(JSON.stringify(D.courts))})}

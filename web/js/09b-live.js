@@ -87,7 +87,9 @@ function vAsg(){const g=CG(),d=g.d,k=ui.asg-1;if(!g||!g.up[k]){ui.asg=0;return '
    courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=qOf(g,i).filter(o=>o!==x).length,me=x.ac===i,bad=cl,f=!me&&n>=3;
      return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+(me?';border-color:var(--y)':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+(me?'✓ ':'')+esc(c.n)+' <small style="color:'+(bad.length?'var(--bad)':'var(--mu)')+';font-weight:500">'+(bad.length?'⚠ '+esc(bad.map(o=>nameOf(o.id)+' on '+cname(d,o.i)).join(', ')):'Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(n>=3?' · full':''))+'</small></span></button>'}).join('')+
    (x.ac!=null?'<button class="ol" data-a="asgu">Unassign · back to Upcoming only</button>':'')+'</div></div>'}
-function vCts(){const g=CG(),d=g.d,now=Date.now();
+function vCts(){const g=CG(),d=g.d;
+  return '<div class="modal" data-a="closects"><div class="pn" data-a="noop" style="gap:12px;width:min(680px,94vw)"><div class="sb"><div class="laby">'+(ui.ctsFrom==='players'?'SESSION TIME &amp; COURTS':'COURTS')+' · '+esc(dlab(d).toUpperCase())+'</div><button class="ib" data-a="closects">×</button></div>'+vCourtEd(d,ui.ctsFrom)+'</div></div>'}
+function vCtsOld(){const g=CG(),d=g.d,now=Date.now();
   return '<div class="modal" data-a="closects"><div class="pn" data-a="noop" style="gap:12px;width:min(620px,92vw)"><div class="sb"><div class="laby">COURTS</div><button class="ib" data-a="closects">×</button></div>'+
    courtsOf(d).map((c,i)=>{const cl=g.closed[i],pi=cpill(d,i,now);return '<div class="ckr" style="padding:10px 14px"><span style="flex:1;font-weight:700;font-size:17px">'+esc(c.n)+' <small style="color:var(--mu);font-weight:500">'+(cl?'Closed at '+hm(cl):'Open · '+pi.t)+'</small></span>'+
      (!cl?'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="ctclose" data-x="'+i+'">Close court</button>':now-cl<CLOSE_MS?'<button class="btn sm" data-a="ctopen" data-x="'+i+'">Reopen</button>':'<span style="color:var(--mu)">Closed</span>')+'</div>'}).join('')+
@@ -114,7 +116,7 @@ function assignGame(g,x,i,ok){if(!x)return;if(g.closed[i])return toast(cname(g.d
 function moveGame(g,src,t,i,k){const a=String(src).split('.'),sk=+a[2],x=g.up[sk];if(!x)return;if(t==='q')return assignGame(g,x,i);
   g.up.splice(sk,1);if(k<0||k>g.up.length)k=g.up.length;else if(sk<k)k--;g.up.splice(k,0,x);save();render()}
 Object.assign(act,{
- cts:()=>{ui.cts=1;render()},closects:()=>{ui.cts=0;render()},
+ cts:()=>{ui.cts=1;ui.ctsFrom='';ui.cta=null;render()},closects:()=>{ui.cts=0;ui.cta=null;ui.ctsFrom='';render()},
  ctclose:x=>{const g=CG(),i=+x;if(g.cur[i]&&g.cur[i].some(Boolean))return toast('Stop & save the game on '+cname(g.d,i)+' first');
    if(!confirm('Close '+cname(g.d,i)+'? Its queued games go back to Upcoming. You can reopen it for 10 minutes.'))return;g.closed[i]=Date.now();autoNext(g,'fill',cname(g.d,i)+' closed');save();render()},
  ctopen:x=>{const g=CG();delete g.closed[+x];logIt(g,cname(g.d,+x)+' reopened');save();render()},

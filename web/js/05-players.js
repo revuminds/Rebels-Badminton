@@ -3,7 +3,7 @@ function noSess(what){return '<h1>'+what+'</h1><div class="pn" style="align-item
 const sessLab=d=>{const t=TODAY();return (d===t?'Today':d>t?'Upcoming':'Past')+' · '+dlab(d)+' · '+t12((S.days[d]||{}).time)+' · '+((S.days[d]||{}).loc||'')};
 function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT</span>');const g=S.games[d],on=onIds(d).length,st=!!(g&&g.st);
   const nA=onIds(d).filter(id=>arrived(d,id)).length;
-  return '<div class="sb" style="align-items:flex-start"><div><div class="row" style="gap:8px">'+PIN_SVG+'<span class="laby" style="letter-spacing:.12em">'+esc(sessLab(d).toUpperCase())+'</span></div>'+
+  return '<div class="sb" style="align-items:flex-start"><div><div class="row" style="gap:8px">'+PIN_SVG+'<span class="laby" style="letter-spacing:.12em">'+esc(sessLab(d).toUpperCase())+'</span>'+(!VIEW()&&!(g&&g.en)&&d>=TODAY()?'<button class="pedit" data-a="ptedit" aria-label="Edit time and courts">✎</button>':'')+'</div>'+
    '<h1 style="margin-top:8px">WHO\'S ON <span>COURT</span></h1></div>'+
    lockBtn()+'</div>'+
    '<div style="display:grid;grid-template-columns:repeat('+(st?4:3)+',minmax(0,1fr));gap:12px"><div class="tile"><b>'+active().length+'</b><i>Registered</i></div><div class="tile"><b style="color:var(--ok)">'+on+'</b><i>Playing</i></div>'+(st?'<div class="tile"><b style="color:var(--ok)">'+nA+'</b><i>Arrived</i></div>':'')+'<div class="tile"><b style="color:var(--y)">'+courtsOf(d).length+'</b><i>Courts · '+hrsL(courtHrs(d))+'</i></div></div>'+
@@ -12,7 +12,7 @@ function vPlayers(){const d=curDate();if(!d)return noSess('WHO\'S ON <span>COURT
    '<div class="row" style="gap:12px"><div class="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="psearch" placeholder="Search players, then tap to turn on" value="'+esc(ui.q)+'" data-i="q" autocomplete="off"><button class="ib" style="background:var(--pn);color:var(--mu)" data-a="clearq" aria-label="Clear search">×</button></div><button class="ol" data-a="alloff">Turn all off</button></div>'+
    (st&&!(g&&g.en)?'<div style="font-size:14px;color:var(--mu)">Check players in / out with the <b style="color:var(--tx)">Players</b> button on the Games page. Tap a photo or name for details.</div>':'<div style="font-size:14px;color:var(--mu)">Tap the switch to turn a player on · tap the photo or name for details.</div>')+
    '<div class="pfl" id="pfl">'+vPfl()+'</div><div id="pgrid">'+vGrid()+'</div>'+
-   '<div class="row" style="justify-content:flex-end;padding-bottom:12px"><button class="btn sh" style="min-width:160px" data-a="pnext">Next → Games</button></div>'}
+   '<div class="row" style="justify-content:space-between;padding-bottom:12px">'+(!VIEW()&&!(g&&g.en)?'<button class="ol" style="min-width:160px" data-a="pback">← Back to Schedule</button>':'<span></span>')+'<button class="btn sh" style="min-width:160px" data-a="pnext">Next → Games</button></div>'}
 const lvSeg=(cur,a,x)=>LVN.map((n,i)=>'<button'+(cur===i?' class="on"':'')+' data-a="'+a+'"'+(x!=null?' data-x="'+x+'" data-y="'+i+'"':' data-x="'+i+'"')+'>'+n+'</button>').join('');
 function vLv(){return lvSeg(ui.lv,'lv')}
 /* v16: players without gender can't be scheduled – set M / F right here */

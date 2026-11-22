@@ -496,6 +496,88 @@ html,body{overflow-x:hidden;max-width:100%}
 body.light .cpill.ok{background:#DDF6E8;color:#0B5A33;font-weight:800}body.light .cpill.yel{background:#FFF0D1;color:#7A4B00;font-weight:800}body.light .cpill.bad{background:#FFE1E1;color:#A01417;font-weight:800}
 body.light .cpill.over{background:#D62B2E;color:#fff}
 .rbtips{margin:4px 0 14px}
+
+/* ===================== v25 ===================== */
+:root{--hh:40px;--fh:40px;--nw:84px}
+html,body{overflow-x:clip!important}.app,#main{overflow-x:clip!important}
+/* (8) header frozen on every screen · live clock in the middle */
+#stat{position:fixed!important;top:0;left:0;right:0;height:var(--hh);z-index:25}
+body{padding-top:var(--hh)}
+.stlogo{margin-right:0!important;flex:none}
+.stmid{flex:1 1 auto;min-width:0;text-align:center;font-weight:700;font-size:15px;letter-spacing:.02em;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
+/* (1) sidebar: one colour, header → footer, no grey gaps */
+nav{position:fixed!important;left:0;top:var(--hh)!important;bottom:var(--fh);height:auto!important;width:var(--nw)!important;background:var(--rail)!important;z-index:17;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+.app>main{margin-left:var(--nw)}.app.full>main{margin-left:0}
+main{padding-bottom:calc(var(--fh) + 40px)!important}
+.hleft{top:var(--hh)!important;height:calc(100vh - var(--hh) - var(--fh))!important}
+.home{min-height:calc(100vh - var(--hh) - var(--fh))!important}
+.sfoot{bottom:calc(var(--fh) + 10px)!important}
+.logo.lgL{display:none}body.light .logo.lgL{display:block}body.light .logo.lgD{display:none}
+.logo{image-rendering:auto}
+/* (3) everything on the dark court overlay is white; only player levels light grey */
+.vcourt .scn,.court .scn,body.light .vcourt .scn,body.light .court .scn{color:#fff!important}
+.vcourt .vmid .scg,.vcourt .vlab,.vcourt .vwait,.vcourt .vwait span,.vcourt .vwait b{color:#fff!important}
+.vcourt .sc:not(.p){color:#fff!important}
+.vcourt .wonb{background:#fff!important;color:#14161A!important}.vcourt .wonb.on{background:#FFD23F!important;color:#14161A!important}
+/* (4) Update: blinks only when it can change something – slower pulse, no reason text */
+.rbup.pulse{animation:rbp 2.4s ease-in-out infinite!important}.rbwhy{display:none!important}
+/* (9) footer: thin, frozen, full width (also over the bottom of the sidebar) */
+#foot{position:fixed;left:0;right:0;bottom:0;height:var(--fh);z-index:18;background:var(--rail);border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 6px 0 14px;font-size:13.5px;font-weight:600;color:var(--mu);user-select:none;-webkit-user-select:none}
+#foot[hidden]{display:none}
+.fst{display:inline-flex;align-items:center;gap:8px;min-width:0;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fst i{width:10px;height:10px;border-radius:50%;flex:none;background:var(--ok)}
+.fst.ok{color:var(--ok)}.fst.good{color:#E0A100}.fst.good i{background:#F5C518}body.light .fst.good{color:#8A6200}
+.fst.talk,.fst.urgent{color:#FF4D52}.fst.talk i,.fst.urgent i{background:#FF4D52}body.light .fst.talk,body.light .fst.urgent{color:#C62025}
+.fst.talk span,.fst.urgent span,.fst.talk i,.fst.urgent i{animation:fblink 1.6s ease-in-out infinite}
+.fst.mu{color:var(--mu)}.fst.mu i{background:var(--gr)}
+@keyframes fblink{0%,100%{opacity:1}50%{opacity:.25}}
+.fslo{flex:none;letter-spacing:.06em;font-size:12px;color:var(--mu);white-space:nowrap}.fslo b{color:var(--y)}
+.fmsg{flex:none;height:32px!important;min-height:0!important;min-width:44px;border-radius:8px;border:1px solid var(--bd);background:transparent;color:var(--tx);font-size:16px;position:relative;padding:0 10px}
+.fmsg i{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:#FF4D52}
+/* (6) Rebel on the footer */
+#rebel{position:fixed;left:0;bottom:var(--fh);z-index:19;pointer-events:none;will-change:transform}
+#rebel[hidden]{display:none}
+.rbwrap{position:relative;pointer-events:auto;cursor:pointer;transform-origin:50% 100%}
+.rbspr{position:absolute;inset:0;background-repeat:no-repeat}
+.rbeyes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.rbwrap.breathe{animation:rbbr 2.6s ease-in-out infinite}
+@keyframes rbbr{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,.985)}}
+.rbwrap.bounce{animation:rbbo .55s ease-in-out infinite alternate}
+@keyframes rbbo{from{transform:translateY(0)}to{transform:translateY(-14px)}}
+.rbbub{position:absolute;bottom:100%;right:30%;margin-bottom:-6px;background:#fff;color:#14161A;border-radius:16px;padding:8px 14px;font-weight:700;font-size:15px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.28);pointer-events:auto;cursor:pointer;opacity:0;transform:translateY(6px) scale(.9);transition:opacity .2s,transform .2s;transform-origin:80% 100%}
+.rbbub.on{opacity:1;transform:none}
+.rbbub::after{content:'';position:absolute;right:24px;bottom:-8px;border:8px solid transparent;border-top-color:#fff;border-bottom:0}
+body.light .rbbub{border:1px solid #CBD0D8}
+#rbchat{position:fixed;right:14px;z-index:22;width:min(440px,calc(100vw - 28px));max-height:min(62vh,560px);overflow:auto;background:var(--pn);color:var(--tx);border:2px solid var(--bd);border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,.4);padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+#rbchat[hidden]{display:none}
+.rbch{display:flex;align-items:center;gap:10px}.rbch b{font-size:16px;flex:1}.rbch small{color:var(--mu);font-weight:600}
+.rbmsg{font-size:15px;line-height:1.45}.rbwhy2{font-size:13px;color:var(--mu)}
+.rbline{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px;line-height:1.4}
+.rbline>span:first-child{font-weight:800;min-width:64px}
+.rbn2{border:0;border-radius:99px;padding:3px 10px;font-weight:700;font-size:13px;min-height:0!important;height:28px;cursor:pointer}
+.rbn2.r{background:rgba(255,77,82,.16);color:#FF4D52}.rbn2.a{background:rgba(245,165,36,.16);color:var(--amb)}.rbn2.g{background:rgba(52,199,123,.16);color:var(--ok)}
+body.light .rbn2.r{color:#B3171C}
+.rbgl{background:var(--bg);border-radius:10px;padding:8px 10px;font-size:13px;display:flex;flex-direction:column;gap:3px}
+.rbbtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.rbbtns .btn,.rbbtns .ol{height:46px;font-size:15px;padding:0 16px}
+.rbopts{display:flex;flex-direction:column;gap:6px}.rbopts button{text-align:left}
+.rbhl{display:flex;flex-direction:column;gap:6px;max-height:60vh;overflow:auto}
+.rbhr{display:flex;gap:10px;font-size:14px;line-height:1.4;background:var(--bg);border-radius:10px;padding:8px 10px}.rbhr span:first-child{color:var(--mu);min-width:44px;font-weight:700}
+.rbhr.k-upd span:last-child{font-weight:600}.rbhr.k-warn{border-left:4px solid #FF4D52}.rbhr.k-good{border-left:4px solid #F5C518}.rbhr.k-rep{border-left:4px solid var(--ok)}
+.pedit{height:30px!important;min-height:0!important;width:34px;border-radius:8px;border:1px solid var(--y);background:transparent;color:var(--y);font-size:15px;padding:0;margin-left:4px}
+.cted{display:flex;flex-direction:column;gap:8px}
+.ctr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bg);border-radius:12px;padding:8px 12px}
+.ctr .ctn{flex:1;min-width:140px;font-weight:700;font-size:16px}.ctr .ctn small{display:block;color:var(--mu);font-weight:500;font-size:13px}
+.ctr .cbh{background:var(--pn)}
+.ctadd{border:2px dashed var(--ok);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.ctadd .row{flex-wrap:wrap}
+@media (max-width:700px){
+  #foot{bottom:64px;font-size:12px;padding:0 4px 0 10px}.fslo{display:none}
+  main{padding-bottom:calc(var(--fh) + 100px)!important}.app>main{margin-left:0}
+  nav{top:auto!important;bottom:0;width:auto!important;height:64px!important;overflow:visible}
+  .hleft{height:auto!important}#rebel{bottom:calc(var(--fh) + 64px)}}
+#toast{bottom:calc(var(--fh) + 14px)!important}
+@media (prefers-reduced-motion:reduce){.fst span,.fst i,.rbwrap.breathe,.rbwrap.bounce{animation:none!important}}
 </style>
 </head>
 <body>
@@ -532,9 +614,13 @@ body.light .cpill.over{background:#D62B2E;color:#fff}
 </div>
 <div id="modal"></div>
 <div id="login" hidden></div>
+<div id="foot" hidden></div>
+<div id="rebel" hidden></div>
+<div id="rbchat" hidden></div>
 <div id="toast"></div>
 <div id="print" class="rp"></div>
-<img id="sk" src="SKETCH" alt="" hidden><img id="lg" src="LOGO" alt="" hidden>
+<img id="sk" src="SKETCH" alt="" hidden><img id="skl" src="SKETCHL" alt="" hidden><img id="lg" src="LOGO" alt="" hidden>
+<script>/*SPRITES*/</script>
 <script>
 /*JS*/
 </script>

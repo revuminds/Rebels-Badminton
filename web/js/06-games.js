@@ -9,8 +9,8 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
   const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
   /* v24: live = one Update button (blinks with a reason when the plan drifted) + ⋯ More (share link, live names, courts, emergency rebuild) */
-  const why=run?rebelCheck(g):[],ot=run&&inOT(g,now);
-  const ctl=past?'':run?'<span class="rbw"><button class="btn rbup'+(why.length&&!ot?' pulse':'')+'" data-a="rbupd" data-tk="rbup">⟳ Update</button><span class="rbwhy" data-tk="rbwhy">'+esc(ot?'Overtime · add games by hand':why.length?why.slice(0,2).join(' · ')+(why.length>2?' +'+(why.length-2):''):'✓ All good')+'</span></span>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>'+
+  const why=run&&rbBlink()?['x']:[],ot=run&&inOT(g,now);
+  const ctl=past?'':run?'<span class="rbw"><button class="btn rbup'+(why.length&&!ot?' pulse':'')+'" data-a="rbupd" data-tk="rbup">⟳ Update</button></span>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>'+
     '<span class="mwrap"><button class="ol" data-a="more" aria-expanded="'+(ui.more?'true':'false')+'">⋯ More</button>'+(ui.more?'<div class="mmenu" data-a="noop">'+(VIEW()?'':'<button data-a="liveshare">📡 Share live link</button>')+lclBtn(d).replace('class="ol lclb"','class="lclb"')+'<button data-a="cts">Courts</button>'+(VIEW()?'':'<button data-a="fpre" class="dang">⟳ Rebuild remaining games (emergency)</button>')+'</div>':'')+'</span>':
     ended?'':
     plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
@@ -52,7 +52,7 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
   const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td>'+pwho(id,32,leftAt(d,id)?' · left '+hm(leftAt(d,id)):'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
   let happ='';if(g.st){const notes=run?rebelNotes(g,now):g.en?rebelEnd(g):[];
-    happ='<section class="pn rbn" style="gap:8px"><div class="sb"><span class="lab">REBEL’S NOTES</span><span class="lab">'+(run?'TAP ⟳ UPDATE WHEN IT BLINKS':'')+'</span></div>'+
+    happ='<section class="pn rbn" style="gap:8px"><div class="sb"><span class="lab">REBEL’S NOTES</span><span class="lab">'+(run?'TAP ⟳ UPDATE WHEN IT BLINKS · 💬 BELOW = FULL HISTORY':'')+'</span></div>'+
      notes.map(([c,x])=>'<div class="tip rbt '+c+'"><span>'+(c==='w'?'⚠':c==='ok'?'✓':'●')+'</span><span>'+esc(x)+'</span></div>').join('')+
      (g.log.length?g.log.slice(0,16).map(l=>'<div class="tip'+(l.rb?' rbl':'')+'"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
   return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row hbtns">'+subsBtn(d,run)+ctl+lockBtn()+'</div></div>'+
@@ -76,7 +76,7 @@ function tick(){const now=Date.now();{const c=document.querySelector('[data-tk="
     else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='bsit'||k==='btot')benchTick(g,el,now);
-    else if(k==='rbup'&&run){const w=rebelCheck(g),ot=inOT(g,now);el.classList.toggle('pulse',!!w.length&&!ot);const s=el.parentNode.querySelector('[data-tk="rbwhy"]');if(s)s.textContent=ot?'Overtime · add games by hand':w.length?w.slice(0,2).join(' · ')+(w.length>2?' +'+(w.length-2):''):'✓ All good'}
+    else if(k==='rbup'&&run){el.classList.toggle('pulse',rbBlink()&&!inOT(g,now))}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 
 /* ---------- Players pop-up: check in / left / dummy ---------- */

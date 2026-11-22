@@ -88,8 +88,10 @@ const sessLenH=d=>Math.max(...courtsOf(d).map(c=>num(c.h)||0),0);
 const courtHrs=d=>courtsOf(d).reduce((a,c)=>a+num(c.h),0);
 /* booked start: scheduled time; falls back to the actual start */
 function bookStart(d){const D=S.days[d],g=S.games[d];if(g&&g.st&&!g.man)return g.st;if(D&&D.time)return tms(d,D.time);return g&&g.st?g.st:tms(d,'20:00')}
-const courtEnd=(d,i)=>bookStart(d)+num((courtsOf(d)[i]||{}).h)*3600e3;
-const sessEnd=d=>bookStart(d)+sessLenH(d)*3600e3;
+/* v25: a court added mid-session starts when it was added (c.s) */
+const courtStart=(d,i)=>{const c=courtsOf(d)[i]||{};return c.s||bookStart(d)};
+const courtEnd=(d,i)=>courtStart(d,i)+num((courtsOf(d)[i]||{}).h)*3600e3;
+const sessEnd=d=>Math.max(bookStart(d)+sessLenH(d)*3600e3,...courtsOf(d).map((c,i)=>courtEnd(d,i)));
 const upcoming=()=>{const t=TODAY();return Object.keys(S.days).filter(d=>d>t&&isSched(d)).sort()};
 const pastSched=()=>{const t=TODAY();return Object.keys(S.days).filter(d=>d<t&&isSched(d)).sort()};
 const courtSum=d=>courtsOf(d).map(c=>esc(c.n)+' ('+hrsL(num(c.h))+')').join(' + ');

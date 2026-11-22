@@ -93,8 +93,8 @@ try:
                 # Update drift: a long game (court 1 running 14 min) + a regular pushed to 7 by the planner
                 tg.evaluate("(()=>{const g=RB.G(RB.TODAY());const id=g.cur[0][0];let k=0;g.up.forEach(x=>{if(!x.q.includes(id)&&k<3&&x.q[1]&&x.q[1]!==id&&RB.isF(x.q[1])===RB.isF(id)){x.q[1]=id;k++}});RB.fpSync(g);RB.save();RB.render()})()")
                 tg.wait_for_timeout(500)
-                pul = tg.evaluate("document.querySelector('.rbup').classList.contains('pulse')"); why = tg.inner_text('.rbwhy')
-                rec('Item 9: Update blinks with a short reason when the plan drifted', pul and why and 'All good' not in why, why)
+                pul = tg.evaluate("document.querySelector('.rbup').classList.contains('pulse')"); why = tg.evaluate("(RB.RBM&&RB.RBM.why)||''")
+                rec('Item 9 (v25: reason told by Rebel, not next to the button): Update blinks when the plan drifted', pul and why and 'All good' not in why, why)
                 w2 = tg.evaluate("[...document.querySelectorAll('.upbox .gcard')].map((e,k)=>[k,!!e.querySelector('.gwarn')])")
                 rec('Item 19: warnings only on the next 2 upcoming games', all(not f for k, f in w2 if k > 1), w2[:5])
                 tg.click('[data-a="rbupd"]'); tg.wait_for_timeout(500); ts = tg.inner_text('#toast')

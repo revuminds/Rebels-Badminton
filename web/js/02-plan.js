@@ -171,7 +171,7 @@ const hlab=h=>(h.n?'Game '+h.n:h.m?'Manual':'#'+(h.r||'–'))+(h.s!=null&&h.at&&
 function saveGame(g,i,t){t=t||Date.now();const q=g.cur[i],L=g.live[i];const s=Math.max(0,L.run?(t-L.start)/1000:(L.el||0));
   const n=g.hist.filter(h=>h.c===i+1&&!h.m).length+1;
   const h={r:n,c:i+1,ids:q.slice(),a:[nameOf(q[0]),nameOf(q[1])],b:[nameOf(q[2]),nameOf(q[3])],sa:L.sa,sb:L.sb,s:Math.round(s),at:t};if((L.start||t)>=courtEnd(g.d,i)-60e3)h.ot=1;if(L.pts&&+L.pts!==+g.pts)h.pts=+L.pts;
-  if(g.curN&&g.curN[i]){h.n=g.curN[i];g.curN[i]=0}
+  if(g.curN&&g.curN[i]){h.n=g.curN[i];g.curN[i]=0;const f=g.fp&&g.fp.find(o=>o.n===h.n);if(f&&f.bx)h.bx=f.bx}
   g.hist.unshift(h);g.last[i]=h;g.cur[i]=NUL4();g.live[i]=blankLive();q.forEach(id=>benchOn(g,id,t));
   autoNext(g,'fill',null)}
 /* send a game (from a court queue or Upcoming) on court; the timer starts. Manual choice always wins (not-checked-in players are checked in). */
@@ -226,12 +226,12 @@ const fpCur=g=>new Set((g.curN||[]).filter(Boolean));
 const fpStarted=g=>!!(g.hist.length||g.cur.some(q=>q&&q.every(Boolean)));
 /* live: Upcoming = the planned games not yet queued / on court / done (in game order). Edits in Upcoming / queues are kept in the plan. */
 function fpSync(g){if(!g.fp)return;const by={};g.fp.forEach(x=>by[x.n]=x);
-  g.up.forEach(x=>{const f=x.n&&by[x.n];if(!f)return;if(x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}if(x.ac!=null)f.ac=x.ac;else delete f.ac});
+  g.up.forEach(x=>{const f=x.n&&by[x.n];if(!f)return;if(x.q.join()!==f.q.join()){f.q=x.q.slice();f.m=1}if(x.ac!=null)f.ac=x.ac;else delete f.ac;if(x.ovr&&x.ovr.length)f.ovr=[...new Set((f.ovr||[]).concat(x.ovr))]});
   const cur=fpCur(g),dn=fpDone(g),ok=x=>!x.x&&!dn.has(x.n)&&!cur.has(x.n)&&x.q.some(Boolean);
   /* v23: your order in Upcoming (☰ drag) is kept; games new to Upcoming go in by game number */
   const ord=[...new Set(g.up.filter(x=>x.n&&by[x.n]&&ok(by[x.n])).map(x=>x.n))],have=new Set(ord);
   g.fp.forEach(x=>{if(!ok(x)||have.has(x.n))return;const k=ord.findIndex(m=>m>x.n);if(k<0)ord.push(x.n);else ord.splice(k,0,x.n)});
-  g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;return o})}
+  g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;if(x.ovr)o.ovr=x.ovr.slice();if(x.bx)o.bx=x.bx;return o})}
 /* keep: games already played, on court, queued, or edited by you (if all their players are still here) – the rest is re-planned */
 function planFull(g,re){FULL_MIN=fullMin(g.d);if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
   const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.up.filter(x=>x.n&&x.ac!=null).map(x=>x.n)),ok=new Set(ids);

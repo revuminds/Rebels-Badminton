@@ -41,11 +41,11 @@ function rebelUpdate(g,o){o=o||{};if(!running(g))return{n:0,ch:[]};const d=g.d,t
   g.up.forEach((x,k)=>x.q.forEach((id,j)=>{if(id&&(!eligible(d,id)||!onIds(d).includes(id))){const P=rbProj(g),r=rbRep(g,x,j,P,{t,oc,tired,near:k<2});rbSet(g,x,x.q.map((v,i)=>i===j?r:v));add(nm(id)+' left',nm(id)+' is not here → '+(r?nm(r)+' takes the place in '+gl(x):'place in '+gl(x)+' open'))}}));
   /* 1. booked time: games that no longer fit are dropped (fill-in games first); spare time gets a game back */
   let T=rbTimes(g,t);const lenM=rbLen(g);RBL=lenM;RBT=T;
-  for(let k=g.up.length-1;k>=0&&T.filter(z=>!z.fit).length;k--){if(T[k].fit)continue;const P=rbProj(g),pick=()=>{let b=-1,bs=1e9;g.up.forEach((x,j)=>{if(x.m&&x.ac!=null)return;
+  for(let k=g.up.length-1;k>=0&&T.filter(z=>!z.fit).length;k--){if(T[k].fit)continue;const P=rbProj(g),pick=()=>{let b=-1,bs=1e9;g.up.forEach((x,j)=>{if((x.m&&x.ac!=null)||x.bx)return;
       const s=x.q.reduce((a,id)=>a+(!id?0:isDum(d,id)?0:(P[id]||0)<=TGTS()?10:-2),0)+(T[j].fit?0:-1)+(g.up.length-j)*.01;if(s<bs){bs=s;b=j}});return b};
     const j=pick();if(j<0)break;const x=g.up[j],fi=x.q.filter(id=>id&&isDum(d,id));g.up.splice(j,1);if(x.n&&g.fp)g.fp=g.fp.filter(f=>f.n!==x.n);
     RBT=null;add('Time tight',(lenM>11?'Games run ~'+Math.round(lenM-1)+' min':'Booked time')+' → '+gl(x)+' dropped'+(fi.length?' ('+fi.map(nm).join(', ')+'’s fill-in)':''));T=rbTimes(g,t);RBT=T;k=g.up.length}
-  {const C=courtsOf(d);for(let it=0;it<3;it++){T=rbTimes(g,t);const fr=C.map((c,i)=>g.closed[i]?-1:courtEnd(d,i));
+  {const C=courtsOf(d);for(let it=0;it<14;it++){T=rbTimes(g,t);const fr=C.map((c,i)=>g.closed[i]?-1:courtEnd(d,i));
     const last=C.map((c,i)=>{let e=t;const q=g.cur[i];if(q&&q.every(Boolean))e=Math.max(t,(g.live[i].start||t)+lenM*60e3);T.forEach(z=>{if(z.i===i)e=Math.max(e,z.s+lenM*60e3)});return e});
     let ci=-1;C.forEach((c,i)=>{if(fr[i]>0&&fr[i]-last[i]>=lenM*60e3*1.05&&(ci<0||fr[i]-last[i]>fr[ci]-last[ci]))ci=i});if(ci<0)break;
     const P=rbProj(g),ex=new Set(),ids=onIds(d).filter(id=>hasSx(id)&&eligible(d,id)),late=last[ci],early=late<g.st+R_FI_MIN*60e3;
@@ -61,11 +61,11 @@ function rebelUpdate(g,o){o=o||{};if(!running(g))return{n:0,ch:[]};const d=g.d,t
     if(!r){x.ovr=(x.ovr||[]).concat(ov);continue}rbSet(g,x,x.q.map((v,i)=>i===k?r:v));add(nm(ov)+' → '+(P[ov]),nm(ov)+' was heading to '+P[ov]+' games → '+nm(r)+' takes the place in '+gl(x))}
   /* 3. short: a regular below the target takes a fill-in's place (latest game first, no clash) */
   for(let it=0;it<20;it++){const P=rbProj(g),sh=onIds(d).filter(id=>hasSx(id)&&eligible(d,id)&&!isDum(d,id)&&(P[id]||0)<TGTS()).sort((a,b)=>(P[a]||0)-(P[b]||0)||wMin(g,b,t)-wMin(g,a,t));let done=0;
-    for(const id of sh){for(let ix=g.up.length-1;ix>=0&&!done;ix--){const x=g.up[ix];if(x.q.includes(id)||rbBusy(g,x,id)||(ix<2&&(oc.has(id)||tired.has(id))))continue;
+    for(const id of sh){for(let ix=g.up.length-1;ix>=0&&!done;ix--){const x=g.up[ix];if(x.bx||x.q.includes(id)||rbBusy(g,x,id)||(ix<2&&(oc.has(id)||tired.has(id))))continue;
         const k=x.q.findIndex(v=>v&&isDum(d,v)&&fmtOK(x.q.map((w,i)=>i===x.q.indexOf(v)?id:w)));if(k<0)continue;const out=x.q[k];rbSet(g,x,x.q.map((v,i)=>i===k?id:v));done=1;
         add(nm(id)+' short',nm(id)+' was short of '+TGTS()+' → takes '+nm(out)+'’s fill-in place in '+gl(x))}if(done)break}if(!done)break}
   /* 4. fill-ins never in the first 30 min */
-  RBT=T=rbTimes(g,t);g.up.forEach((x,ix)=>{if(T[ix].s>=g.st+R_FI_MIN*60e3+lenM*30e3)return;x.q.forEach((id,k)=>{if(!id||!isDum(d,id))return;const P=rbProj(g),r=rbRep(g,x,k,P,{t,oc,tired,near:ix<2,est:T[ix]});
+  RBT=T=rbTimes(g,t);g.up.forEach((x,ix)=>{if(x.bx||T[ix].s>=g.st+R_FI_MIN*60e3+lenM*30e3)return;x.q.forEach((id,k)=>{if(!id||!isDum(d,id))return;const P=rbProj(g),r=rbRep(g,x,k,P,{t,oc,tired,near:ix<2,est:T[ix]});
     if(r&&!isDum(d,r)){rbSet(g,x,x.q.map((v,i)=>i===k?r:v));add('Fill-in early',nm(id)+' (fill-in) was due in the first 30 min → '+nm(r)+' plays '+gl(x)+' instead')}})});
   /* still a fill-in game too early → swap it with the first later game that has none */
   RBT=T=rbTimes(g,t);for(let ix=0;ix<g.up.length;ix++){if(T[ix].s>=g.st+R_FI_MIN*60e3+lenM*30e3)break;const x=g.up[ix];if(!x.q.some(id=>id&&isDum(d,id))||x.ac!=null)continue;
@@ -91,11 +91,17 @@ function rebelUpdate(g,o){o=o||{};if(!running(g))return{n:0,ch:[]};const d=g.d,t
   return{n:changed?Math.max(1,ch.length):0,ch}}
 const gl=x=>x.n?'G'+x.n:'the next game';
 /* what would Update change right now? (runs on a copy) – drives the blinking button */
-let RCk='',RCv=[];
-function rebelCheck(g){if(!running(g)||VIEW())return[];const k=S.savedAt+'|'+Math.floor(Date.now()/20e3);if(RCk===k)return RCv;RCk=k;
-  const c=JSON.parse(JSON.stringify(g));let r;try{r=rebelUpdate(c,{quiet:1})}catch(e){r={ch:[]}}RCv=[...new Set(r.ch.map(x=>x.s))];
-  if(!RCv.length){const t=Date.now(),L=g.cur.map((q,i)=>q&&q.every(Boolean)&&g.live[i].run?(t-g.live[i].start)/60e3:0),m=rbLen(g);L.forEach((v,i)=>{if(v>m+4)RCv.push(cname(g.d,i)+' game '+Math.round(v)+' min')})}
-  return RCv}
+/* v25 (4): Update blinks ONLY when it would really change the plan. The check runs Update on a copy and compares the plan before/after:
+   same plan → nothing to do (spare time nobody can use = calm info, no blink) · a result that just puts back a plan from before a recent
+   Update (A↔B loop) → no blink. RCr = the would-be changes (Rebel's chat), RCc = the copy after Update (spare-time maths). */
+let RCk='',RCv=[],RCr=null,RCc=null,RBPREV=[];
+function rebelCheck(g){if(!running(g)||VIEW())return[];const b0=rbSnap(g),k=S.savedAt+'|'+b0.length+'|'+Math.floor(Date.now()/20e3);if(RCk===k)return RCv;RCk=k;
+  const c=JSON.parse(JSON.stringify(g));let r;try{r=rebelUpdate(c,{quiet:1})}catch(e){r={ch:[]}}const b1=rbSnap(c);RCc=c;
+  const real=b1!==b0&&r.ch.length>0&&!RBPREV.includes(b1);RCr=real?r:null;RCv=real?[...new Set(r.ch.map(x=>x.s))]:[];return RCv}
+/* spare minutes on the best court after the plan (nobody left to give a game = "ahead") */
+function rbSpare(g,t){if(!g)return 0;t=t||Date.now();const d=g.d,len=rbLen(g),T=rbTimes(g,t);let best=0;
+  courtsOf(d).forEach((c,i)=>{if(g.closed[i])return;let e=t;const q=g.cur[i];if(q&&q.every(Boolean))e=Math.max(t,((g.live[i]||{}).start||t)+len*60e3);T.forEach(z=>{if(z.i===i)e=Math.max(e,z.s+len*60e3)});best=Math.max(best,(courtEnd(d,i)-e)/60e3)});
+  return Math.floor(best)}
 function rebelUndo(){const g=CG();if(!g||!g.undo)return toast('Nothing to undo');const o=JSON.parse(g.undo.s);g.fp=o.fp||undefined;if(!o.fp)delete g.fp;g.up=o.up;delete g.undo;logIt(g,'⟲ Update undone · plan back as it was');save();render();toast('Undone')}
 /* overtime: every open court past its booked end – no auto scheduling */
 function inOT(g,t){const C=courtsOf(g.d);return C.some((c,i)=>!g.closed[i])&&C.every((c,i)=>g.closed[i]||courtEnd(g.d,i)<=(t||Date.now()))}

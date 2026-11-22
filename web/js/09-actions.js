@@ -4,13 +4,13 @@ function render(){const app=$('.app'),m=$('#main');/* H3: no Finance PIN – the
   if(ui.scr==='app'||ui.scr==='home')$('#nav').innerHTML=vNav();
   if(ui.scr==='app'){m.innerHTML=ui.tab==='players'?vPlayers():ui.tab==='games'?vGames():ui.tab==='finance'?vFinance():vSettings()}
   else{if(ui.scr!=='home')$('#nav').innerHTML='';m.innerHTML=ui.scr==='sched'?vSched():ui.scr==='hist'?vHist():ui.scr==='pedit'&&ui.pe?vPE():ui.scr==='addpast'&&ui.ap?vAP():vHome()}
-  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.cts&&ui.scr==='app'&&ui.tab==='games'?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():ui.subm&&ui.scr==='app'&&ui.tab==='games'?vSubs():ui.lclm&&ui.scr==='app'&&ui.tab==='games'?vLcl():'';tick()}
+  $('#modal').innerHTML=ui.lvs?vLiveShare():ui.pm?vPMod():ui.am?vAtt():ui.ge?vGE():ui.er?vER():ui.se?vSE():ui.pay?vPayM():ui.qr?vQR():ui.ent?vEnt():ui.bk?vBk():ui.cf&&ui.scr==='app'&&ui.tab==='games'?vCf():ui.asg&&ui.scr==='app'&&ui.tab==='games'?vAsg():ui.rbh?vRbHist():ui.cts&&ui.scr==='app'&&(ui.tab==='games'||ui.tab==='players')?vCts():ui.ck&&ui.scr==='app'&&ui.tab==='games'?vCk():ui.endc&&ui.scr==='app'&&ui.tab==='games'?vEnd():ui.subm&&ui.scr==='app'&&ui.tab==='games'?vSubs():ui.lclm&&ui.scr==='app'&&ui.tab==='games'?vLcl():'';tick();try{footRender();chatRender()}catch(e){}}
 const go=(scr,tab)=>{if(ui.tab==='finance'&&(scr!=='app'||tab!=='finance')&&scr!=='home')ui.unlocked=false;if(scr!=='hist')ui.hun=false;if(tab!=='settings')ui.bun=false;ui.scr=scr;if(tab)ui.tab=tab;ui.pmode=null;ui.pin='';ui.pin1='';ui.err='';render();window.scrollTo(0,0)};
 const CG=()=>G(curDate());
 const fin=()=>finOf(ui.fsel,true);
 const fdone=()=>{save();ui.saved='✓ Auto-saved';render()};
 const act={
- tab:x=>{ui.lvE={};ui.ck=0;ui.endc=0;ui.cne=null;ui.cf=null;ui.cts=0;ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
+ tab:x=>{ui.lvE={};ui.ck=0;ui.endc=0;ui.cne=null;ui.cf=null;ui.cts=0;ui.cta=null;ui.ctsFrom='';ui.asg=0;ui.pick=null;ui.mv=null;if(x==='home'){ui.cur='';return go('home')}if(x==='games'&&!ui.cur)ui.cur=curDate();go('app',x)},
  gsave:()=>{save();toast('Saved ✓');ui.sc=null;ui.cur='';ui.flow='';go('home')},
  home:()=>{ui.sc=null;ui.cur='';ui.flow='';go('home')},
  resume:()=>{ui.cur=TODAY();go('app','games')},opentoday:()=>{ui.cur=TODAY();go('app','players')},
@@ -193,6 +193,7 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k==='eph'){ui.pm.ph=el.value}
   else if(k==='cn'){const D=S.days[curDate()],c=D&&D.courts[+el.dataset.x];if(c){c.n=el.value;clearTimeout(window.__cn);window.__cn=setTimeout(save,400)}}
   else if(k==='sc_n'){ui.sc.courts[+el.dataset.x].n=el.value}
+  else if(k==='cta_n'){if(ui.cta)ui.cta.n=el.value}else if(k==='cta_c'){if(ui.cta)ui.cta.cost=el.value}
   else if(k.startsWith('am_')){ui.am[k.slice(3)]=el.value}
   else if(k==='bk_court'){if(ui.bk)ui.bk.court=el.value}
   else if(k.startsWith('f_')){const f=k.slice(2);finOf(ui.fsel,true)[f]=el.value;S.def[f]=el.value;save();ui.saved='✓ Auto-saved';const s=$('#fsaved');if(s)s.textContent=ui.saved;clearTimeout(window.__fr);window.__fr=setTimeout(()=>{const a=document.activeElement,id=a&&a.dataset.i;render();if(id){const n=document.querySelector('[data-i="'+id+'"]');if(n){n.focus();const v=n.value;try{n.setSelectionRange(v.length,v.length)}catch(err){}}}},700)}

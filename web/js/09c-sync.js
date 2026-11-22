@@ -94,7 +94,7 @@ setInterval(()=>{if(SY.token&&(SY.dirty||VIEW()||GM())&&!syBusy&&navigator.onLin
 
 /* ---------- top status bar: sync · role · session clock ---------- */
 function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g),r=AUTH.role;
-  return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
+  return '<span class="stlogo">REBELS <b>BADMINTON</b></span><span class="stmid">'+clk12()+'</span><span class="stchip '+s.c+'"><i></i>'+esc(s.t)+'</span>'+(SY.token&&!VIEW()?'<button class="stbtn" data-a="synow" aria-label="Sync now">↻</button>':'')+
    (r?'<span class="strole '+(r==='admin'?'a':r==='games'?'g':'v')+'">'+ROLEN[r]+(SY.token?'':' · LOCAL')+'</span>':'')+
    (run?'<span class="stclk">● LIVE <b data-tk="sclk">'+fmtH(playMs(g)/1000)+'</b></span>':'')+'<button class="stbtn" data-a="theme" aria-label="Light / dark">'+(document.body.classList.contains('light')?'☾':'☀')+'</button>'+
    (r&&!pinned()?'<button class="stbtn pwr" data-a="switchacc" aria-label="Log off" title="Log off">'+PWR_SVG+'</button>':'')}
@@ -125,7 +125,7 @@ function vBackup(){if(!ADMIN())return '<section class="pn"><div class="laby">BAC
    (L.length?L.map((s,k)=>'<div class="erow"><b style="flex:1">'+new Date(s.t).toLocaleString()+'</b><span style="color:var(--mu)">'+esc(s.why)+' · '+pl(s.n||0,'player')+'</span><button class="ol sm" data-a="snrest" data-x="'+k+'">Restore</button></div>').join(''):'<div class="empty" style="padding:8px">None yet.</div>')+
    ((S.audit||[]).length?'<div class="lab">AUDIT LOG</div><div class="snl">'+S.audit.slice(0,25).map(a=>'<div class="tip"><span style="color:var(--mu);min-width:120px">'+new Date(a.t).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span><span>'+esc(a.m)+' <small style="color:var(--mu)">· '+esc(a.by||'')+'</small></span></div>').join('')+'</div>':''):'')+'</section>'}
 /* viewer: read-only – only looking around is allowed */
-const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave'.split(' '));
+const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave rbhist rbhx rbclose rbpl rbsz rbtap'.split(' '));
 /* game manager: no finance, settings, backup, accounts */
 const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr dtgt ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
 const viewBlock=(a,x)=>(VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a))||(GM()&&(GM_NO.has(a)||(a==='tab'&&(x==='finance'||x==='settings'))||(a==='htab'&&x==='fin')));
