@@ -31,7 +31,7 @@ try:
                 if case.endswith('Not now'): pg.evaluate("RB.act.qpno()")
                 else: pg.evaluate("()=>['1','2','3','4','1','2','3','4'].forEach(k=>RB.act.qpk(k))")
             pg.wait_for_timeout(3000)
-            st = pg.evaluate("()=>({has:!!RB.S.days['2026-11-29'],behind:!!RB.SY.behind,stat:document.querySelector('#stat').textContent})")
+            st = pg.evaluate("()=>({tok:!!(RB.ACC.admin||{}).tok,err:RB.SY.err,lg:RB.ui.lg&&RB.ui.lg.step,role:RB.AUTH.role,has:!!RB.S.days['2026-11-29'],behind:!!RB.SY.behind,stat:document.querySelector('#stat').textContent})")
             rec('Opening on another browser pulls the latest cloud data automatically (%s)' % case, st['has'] and not st['behind'] and 'Behind' not in st['stat'], st)
             c.close()
         b.close()

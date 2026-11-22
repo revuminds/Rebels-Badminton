@@ -56,27 +56,32 @@ function syStatus(){if(!SY.token)return{c:'mu',t:'This device only'};if(syBusy)r
 function syLater(){if(!SY.token||VIEW())return;clearTimeout(syT);syT=setTimeout(()=>syncNow(false),1500)}
 /* push (admin) / pull (everyone). quiet = no toasts */
 async function syncNow(loud){if(!SY.token||!SY.url||syBusy)return;syBusy=true;stRender();
-  try{const r=await req('GET','/api/data');
+  try{const r=await req('GET','/api/data'+(SY.rev&&SY.last?'?have='+SY.rev:''));
     if(r.s===401||r.s===403){SY.err='auth';authLost(r.s);return loud&&toast('Signed out by the cloud – switch account and log in with the password')}
     if(r.s!==200){SY.err='net';return loud&&toast('Cloud not reachable – will retry')}
     SY.err='';const rev=r.j.rev||0;
     if(VIEW()){if(rev!==SY.rev||!SY.last){await applyCloud(r.j);}SY.last=Date.now();return loud&&toast('Up to date')}
-    if(rev>(SY.rev||0)){
-      if(SY.dirty){SY.behind=1;if(!loud)return;
-        if(!confirm('The cloud has newer data ('+(r.j.by||'another device')+', '+new Date(r.j.at||Date.now()).toLocaleString()+').\n\nThis device is behind and has changes that were not uploaded. Replace this device’s data with the cloud copy?\n\nA safety snapshot of this device is taken first (Settings → Backup).'))return;
-        snapTake('Before pull (unsynced changes)')}
+    if(rev>(SY.rev||0)&&!r.j.same){
+      /* v25.3: the server always wins – no question. Unsent changes on this device go to a safety snapshot first, and game results
+         this device has that the server doesn't (e.g. a session played offline) are kept and uploaded */
+      if(SY.dirty){const old=JSON.stringify(dataOnly());snapTake('Before update from the server (unsent changes on this device)');const kept=await applyCloud(r.j,old);
+        SY.behind=0;SY.dirty=kept.length?1:0;SY.last=Date.now();toast('Updated from the server'+(kept.length?' · kept this device’s games for '+kept.map(dshort).join(', '):'')+' · old copy in Settings → Backup',4500);if(kept.length){markDirty();syLater()}return}
       await applyCloud(r.j);SY.behind=0;SY.dirty=0;SY.last=Date.now();return loud&&toast('Pulled the latest data')}
     SY.behind=0;
     if(SY.dirty){const w=await req('PUT','/api/data',{base:SY.rev||0,data:dataOnly()},60000);
       if(w.s===200){SY.rev=w.j.rev;SY.dirty=0;SY.last=Date.now();await pushPhotos();if(loud)toast('Synced ✓')}
-      else if(w.s===409){SY.behind=1;if(loud)toast('Cloud has newer data – pull first')}
+      else if(w.s===409){SY.behind=0;SY.rev=0;SY.last=0;setTimeout(()=>syncNow(false),50)}/* server newer → server wins on the next pass */
       else if(w.s===401||w.s===403){SY.err=w.s===403?'':'auth';if(w.s===401)authLost(401);if(loud)toast(w.s===403?'This account is read-only':'Log in again')}
       else{SY.err='net';if(loud)toast('Not synced (offline) – will upload when back online')}}
     else{SY.last=Date.now();await pushPhotos();if(loud)toast('Synced ✓')}}
   finally{syBusy=false;sySave();stRender();if(!SY.behind&&!SY.err&&!VIEW()&&ACC[AUTH.u]&&ACC[AUTH.u].qp&&!(S.qpin||{})[AUTH.u])qpMark(AUTH.u,1)}}
-async function applyCloud(j){if(!j||!j.data)return;const m=photoMap(),s=typeof j.data==='string'?parse(j.data):Object.assign(blank(),j.data);if(!s)return;
+async function applyCloud(j,localTxt){if(!j||!j.data)return[];const m=photoMap(),s=typeof j.data==='string'?parse(j.data):Object.assign(blank(),j.data);if(!s)return[];const kept=localTxt?keepGames(s,JSON.parse(localTxt)):[];
   (j.stripped||[]).forEach(k=>{if(k in S)s[k]=S[k];else delete s[k]});/* game manager: finance never comes from the cloud – this device keeps its own */
-  APPLY=true;try{S=s;reattach(m);migrate();save()}finally{APPLY=false}SY.rev=j.rev||0;sySave();render();pullPhotos(j.data)}
+  APPLY=true;try{S=s;reattach(m);migrate();save()}finally{APPLY=false}SY.rev=j.rev||0;sySave();render();pullPhotos(j.data);return kept}
+/* sessions where this device has MORE game results (or started/ended it) than the server: keep this device's session + attendance, merge payments */
+function keepGames(srv,loc){const K=[];Object.keys(loc.games||{}).forEach(d=>{const a=loc.games[d],b=(srv.games||{})[d];if(!a)return;const ah=(a.hist||[]).length,bh=b?(b.hist||[]).length:-1;
+  if(!b||ah>bh||(a.st&&!b.st)||(a.en&&!b.en)){srv.games[d]=a;if(loc.days&&loc.days[d])srv.days[d]=loc.days[d];K.push(d)}});
+  Object.keys(loc.fin||{}).forEach(d=>{const a=loc.fin[d],b=(srv.fin||{})[d];if(!b){if(K.includes(d))srv.fin[d]=a;return}Object.keys(a.paid||{}).forEach(id=>{if(a.paid[id]&&!(b.paid||{})[id]){b.paid=b.paid||{};b.paid[id]=a.paid[id]}})});return K}
 /* photos: R2 via the Worker, keyed by player id */
 async function pushPhotos(){if(VIEW())return;SY.ph=SY.ph||{};for(const p of S.players){const h=p.img?hsh(p.img):'';if((SY.ph[p.id]||'')===h)continue;
   const r=h?await req('PUT','/api/photo/'+encodeURIComponent(p.id),{img:p.img,h},60000):await req('DELETE','/api/photo/'+encodeURIComponent(p.id));if(r.s===200)SY.ph[p.id]=h;else break}sySave()}
@@ -90,7 +95,9 @@ async function cloudRestore(day){if(!confirm('Restore the cloud copy from '+day+
   const r=await req('POST','/api/snapshots/'+day+'/restore',{});if(r.s!==200)return toast(r.s===403?'Admin only':'Restore failed');
   const g=await req('GET','/api/data');if(g.s===200&&g.j.data){replaceAll(typeof g.j.data==='string'?g.j.data:JSON.stringify(g.j.data),'Cloud restore of '+day);SY.rev=g.j.rev;SY.dirty=0;sySave();save();render();toast('Restored '+day)}}
 window.addEventListener('online',()=>syncNow(false));
-setInterval(()=>{if(SY.token&&(SY.dirty||VIEW()||GM())&&!syBusy&&navigator.onLine!==false)syncNow(false)},30000);
+/* v25.3: always fetch the latest automatically – every 30 s while open (tiny 'nothing new' check) and whenever the app comes back to the front */
+setInterval(()=>{if(SY.token&&!syBusy&&navigator.onLine!==false)syncNow(false)},30000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SY.token&&!syBusy)syncNow(false)});window.addEventListener('focus',()=>{if(SY.token&&!syBusy&&Date.now()-(SY.last||0)>5000)syncNow(false)});
 
 /* ---------- top status bar: sync · role · session clock ---------- */
 function vStat(){const s=syStatus(),d=TODAY(),g=S.games[d],run=running(g),r=AUTH.role;
@@ -125,7 +132,7 @@ function vBackup(){if(!ADMIN())return '<section class="pn"><div class="laby">BAC
    (L.length?L.map((s,k)=>'<div class="erow"><b style="flex:1">'+new Date(s.t).toLocaleString()+'</b><span style="color:var(--mu)">'+esc(s.why)+' · '+pl(s.n||0,'player')+'</span><button class="ol sm" data-a="snrest" data-x="'+k+'">Restore</button></div>').join(''):'<div class="empty" style="padding:8px">None yet.</div>')+
    ((S.audit||[]).length?'<div class="lab">AUDIT LOG</div><div class="snl">'+S.audit.slice(0,25).map(a=>'<div class="tip"><span style="color:var(--mu);min-width:120px">'+new Date(a.t).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})+'</span><span>'+esc(a.m)+' <small style="color:var(--mu)">· '+esc(a.by||'')+'</small></span></div>').join('')+'</div>':''):'')+'</section>'}
 /* viewer: read-only – only looking around is allowed */
-const VIEW_OK=new Set('theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave rbhist rbhx rbclose rbpl rbsz rbtap'.split(' '));
+const VIEW_OK=new Set('cnfok cnfno theme pf tab home hist htab hy hsel hgames hfin fsub ksm kopen open rpm mkpdf noop fpo gpo stab unpaid lock pmod qr pnext cancelup synow switchacc pickx mv mvx lgpick lgother lgback lgpw lgbio lgchg lgface lgnoface qpk lgqpw qpno qpset qpdel sgo sgsave rbhist rbhx rbclose rbpl rbsz rbtap'.split(' '));
 /* game manager: no finance, settings, backup, accounts */
 const GM_NO=new Set('fsub ksm mkpdf fsave payopen closepay payok payun qr tube cby bkedit bksave bkdel cnt addoth rmoth open rpm entnew entedit closeent enday enfrom entdel hfin stab ruletog ruledel dpts slv lvupd org sdel chpin bexport bimport dstrong dpwr dtgt ddeuce dlearn sysnaps sycrest snrest snundo pubhide syurl accset accpw accrm accface'.split(' '));
 const viewBlock=(a,x)=>(VIEW()&&!VIEW_OK.has(a)&&!/^close/.test(a))||(GM()&&(GM_NO.has(a)||(a==='tab'&&(x==='finance'||x==='settings'))||(a==='htab'&&x==='fin')));

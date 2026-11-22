@@ -213,3 +213,18 @@ Object.assign(act,{
  rbsz:x=>{try{localStorage.setItem('rebels.rbsz',x)}catch(e){}if(RC.el&&RC.ph!=='off'){rbPlace();if(RC.ph==='idle'){RC.x=RC.tx;RC.el.style.transform='translateX('+RC.x+'px)'}}render()}});
 /* every second: think (cheap unless something changed), footer, Update blink, character */
 setInterval(()=>{try{rbThink();footRender();rbSync();const b=document.querySelector('[data-tk="rbup"]');if(b){const g=rbG();b.classList.toggle('pulse',!!(g&&RBM&&RBM.upd&&!inOT(g)))}}catch(e){}},1000);
+/* ===== v25.3: our own confirm dialog (app style, dark/light) instead of the browser's box =====
+   Every tap / change / drag runs through RUN(). When an action asks confirm(), the app's dialog opens and the action stops;
+   OK replays the same action (ui state as it was) with that question answered yes. Anything outside RUN falls back to the browser box. */
+let RUNX=null,CNF=null;
+function RUN(fn,ok){const snap=Object.assign({},ui),prev=RUNX;RUNX={fn,snap,ok:ok||0,n:0};try{return fn()}finally{RUNX=prev}}
+const NCONF=window.confirm.bind(window);
+window.confirm=function(m){const R=RUNX;if(!R)return NCONF(m);R.n++;if(R.n<=R.ok)return true;if(CNF)return false;
+  CNF={m:String(m==null?'':m),fn:R.fn,snap:R.snap,n:R.n};cnfRender();return false};
+function cnfRender(){let el=$('#cnf');if(!el){el=document.createElement('div');el.id='cnf';document.body.appendChild(el)}if(!CNF){el.innerHTML='';el.hidden=true;return}el.hidden=false;
+  const L=CNF.m.split(/\n\s*\n/),head=L[0],rest=L.slice(1);
+  el.innerHTML='<div class="modal cnfm" data-a="cnfno"><div class="pn" data-a="noop" style="gap:14px;width:min(520px,92vw)"><div class="cnfh">'+esc(head).replace(/\n/g,'<br>')+'</div>'+
+   rest.map(p=>'<div class="cnfp">'+esc(p).replace(/\n/g,'<br>')+'</div>').join('')+'<div class="row" style="justify-content:flex-end;gap:10px"><button class="ol" data-a="cnfno">Cancel</button><button class="btn" data-a="cnfok">OK</button></div></div></div>';
+  setTimeout(()=>{const b=el.querySelector('[data-a="cnfok"]');if(b)try{b.focus()}catch(e){}},30)}
+Object.assign(act,{cnfno:()=>{CNF=null;cnfRender()},cnfok:()=>{const c=CNF;CNF=null;cnfRender();if(!c)return;Object.assign(ui,c.snap);RUN(c.fn,c.n)}});
+document.addEventListener('keydown',e=>{if(!CNF)return;if(e.key==='Escape'){e.preventDefault();act.cnfno()}else if(e.key==='Enter'){e.preventDefault();act.cnfok()}});

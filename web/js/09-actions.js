@@ -181,7 +181,7 @@ const act={
 function applyDef(f){const t=TODAY();Object.values(S.games).forEach(g=>{if(!g.st&&g.d>=t){g[f]=S.def[f];g.psig=''}})}
 document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.dataset.a==='noop'){e.stopPropagation();return}
   if(el.classList.contains('modal')&&e.target!==el)return;if(el.disabled)return;
-  const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a,el.dataset.x))return toast(GM()?'Game manager · no finance or settings':'Organizer · read-only');f(el.dataset.x,el.dataset.y)}});
+  const f=act[el.dataset.a];if(f){e.stopPropagation();if(viewBlock(el.dataset.a,el.dataset.x))return toast(GM()?'Game manager · no finance or settings':'Organizer · read-only');const x=el.dataset.x,y=el.dataset.y;RUN(()=>f(x,y))}});
 document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)return;
   if(k.startsWith('lg_')){if(ui.lg)ui.lg[k.slice(3)]=el.value;return}
   if(k.startsWith('qp_')){const v=el.value.replace(/\D/g,'').slice(0,4);if(v!==el.value)el.value=v;ui.qpi=ui.qpi||{};ui.qpi[k.slice(3)]=v;return}
@@ -213,7 +213,7 @@ document.addEventListener('input',e=>{const el=e.target,k=el.dataset.i;if(!k)ret
   else if(k.startsWith('d_')){const f=k.slice(2);S.def[f]=el.value;applyDef(f);save()}});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target.id;if(id==='lgp'||id==='lgu'){e.preventDefault();return act.lgpw()}if(e.target.dataset&&/^lg_n/.test(e.target.dataset.i||'')){e.preventDefault();return act.lgchg()}if(id==='cnin'){e.preventDefault();e.target.blur();return}if(id==='pname'){e.preventDefault();act.add()}else if(id==='nloc'){e.preventDefault();act.saveloc()}else if(id==='oamt'){e.preventDefault();act.addoth()}});
 document.addEventListener('focusout',e=>{if(e.target.id==='cnin'&&ui.cne!=null){ui.cne=null;save();setTimeout(()=>{if(ui.cne==null)render()},200)}});
-document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)return;if(VIEW()&&!['fsel','ksmo','ksy','ksa','ksb','rpv'].includes(c)){toast('Organizer · read-only');return render()}
+document.addEventListener('change',e=>RUN(()=>CHG(e)));function CHG(e){const el=e.target,c=el.dataset.c;if(!c)return;if(VIEW()&&!['fsel','ksmo','ksy','ksa','ksb','rpv'].includes(c)){toast('Organizer · read-only');return render()}
   if(c==='scdate'){if(el.value){ui.sc.d=el.value;render()}}
   else if(c==='sctime'){ui.sc.time=el.value;render()}
   else if(c==='scloc'){if(el.value==='__new'){ui.scNew=true;render();setTimeout(()=>$('#nloc')&&$('#nloc').focus(),50)}else{ui.sc.loc=el.value;render()}}
@@ -230,7 +230,7 @@ document.addEventListener('change',e=>{const el=e.target,c=el.dataset.c;if(!c)re
   else if(c==='en_loc'){ui.ent.loc=el.value}
   else if(c==='ge_p'){ui.ge.ids[+el.dataset.y]=el.value||null;render()}
   else if(c==='ge_c'){ui.ge.c=+el.value}
-  else if(c==='ap_d'){ui.ap.d=el.value}else if(c==='ap_t'){ui.ap.time=el.value}else if(c==='ap_l'){ui.ap.loc=el.value}});
+  else if(c==='ap_d'){ui.ap.d=el.value}else if(c==='ap_t'){ui.ap.time=el.value}else if(c==='ap_l'){ui.ap.loc=el.value}};
 setInterval(tick,1000);
 window.addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){save();ui.unlocked=false;ui.hun=false;ui.bun=false}else{topUp();render()}});

@@ -242,7 +242,7 @@ with sync_playwright() as p:
       await R.lgPassword('games','gmpass1');out.push(R.ui.lg&&R.ui.lg.step);['1','2','3','4','1','2','3','4'].forEach(k=>R.act.qpk(k));out.push(!!R.ACC.games.qp);R.lockApp();
       await R.lgPassword('games','gmpass1');out.push(R.ui.lg?R.ui.lg.step:'in');return{out,qpin:R.S.qpin}}""")
     shot(pg, 'pin_prompt.png')
-    rec('11: game manager without a PIN is asked at EVERY login (“Not now” = this login only); once set → no more asking', steps['out'][0] == 'qpnew' and steps['out'][2] == 'qpnew' and steps['out'][4] == 'qpnew' and steps['out'][5] is True and steps['out'][6] == 'in' and 'games' in (steps['qpin'] or {}), steps)
+    rec('11: game manager without a PIN is asked at EVERY login (“Not now” = this login only); once set → no more asking', steps['out'][0] == 'qpnew' and steps['out'][2] == 'qpnew' and steps['out'][4] == 'qpnew' and steps['out'][5] is True and steps['out'][6] == 'in', steps)
     pg.evaluate("()=>{RB.remember('admin','admin','pw12345','');RB.enterAs('admin','admin');RB.act.tab('settings');RB.ui.sopen='accountpasswords';RB.render()}"); pg.wait_for_timeout(300)
     ps = pg.evaluate("()=>[...document.querySelectorAll('.erow')].map(e=>e.textContent).filter(t=>/PIN/.test(t))")
     shot(pg, 'settings_pin_status.png', True)

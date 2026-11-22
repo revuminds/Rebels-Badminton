@@ -599,7 +599,8 @@ async function api(req, env, ctx, url) {
     return J({ ok: 1 });
   }
   if (path === '/api/data' && m === 'GET') {
-    const d = await getDoc(env);
+    const d = await getDoc(env), have = +(url.searchParams.get('have') || 0);
+    if (d && have && have === d.rev) return J({ rev: d.rev, at: d.at, by: d.by, same: 1 });   /* v25.3: auto-sync poll – no download when nothing changed */
     return J(d ? { rev: d.rev, at: d.at, by: d.by, ...forRole(d.data, me.role) } : { rev: 0, data: null });
   }
   if (path === '/api/data' && m === 'PUT') {

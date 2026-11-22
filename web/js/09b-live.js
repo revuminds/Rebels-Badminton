@@ -150,5 +150,5 @@ document.addEventListener('pointermove',e=>{if(!DR)return;DR.gh.style.left=(e.cl
 function dragEnd(e,drop){if(!DR)return;const D=DR;DR=null;D.gh.remove();D.card.style.opacity='';if(!drop)return;
   const el=document.elementFromPoint(e.clientX,e.clientY),t=el&&el.closest('[data-drop]');if(!t)return;
   const k=t.dataset.k!=null?+t.dataset.k:-1,ty=t.dataset.drop==='c'?'q':t.dataset.drop,i=+(t.dataset.i||0);
-  if(ty+'.'+(ty==='u'?0:i)+'.'+k===D.src)return;moveGame(CG(),D.src,ty,i,k)}
+  if(ty+'.'+(ty==='u'?0:i)+'.'+k===D.src)return;RUN(()=>moveGame(CG(),D.src,ty,i,k))}
 document.addEventListener('pointerup',e=>dragEnd(e,true));document.addEventListener('pointercancel',e=>dragEnd(e,false));
