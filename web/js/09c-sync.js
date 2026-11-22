@@ -73,7 +73,7 @@ async function syncNow(loud){if(!SY.token||!SY.url||syBusy)return;syBusy=true;st
       else if(w.s===401||w.s===403){SY.err=w.s===403?'':'auth';if(w.s===401)authLost(401);if(loud)toast(w.s===403?'This account is read-only':'Log in again')}
       else{SY.err='net';if(loud)toast('Not synced (offline) – will upload when back online')}}
     else{SY.last=Date.now();await pushPhotos();if(loud)toast('Synced ✓')}}
-  finally{syBusy=false;sySave();stRender()}}
+  finally{syBusy=false;sySave();stRender();if(!SY.behind&&!SY.err&&!VIEW()&&ACC[AUTH.u]&&ACC[AUTH.u].qp&&!(S.qpin||{})[AUTH.u])qpMark(AUTH.u,1)}}
 async function applyCloud(j){if(!j||!j.data)return;const m=photoMap(),s=typeof j.data==='string'?parse(j.data):Object.assign(blank(),j.data);if(!s)return;
   (j.stripped||[]).forEach(k=>{if(k in S)s[k]=S[k];else delete s[k]});/* game manager: finance never comes from the cloud – this device keeps its own */
   APPLY=true;try{S=s;reattach(m);migrate();save()}finally{APPLY=false}SY.rev=j.rev||0;sySave();render();pullPhotos(j.data)}

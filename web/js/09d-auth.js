@@ -26,7 +26,7 @@ function remember(u,role,pw,tok){const a=ACC[u]||{},s=rsalt();ACC[u]=Object.assi
 /* ---------- lock / unlock ---------- */
 let hidAt=0;
 function lockApp(){AUTH.u='';AUTH.role='';SY.token='';ui.lg={step:'pick'};['pm','am','ge','er','se','pay','qr','ent','bk','lvs','cf','asg','cts','ck','endc'].forEach(k=>ui[k]=k==='lvs'?0:null);ui.scr='home';ui.cur='';render();lgRender()}
-function enterAs(u,role,offline){AUTH.u=u;AUTH.role=role;if(ACC[u]&&ACC[u].qp&&!(S.qpin||{})[u]&&role!=='organizer')qpMark(u,1);SY.token=(ACC[u]&&ACC[u].tok)||'';SY.email=u;SY.role=role;SY.err='';if(ACC[u]){ACC[u].t=Date.now();accSave()}
+function enterAs(u,role,offline){AUTH.u=u;AUTH.role=role;SY.token=(ACC[u]&&ACC[u].tok)||'';SY.email=u;SY.role=role;SY.err='';if(ACC[u]){ACC[u].t=Date.now();accSave()}
   ui.lg=null;ui.scr='home';lgRender();render();toast('Logged in as '+ACN[u]+(offline?' (offline)':''));if(SY.token)syncNow(false)}
 /* cloud says the token is no longer valid (password changed / logged out elsewhere) */
 function authLost(s){if(s===401&&AUTH.u&&ACC[AUTH.u]){ACC[AUTH.u].tok='';accSave();SY.token=''}}
@@ -60,7 +60,7 @@ function lgAfter(u,role,first){if(ACC[u]&&!ACC[u].qp){ui.lg={step:'qpnew',u,role
 /* ---------- v20: 4-digit quick PIN per account, this device only (works offline) ----------
    ACC[u].qp={s,h} (salted hash) · qf = wrong tries · qx=1 after 5 wrong → password needed (cleared by a password login) */
 const qpOn=u=>!!(ACC[u]&&ACC[u].qp&&!ACC[u].qx);
-function qpSet(u,pin){const a=ACC[u];if(!a)return false;const s=rsalt();a.qp={s,h:lhash(pin,s)};a.qf=0;a.qx=0;delete a.qpno;accSave();qpMark(u,1);return true}
+function qpSet(u,pin){const a=ACC[u];if(!a)return false;const s=rsalt();a.qp={s,h:lhash(pin,s)};a.qf=0;a.qx=0;delete a.qpno;accSave();if(AUTH.u===u&&SY.token&&!SY.behind)qpMark(u,1);return true}
 /* shared (synced) record of who has a quick PIN – names only, never the PIN – so admin can see who still needs one */
 function qpMark(u,on){try{S.qpin=S.qpin||{};if(on)S.qpin[u]=Date.now();else delete S.qpin[u];save()}catch(e){}}
 function qpKey(k){const L=ui.lg;if(!L||!['qpin','qpnew','qpcon'].includes(L.step))return;L.pin=L.pin||'';
