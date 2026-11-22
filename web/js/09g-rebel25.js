@@ -105,8 +105,9 @@ const rbHasSpr=()=>!!rbA('idle');
 function rbDims(){const c=SPR.cell||[300,360],k=rbSize()/(c[1]*0.9);return{k,w:c[0]*k,h:c[1]*k,base:(SPR.base||352)*k}}
 function rbEl(){let el=$('#rebel');if(!el)return null;if(!RC.el||!el.firstChild){el.innerHTML='<div class="rbwrap" data-a="rbtap"><div class="rbspr"></div><svg class="rbeyes" viewBox="0 0 '+((SPR.cell||[300])[0])+' '+((SPR.cell||[0,360])[1])+'" aria-hidden="true"></svg></div><div class="rbbub" data-a="rbtap"></div>';RC.el=el}return el}
 function rbFrame(name,f){const el=rbEl(),A=rbA(name);if(!el||!A)return;const s=el.querySelector('.rbspr');f=Math.max(0,Math.min(A.n-1,f|0));
-  if(s.dataset.u!==name){s.style.backgroundImage='url('+A.u+')';s.style.backgroundSize=(A.n*100)+'% 100%';s.dataset.u=name}
-  s.style.backgroundPosition=(A.n>1?f/(A.n-1)*100:0)+'% 0';RC.a=name;RC.f=f;rbEyes()}
+  const u=name+f;if(s.dataset.u!==u){s.style.backgroundImage='url('+A.f[f]+')';s.style.backgroundSize='100% 100%';s.dataset.u=u}RC.a=name;RC.f=f;rbEyes()}
+/* preload every frame once so the walk never flickers */
+(()=>{try{Object.values(SPR.anims).forEach(A=>(A.f||[]).forEach(u=>{const i=new Image();i.src=u}))}catch(e){}})();
 /* blink drawn in code over the idle frame (eyes from idle/anim.json) */
 function rbEyes(){const el=RC.el;if(!el)return;const sv=el.querySelector('.rbeyes'),A=rbA('idle'),E=(A&&A.eyes)||[];if(!sv)return;
   const lvl=RC.a==='idle'&&RC.blink>=0?[0.55,1,1,0.55][RC.blink]||0:0;if(!lvl||!E.length){if(sv.innerHTML)sv.innerHTML='';return}

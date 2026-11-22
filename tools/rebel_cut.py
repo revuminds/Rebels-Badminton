@@ -8,7 +8,7 @@ Usage:  python3 tools/rebel_cut.py <sheet.jpg|png> <anim>[:i,j,..] [<anim>:i ...
 
 Each figure is cut out (white background removed, soft edge, no white halo), scaled with the
 SAME factor for every sheet (so sizes match) and placed in a fixed cell with the feet on one
-baseline and the body centred. Frames go to web/rebel/<anim>/01.png, 02.png ... (old frames in
+baseline and the body centred. Frames go to web/rebel/<anim>/01.webp, 02.webp ... (old frames in
 that folder are replaced). tools/build.py packs every web/rebel/<anim>/ folder into the app –
 no code change needed. Optional web/rebel/<anim>/anim.json: {"fps": 10, "loop": true}.
 """
@@ -93,9 +93,9 @@ def main():
         anim, _, idx = sp.partition(':')
         pick = [int(i) for i in idx.split(',')] if idx else list(range(1, len(frames) + 1))
         d = OUT / anim; d.mkdir(parents=True, exist_ok=True)
-        for old in d.glob('*.png'): old.unlink()
+        for old in list(d.glob('*.png')) + list(d.glob('*.webp')): old.unlink()
         for k, i in enumerate(pick, 1):
-            frames[i - 1].save(d / ('%02d.png' % k), optimize=True)
+            frames[i - 1].save(d / ('%02d.webp' % k), 'WEBP', quality=90, method=6)
         print(' ', anim, '←', pick)
 
 

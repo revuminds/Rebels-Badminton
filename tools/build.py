@@ -21,25 +21,26 @@ sketchl = "data:image/webp;base64," + b64(WEB / "logo-sketch-light.webp")   # v2
 
 # v25: Rebel sprites – every folder web/rebel/<anim>/ (01.png, 02.png …) becomes one strip, no code change needed.
 # Optional web/rebel/<anim>/anim.json: {"fps": 10, "loop": true, "eyes": [[x, y, rx, ry], …]} (eyes = code-drawn blink)
-import io, json
-from PIL import Image
+import json, struct
 FPS = {"walk": 9, "run": 13, "turn": 8, "back": 6}
+def dims(p):
+    b = p.read_bytes()
+    if b[:4] == b"\x89PNG": return struct.unpack(">II", b[16:24])
+    if b[12:16] == b"VP8X": return (int.from_bytes(b[24:27], "little") + 1, int.from_bytes(b[27:30], "little") + 1)
+    if b[12:16] == b"VP8L": v = int.from_bytes(b[21:25], "little"); return ((v & 0x3FFF) + 1, ((v >> 14) & 0x3FFF) + 1)
+    return struct.unpack("<HH", b[26:30])
 def sprites():
+    """no Pillow needed (CI): each frame is embedded as its own PNG; size read from the PNG header"""
     out = {"cell": None, "base": 352, "anims": {}}
     root = WEB / "rebel"
     for d in sorted(p for p in root.glob("*") if p.is_dir()) if root.exists() else []:
-        fr = sorted(d.glob("*.png"))
+        fr = sorted(list(d.glob("*.png")) + list(d.glob("*.webp")))
         if not fr: continue
-        ims = [Image.open(f).convert("RGBA") for f in fr]
-        w, h = ims[0].size
-        strip = Image.new("RGBA", (w * len(ims), h), (0, 0, 0, 0))
-        for k, im in enumerate(ims): strip.paste(im.resize((w, h)), (k * w, 0))
-        buf = io.BytesIO(); strip.save(buf, "WEBP", quality=88, method=6)
+        w, h = dims(fr[0])
         meta = json.loads((d / "anim.json").read_text()) if (d / "anim.json").exists() else {}
-        a = {"u": "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode(), "n": len(ims),
+        a = {"f": ["data:image/" + f.suffix[1:] + ";base64," + b64(f) for f in fr], "n": len(fr),
              "fps": meta.get("fps", FPS.get(d.name, 1)), "loop": meta.get("loop", d.name in ("walk", "run"))}
-        if "eyes" in meta: a["eyes"] = meta["eyes"]
-        for k in ("lid", "lash"):
+        for k in ("eyes", "lid", "lash"):
             if k in meta: a[k] = meta[k]
         out["anims"][d.name] = a; out["cell"] = [w, h]
         if "base" in meta: out["base"] = meta["base"]

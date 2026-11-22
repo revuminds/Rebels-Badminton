@@ -1,5 +1,5 @@
 # Rebel sprite frames
-One folder per animation, frames `01.png`, `02.png` … (300 × 360 px cell, transparent, feet on y = 352, body centred).
+One folder per animation, frames `01.webp`/`01.png`, `02…` … (300 × 360 px cell, transparent, feet on y = 352, body centred).
 `tools/build.py` packs every folder into the app – **no code change** when frames are replaced or added.
 
 Make frames from a sheet (figures in a row on white): `python3 tools/rebel_cut.py sheet.jpg walk` (see the script for picking frames).
