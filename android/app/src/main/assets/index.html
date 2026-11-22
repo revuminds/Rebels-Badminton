@@ -1505,7 +1505,7 @@ function vSched(){if(ui.sc&&ui.sc.live)ui.sc.courts=JSON.parse(JSON.stringify(co
    '<section style="display:flex;flex-direction:column;gap:12px;min-width:0"><div class="sb"><b style="font-size:18px">Courts booked</b><span style="font-size:13px;color:var(--mu)">'+(lockV?'Session running · same courts editor as ⋯ More → Courts':'All start at '+fm(st)+' · each can end at its own time')+'</span></div>'+(lockV?vCourtEd(s.d,'sched'):crow)+
    '<div class="pn"><div class="lab">TIMELINE</div>'+bars+'<div class="sb" style="padding-left:100px;font-size:12px;color:var(--mu)">'+ticks.map(x=>'<span>'+x+'</span>').join('')+'</div></div></section></div>'+
    '<div class="sfoot"><div class="row" style="flex:1;gap:28px"><div><i>Court-hours</i><b>'+hrsL(ch)+'</b></div><div><i>Game slots ('+Math.round(gameMin(null))+' + '+num(S.def.chg)+' min)</i><b style="color:var(--ok)">≈ '+slots+' games</b></div><div><i>Players for 4–5 games each</i><b>'+Math.ceil(slots*4/5)+'–'+Math.floor(slots*4/4)+' players</b></div></div>'+
-   (s.orig&&!s.ended?'<button class="ol" style="height:60px;font-size:17px;border-color:var(--y);color:var(--y)" data-a="scplayers">Players →</button>':'')+'<button class="btn sh" style="height:60px;font-size:18px" data-a="scsave">'+(s.orig?'Save changes':'Continue → Players')+'</button></div></div>'}
+   '<button class="ol" style="height:60px;font-size:17px" data-a="sccancel">Cancel</button>'+(s.orig&&!s.ended?'<button class="ol" style="height:60px;font-size:17px;border-color:var(--y);color:var(--y)" data-a="scplayers">Players →</button>':'')+'<button class="btn sh" style="height:60px;font-size:18px" data-a="scsave">'+(s.orig?'Save changes':'Continue → Players')+'</button></div></div>'}
 function moveDate(a,b){['days','games','fin'].forEach(k=>{if(S[k][a]){S[k][b]=S[k][a];delete S[k][a];if(k==='games')S.games[b].d=b}});
   ENT('pkg').forEach(e=>{const i=(e.dates||[]).indexOf(a);if(i>=0){e.dates[i]=b;e.post=e.post||{};e.post[b]=e.post[a]||a;delete e.post[a]}})}
 function schedSave(to){const s=ui.sc,t=TODAY();if(!s.d)return toast('Pick a date');if(!s.orig&&s.d<t)return toast('Pick today or a future date');
@@ -3145,6 +3145,8 @@ Object.assign(act,{
  rbok:()=>{const g=rbG(),m=RBM;if(g&&m){g.rbd=g.rbd||{};g.rbd[m.key]=Date.now();save()}ui.rbc=0;chatRender();rbThink(true);rbSync();footRender()},
  rbx:x=>{const g=rbG(),m=RBM;if(!g||!m||!m.opts)return;const o=m.opts[+x];if(!o)return;rbAddBonus(g,o);g.rbd=g.rbd||{};g.rbd[m.key]=Date.now();save();ui.rbc=0;rbReact('thanks');rbThink(true);render();toast(o.lab+' added to Upcoming')},
  rbhist:()=>{const g=rbG()||S.games[curDate()];ui.rbh=1;ui.rbSeen=g&&g.rbh?g.rbh.length:0;render()},rbhx:()=>{ui.rbh=0;render()},
+ /* v25.2: Cancel on Schedule / Edit session = discard changes, back to where it was opened from */
+ sccancel:()=>{const s=ui.sc;ui.sc=null;ui.scNew=0;if(s&&s.ret==='players')return go('app','players');if(s&&s.ret==='hist')return go(ui.pe&&ui.pe.d===s.orig?'pedit':'hist');ui.cur='';ui.flow='';go('home')},
  pback:()=>{const d=curDate();if(d)openSched(d,'players')},scback:()=>{const s=ui.sc;ui.sc=null;go('app','players')},
  ptedit:()=>{ui.cts=1;ui.ctsFrom='players';render()},
  cth:(x,y)=>{const d=curDate();setCourtH(d,+x,num((courtsOf(d)[+x]||{}).h)+ +y);save();render()},

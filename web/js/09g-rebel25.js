@@ -202,6 +202,8 @@ Object.assign(act,{
  rbok:()=>{const g=rbG(),m=RBM;if(g&&m){g.rbd=g.rbd||{};g.rbd[m.key]=Date.now();save()}ui.rbc=0;chatRender();rbThink(true);rbSync();footRender()},
  rbx:x=>{const g=rbG(),m=RBM;if(!g||!m||!m.opts)return;const o=m.opts[+x];if(!o)return;rbAddBonus(g,o);g.rbd=g.rbd||{};g.rbd[m.key]=Date.now();save();ui.rbc=0;rbReact('thanks');rbThink(true);render();toast(o.lab+' added to Upcoming')},
  rbhist:()=>{const g=rbG()||S.games[curDate()];ui.rbh=1;ui.rbSeen=g&&g.rbh?g.rbh.length:0;render()},rbhx:()=>{ui.rbh=0;render()},
+ /* v25.2: Cancel on Schedule / Edit session = discard changes, back to where it was opened from */
+ sccancel:()=>{const s=ui.sc;ui.sc=null;ui.scNew=0;if(s&&s.ret==='players')return go('app','players');if(s&&s.ret==='hist')return go(ui.pe&&ui.pe.d===s.orig?'pedit':'hist');ui.cur='';ui.flow='';go('home')},
  pback:()=>{const d=curDate();if(d)openSched(d,'players')},scback:()=>{const s=ui.sc;ui.sc=null;go('app','players')},
  ptedit:()=>{ui.cts=1;ui.ctsFrom='players';render()},
  cth:(x,y)=>{const d=curDate();setCourtH(d,+x,num((courtsOf(d)[+x]||{}).h)+ +y);save();render()},
