@@ -2,13 +2,16 @@
 function vSBar(g){const d=g.d,ps=playMs(g)/1000,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><label class="ptsl">POINTS <input class="ptsin" type="number" inputmode="numeric" min="1" max="99" value="'+esc(g.pts)+'" data-i="g_pts" aria-label="Session points"'+(VIEW()?' disabled':'')+'></label><span>DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+(g.fp?FULL_MIN+' MIN GAMES':Math.round(gameMin(g))+'+'+num(g.chg)+' MIN')+'</span>'+cs+
-   '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span>'+(!VIEW()&&d===TODAY()&&!g.en?'<button class="ol sm" data-a="liveshare">📡 Share live link</button>':'')+'</div>'}
+   '<span class="sbtime" style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span>'+(!VIEW()&&d===TODAY()&&!g.en&&!running(g)?'<button class="ol sm" data-a="liveshare">📡 Share live link</button>':'')+'</div>'}
 
 function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY(),g=G(d),D=day(d),on=onIds(d),plan=d>t,past=d<t,run=running(g),ended=!!g.en,now=Date.now();
   if(!past&&!g.st)ensurePlan(g);if(run)autoNext(g,'fill',null);
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
   const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
-  const ctl=past?'':run?(g.fp?'<button class="ol sm2" data-a="fpre">↻ Re-plan remaining games</button>':'<button class="ol sm2" data-a="reshuffle">↻ Re-pick upcoming</button>')+'<button class="ol" data-a="cts">Courts</button>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
+  /* v24: live = one Update button (blinks with a reason when the plan drifted) + ⋯ More (share link, live names, courts, emergency rebuild) */
+  const why=run?rebelCheck(g):[],ot=run&&inOT(g,now);
+  const ctl=past?'':run?'<span class="rbw"><button class="btn rbup'+(why.length&&!ot?' pulse':'')+'" data-a="rbupd" data-tk="rbup">⟳ Update</button><span class="rbwhy" data-tk="rbwhy">'+esc(ot?'Overtime · add games by hand':why.length?why.slice(0,2).join(' · ')+(why.length>2?' +'+(why.length-2):''):'✓ All good')+'</span></span>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>'+
+    '<span class="mwrap"><button class="ol" data-a="more" aria-expanded="'+(ui.more?'true':'false')+'">⋯ More</button>'+(ui.more?'<div class="mmenu" data-a="noop">'+(VIEW()?'':'<button data-a="liveshare">📡 Share live link</button>')+lclBtn(d).replace('class="ol lclb"','class="lclb"')+'<button data-a="cts">Courts</button>'+(VIEW()?'':'<button data-a="fpre" class="dang">⟳ Rebuild remaining games (emergency)</button>')+'</div>':'')+'</span>':
     ended?'':
     plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
@@ -48,14 +51,11 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     if(!c&&(g.en||now)-a.a>20*60e3)return true;if(a.l&&c<tg)return true;if(run&&!a.l){const rem=Math.max(0,sessEnd(d)-now)/60e3;return c+Math.floor(rem/slotOf(g)*2/3)<tg}return false};
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
   const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td>'+pwho(id,32,leftAt(d,id)?' · left '+hm(leftAt(d,id)):'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
-  let happ='';if(g.st){const el=on.filter(id=>eligible(d,id)).length,nC2=courtsOf(d).filter((c,i)=>!g.closed[i]).length,remS=Math.max(0,Math.floor((sessEnd(d)-now)/60e3/slotOf(g)))*Math.max(1,nC2)*4;
-    const notes=run?[el+' checked in · '+pl(nC2,'court')+' open'+(el?' → ≈ '+Math.floor(remS/Math.max(1,el))+' more games each possible':''),
-      ...(el&&el<nC2*4?['Only '+el+' checked in – some courts wait for more players']:[]),
-      ...((S.rules||[]).filter(r=>r.on).map(r=>'Learned rule in use: '+r.why))]:[];
-    happ='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">WHAT\'S HAPPENING</span><span class="lab">THE APP KEEPS UPCOMING GAMES READY</span></div>'+
-     notes.map(x=>'<div class="tip"><span>●</span><span>'+esc(x)+'</span></div>').join('')+
-     (g.log.length?g.log.slice(0,14).map(l=>'<div class="tip"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
-  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+subsBtn(d)+ctl+lockBtn()+'</div></div>'+
+  let happ='';if(g.st){const notes=run?rebelNotes(g,now):g.en?rebelEnd(g):[];
+    happ='<section class="pn rbn" style="gap:8px"><div class="sb"><span class="lab">REBEL’S NOTES</span><span class="lab">'+(run?'TAP ⟳ UPDATE WHEN IT BLINKS':'')+'</span></div>'+
+     notes.map(([c,x])=>'<div class="tip rbt '+c+'"><span>'+(c==='w'?'⚠':c==='ok'?'✓':'●')+'</span><span>'+esc(x)+'</span></div>').join('')+
+     (g.log.length?g.log.slice(0,16).map(l=>'<div class="tip'+(l.rb?' rbl':'')+'"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
+  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row hbtns">'+subsBtn(d,run)+ctl+lockBtn()+'</div></div>'+
    vSBar(g)+
    (plan?'<div class="warn yel">Planning mode · games planned here wait for '+esc(dlab(d))+'. Start session on match day.</div>':'')+
    (!ended&&!past&&on.length<4?'<div class="warn yel">Only '+pl(on.length,'player')+' on. Turn on at least 4 in Players.</div>':'')+
@@ -76,6 +76,7 @@ function tick(){const now=Date.now();{const c=document.querySelector('[data-tk="
     else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='bsit'||k==='btot')benchTick(g,el,now);
+    else if(k==='rbup'&&run){const w=rebelCheck(g),ot=inOT(g,now);el.classList.toggle('pulse',!!w.length&&!ot);const s=el.parentNode.querySelector('[data-tk="rbwhy"]');if(s)s.textContent=ot?'Overtime · add games by hand':w.length?w.slice(0,2).join(' · ')+(w.length>2?' +'+(w.length-2):''):'✓ All good'}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 
 /* ---------- Players pop-up: check in / left / dummy ---------- */
@@ -138,7 +139,7 @@ function vFull(g){const d=g.d,run=running(g),ended=!!g.en,dn=fpDone(g),cur=fpCur
   const open=ed||ui.fpo;
   const pin=x=>{const h=hb(x.n),v=h?(h.pts||g.pts):gp(g,x).pts;return (ed||run)&&!h&&!cur.has(x.n)&&!VIEW()?'<input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+v+'" data-i="fp_pts" data-x="'+x.n+'" aria-label="Points for game '+x.n+'">':'<span style="color:var(--mu)">'+v+'</span>'};
   const rows=g.fp.map(x=>'<tr'+(hb(x.n)||x.x?' style="opacity:.6"':'')+'><td class="d" style="font-size:22px;color:var(--y)">'+x.n+'</td><td>'+esc(cname(d,x.c))+'</td><td>'+tyB(x.q)+(x.q.every(Boolean)&&!fmtOK(x.q)?' <span class="badge" title="Format override">OVR</span>':'')+'</td><td>'+pin(x)+'</td><td><div class="row" style="gap:6px;flex-wrap:nowrap">'+slot(x,0)+slot(x,1)+'</div></td><td class="d" style="color:var(--y);text-align:center">VS</td><td><div class="row" style="gap:6px;flex-wrap:nowrap">'+slot(x,2)+slot(x,3)+'</div></td><td>'+st(x)+'</td></tr>').join('');
-  const btns=(!ended?'<button class="ol sm" data-a="fpre">↻ Re-plan remaining games</button>':'')+(!fpStarted(g)?'<button class="btn sm" data-a="fpprint">🖨 Print schedule</button>':'')+'<button class="ol sm" style="border-color:var(--y);color:var(--y)" data-a="eropen" data-x="'+d+'">✎ Enter results</button>'+(!g.hist.some(h=>h.n)?'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="fpclear">Clear plan</button>':'');
+  const btns=(!ended&&!run?'<button class="ol sm" data-a="fpre">↻ Re-plan remaining games</button>':'')+(!fpStarted(g)?'<button class="btn sm" data-a="fpprint">🖨 Print schedule</button>':'')+'<button class="ol sm" style="border-color:var(--y);color:var(--y)" data-a="eropen" data-x="'+d+'">✎ Enter results</button>'+(!g.hist.some(h=>h.n)?'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="fpclear">Clear plan</button>':'');
   return '<section class="pn" style="gap:10px"><div class="sb" style="flex-wrap:wrap;gap:10px"><span class="lab">FULL SESSION PLAN · '+g.fp.filter(x=>!x.x).length+' GAMES · '+rng+' EACH · MD '+ty.MD+' · WD '+ty.WD+' · XD '+ty.XD+(dn.size?' · '+dn.size+' PLAYED':'')+'</span><span class="row" style="gap:8px;flex-wrap:wrap">'+btns+'</span></div>'+
    fpNotes(g)+(ed?'<div style="font-size:13px;color:var(--mu)">'+FULL_MIN+' min per game. Tap × to swap a player (checked: same round, gender, format), then print once. The printed schedule is fixed: for no-shows, swap in whoever is available.</div>':run?'<div style="font-size:13px;color:var(--mu)">The games below feed Upcoming in order. Played, on-court, queued and edited games are kept when you re-plan.</div>':'')+
    (open?'<div style="overflow-x:auto"><table><thead><tr><th>GAME</th><th>COURT</th><th>TYPE</th><th>PTS</th><th>TEAM A</th><th></th><th>TEAM B</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(ed?'':'<button class="lnk" data-a="fpo">Hide games ▴</button>'):'<button class="lnk" style="align-self:flex-start" data-a="fpo">Show all '+g.fp.length+' planned games ▾</button>')+'</section>'}
@@ -174,7 +175,9 @@ function fpNotes(g){const d=g.d,ri=rateInfo(g),ids=fullIds(g),W=ids.filter(isF),
   if(W.length===1)L.push(['amb','Only 1 woman on – mixed games need 2 women, so '+nameOf(W[0])+' can only play via a manual swap (format override).']);
   const P0=planCtx(g,ids);if(P0.power)L.push(['ok','Power games: '+P0.pwOK.size+' strong players · each gets '+PWR()+' per hour; their other games are mentor games']);
   else if(ids.filter(isStrong).length)L.push(['mu','Fewer than 4 strong players who can form a legal game → mentor games only']);
-  const dm=ids.filter(id=>isDum(d,id));if(dm.length)L.push(['mu','Fill-ins ('+dm.map(nameOf).join(', ')+'): used only for gaps and to rest players after 2 games in a row']);
+  const dm=ids.filter(id=>isDum(d,id));if(dm.length)L.push(['mu','Fill-ins ('+dm.map(nameOf).join(', ')+'): not in the first 30 min, then the spare slots – regulars are capped at '+TGTS()]);
+  {const li=learnInfo();L.push(['mu',li.g>=8?'Rebel: games averaged '+li.avg.toFixed(1)+' min over the last '+pl(li.n,'session')+' → planning '+FULL_MIN+'-min slots':'Rebel: planning '+FULL_MIN+'-min slots until 2–3 sessions of timed games are recorded']);
+   if(!running(g))rebelTips(d).slice(0,1).forEach(t=>L.push(['mu',t]))}
   return L.map(([c,m])=>'<div class="note '+c+'">'+esc(m)+'</div>').join('')}
 function vGPP(g,ppl){const d=g.d,run=running(g),hrs=Math.max(.5,sessLenH(d)),now=Date.now(),cnt=counts(g,false),win={},dn=fpDone(g),cur=fpCur(g),pln={},rr={};
   g.hist.forEach(h=>{if(h.sa===h.sb)return;(h.sa>h.sb?h.ids.slice(0,2):h.ids.slice(2)).forEach(id=>win[id]=(win[id]||0)+1)});

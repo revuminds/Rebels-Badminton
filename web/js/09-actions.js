@@ -108,7 +108,7 @@ const act={
  shuffle:()=>{},
  /* v16 full session plan */
  fpplan:()=>{const g=CG();if(planFull(g,false)){logIt(g,'Full session planned · '+g.fp.length+' games');save();render();toast(pl(g.fp.length,'game')+' planned')}},
- fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
+ fpre:()=>{const g=CG();ui.more=0;if(!g.fp)return act.reshuffle();if(!confirm(running(g)?'Emergency rebuild: re-plan ALL remaining games from scratch?\n\nNormally use ⟳ Update – it keeps the plan. Played, on-court, assigned and edited games stay either way.':'Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
  fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=g.up.filter(x=>!x.n);autoNext(g,'fill',null)}else g.psig='';save();render()},
  fpo:()=>{ui.fpo=!ui.fpo;render()},
  fpprint:()=>{const g=CG();if(!g.fp)return;const ti='Game schedule '+g.d,el=$('#print');el.className='sp';el.innerHTML=vFullPrint(g);

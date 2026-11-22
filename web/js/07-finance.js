@@ -4,7 +4,7 @@ const orgChips=(cur,a,x)=>(S.orgs||[]).length?(S.orgs||[]).map(o=>'<button class
 function vFinance(){if(!canFin())return '<div class="pn"><div class="empty">Finance is for admin and organizer only.</div></div>';
   const top='<div class="sb"><div class="row" style="gap:14px"><h1>FIN<span>ANCE</span></h1><div class="seg">'+['kitty','rebels'].map(k=>'<button class="'+(ui.fsub===k?'on':'')+'" data-a="fsub" data-x="'+k+'">'+(k==='kitty'?'The Kitty':'Rebels')+'</button>').join('')+'</div></div>'+
    '</div>';
-  return top+(ui.fsub==='rebels'?vRebels():vKitty())}
+  return top+rebelTipsBox()+(ui.fsub==='rebels'?vRebels():vKitty())}
 function kSel(ss){const k=ui.ks||(ui.ks={m:'session'});if(!k.s||!ss.includes(k.s))k.s=ss[ss.length-1];const ms=[...new Set(ss.map(d=>d.slice(0,7)))].sort().reverse(),ys=[...new Set(ss.map(d=>d.slice(0,4)))].sort().reverse();
   if(!k.mo||!ms.includes(k.mo))k.mo=ms[0];if(!k.y||!ys.includes(k.y))k.y=ys[0];if(!k.a)k.a=ss[0];if(!k.b)k.b=ss[ss.length-1];
   const list=k.m==='session'?[k.s]:k.m==='month'?ss.filter(d=>d.slice(0,7)===k.mo):k.m==='year'?ss.filter(d=>d.slice(0,4)===k.y):k.m==='range'?ss.filter(d=>d>=k.a&&d<=k.b):ss.slice();

@@ -148,6 +148,12 @@ function liveData(S, now = Date.now(), subs = [], mePid = null) {
   });
   const st = {};
   hist.forEach(h => { if (!h.ids) return; const aw = h.sa > h.sb, tie = h.sa === h.sb; h.ids.forEach((id, i) => { if (!id || !P[id] || P[id].hidePub) return; const s = st[id] = st[id] || { name: nm(id), g: 0, w: 0 }; s.g++; if (!tie && (i < 2) === aw) s.w++; }); });
+  /* v24: player card – level, all-time sessions / games / wins, first session, sessions in a row (view only, no finance) */
+  const LVN = ['Beginner', 'Beginner +', 'Intermediate', 'Intermediate +', 'Advanced'], allD = Object.keys(games).filter(d => d <= day && (games[d].hist || []).length).sort();
+  Object.keys(st).forEach(id => { const s = st[id], p = P[id]; s.lv = LVN[+p.lv] || ''; let ss = 0, gg = 0, ww = 0, first = '';
+    allD.forEach(d => { let inD = 0; (games[d].hist || []).forEach(h => { if (!h.ids) return; const i = h.ids.indexOf(id); if (i < 0) return; inD = 1; gg++; if (h.sa !== h.sb && (i < 2) === (h.sa > h.sb)) ww++; }); if (inD) { ss++; if (!first) first = d; } });
+    let rw = 0; for (let k = allD.length - 1; k >= 0; k--) { if ((games[allD[k]].hist || []).some(h => h.ids && h.ids.includes(id))) rw++; else break; }
+    s.all = { s: ss, g: gg, w: ww, since: first, row: rw, sun: allD.slice(allD.length - rw).every(d => new Date(d + 'T12:00:00Z').getUTCDay() === 0) }; });
   const stats = Object.values(st).sort((a, b) => b.w - a.w || b.g - a.g || a.name.localeCompare(b.name));
   const sched = fp.filter(x => !x.x && x.q && x.q.some(Boolean)).map(x => {
     const h = hist.find(o => o.n === x.n);
@@ -247,10 +253,27 @@ table{width:100%;border-collapse:collapse}td,th{padding:8px 6px;border-top:1px s
 .pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}.pk button{min-height:52px;border-radius:12px;border:2px solid var(--bd);background:var(--bg);color:var(--tx);font:700 16px Outfit,system-ui,sans-serif;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk button:disabled{opacity:.35;text-decoration:line-through}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ok);color:#06210F;font-weight:700;padding:12px 18px;border-radius:12px;display:none;z-index:10}
+/* v24 */
+.schc{overflow:hidden;padding:6px 6px}.sch{table-layout:fixed}.sch td,.sch th{padding:7px 3px;font-size:13.5px;vertical-align:middle;overflow-wrap:anywhere}.sch .c{text-align:center}.sch .scn{white-space:nowrap;font-weight:700}.sch td.w .scn{color:var(--win)}.sch tr.now td{background:rgba(52,199,123,.08)}
+.sch .fmt{min-width:0;padding:2px 4px;font-size:10.5px}
+tr.tap{cursor:pointer}tr.tap:active td{background:rgba(255,255,255,.05)}.pnl{text-decoration:underline dotted;text-underline-offset:3px}
+#pc{position:fixed;inset:0;z-index:12;background:rgba(0,0,0,.66);display:none;align-items:flex-end;justify-content:center;padding:12px}#pc.on{display:flex}
+.pcb{position:relative;width:min(440px,100%);background:linear-gradient(160deg,#2A2E36,#1B1E24);border:2px solid var(--y);border-radius:24px;padding:22px 18px 18px;text-align:center;animation:pcin .45s cubic-bezier(.2,1.3,.4,1);transform-origin:50% 100%}
+@keyframes pcin{0%{transform:translateY(60%) rotateX(70deg);opacity:0}100%{transform:none;opacity:1}}
+.pcx{position:absolute;right:10px;top:8px;width:44px;height:44px;border:0;background:transparent;color:var(--mu);font-size:28px}
+.pav{width:84px;height:84px;border-radius:50%;margin:0 auto 8px;background:var(--y);color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;box-shadow:0 0 0 4px rgba(229,56,59,.25)}
+.pnm2{font-size:26px;font-weight:800}.lvb{display:inline-block;margin-top:6px;padding:4px 12px;border-radius:99px;background:rgba(76,154,255,.16);color:var(--win);font-weight:700;font-size:13px}
+.pst3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}.pst3 div{background:var(--bg);border-radius:12px;padding:8px 4px}.pst3 b{display:block;font-size:24px}.pst3 small{color:var(--mu);font-size:12px}
+.bdg{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px}.bdg span{background:rgba(255,212,59,.1);color:#FFD43B;border-radius:10px;padding:7px 10px;font-weight:700;font-size:14px}
+.quip{color:var(--mu);font-size:14px;font-style:italic}
+.cfx{position:absolute;left:50%;top:60px;width:0;height:0;pointer-events:none}.cfx i{position:absolute;width:8px;height:12px;border-radius:2px;opacity:0;animation:cf .9s ease-out .15s forwards}
+@keyframes cf{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--x),var(--y)) rotate(var(--r));opacity:0}}
+@media (prefers-reduced-motion:reduce){.pcb,.cfx i{animation:none}}
+#m{align-items:flex-end}#sf{max-height:100%;overflow:auto}#sf .sbt{position:sticky;bottom:0;background:var(--pn);padding-top:6px;z-index:1}
 @media (max-width:640px){.cg{grid-template-columns:1fr}.sc{font-size:40px;min-width:56px}.pc{font-size:16px;padding:6px 10px}}
 @media (orientation:portrait) and (max-width:1000px){.cg{grid-template-columns:1fr}}
 </style></head>
-<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div class="me" id="me"></div><div id="v"></div></main><div id="m"></div><div id="turn" role="alertdialog" aria-live="assertive"></div><div id="toast"></div>
+<body><main><h1>REBELS <b>BADMINTON</b> · LIVE</h1><div class="mu sub" id="sub">Loading…</div><div class="me" id="me"></div><div id="v"></div></main><div id="m"></div><div id="pc" data-a="pcx"></div><div id="turn" role="alertdialog" aria-live="assertive"></div><div id="toast"></div>
 <script>
 const e=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const t2=x=>{const z=n=>String(n).padStart(2,'0'),s=Math.max(0,Math.floor(x));return z(Math.floor(s/60))+':'+z(s%60)};
@@ -294,8 +317,23 @@ function res(r){const aw=r.sc&&r.sa>r.sb,bw=r.sc&&r.sb>r.sa,A=T(r.a)+(r.sc?' ('+
 function fit(){document.querySelectorAll('.ln').forEach(el=>{let f=16;el.style.fontSize='';while(el.scrollWidth>el.clientWidth+1&&f>9){f-=.5;el.style.fontSize=f+'px'}})}
 function drawMe(){const el=document.getElementById('me');if(!L||!L.live||L.ended||!ME){el.innerHTML='';return}
  el.innerHTML=PL()?'<span>Playing as <b>'+e(ME.name)+'</b></span>·<button class="lk" data-a="toguest">Change to guest</button>':'<span>Watching as <b>guest</b></span>·<button class="lk" data-a="choose">I’m playing – pick my name</button>'}
-function schedH(){return '<h2>GAME SCHEDULE</h2><div class="card" style="overflow-x:auto"><table class="sch"><thead><tr><th>#</th><th>COURT</th><th></th><th>TEAM A</th><th class="n">SCORE</th><th>TEAM B</th><th></th></tr></thead><tbody>'+L.sched.map(x=>{const aw=x.st==='done'&&x.sa>x.sb,bw=x.st==='done'&&x.sb>x.sa;return '<tr><td class="mu">'+x.n+'</td><td class="mu">'+e(x.court)+'</td><td><span class="fmt f'+x.ty+'">'+x.ty+'</span></td><td class="'+(aw?'w':'')+'">'+T(x.a)+'</td><td class="n"><b>'+(x.st==='done'?x.sa+' – '+x.sb:'')+'</b></td><td class="'+(bw?'w':'')+'">'+T(x.b)+'</td><td><span class="st '+x.st+'">'+(x.st==='done'?'Done':x.st==='now'?'On court':'Planned')+'</span></td></tr>'}).join('')+'</tbody></table></div>'}
-function statsH(){return '<h2>'+(L.ended?'SESSION':'TODAY')+' · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map(s=>'<tr><td>'+e(s.name)+'</td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>'}
+/* v24: compact – # · court number · type · Team A (score) · Team B (score) · Won; no status column, no sideways scroll */
+const cnum=c=>{const m=String(c||'').match(/\\d+/);return m?m[0]:e(c)};
+function schedH(){return '<h2>GAME SCHEDULE</h2><div class="card schc"><table class="sch"><colgroup><col style="width:2.2em"><col style="width:2.6em"><col style="width:3.2em"><col><col><col style="width:3.2em"></colgroup><thead><tr><th>#</th><th>CT</th><th></th><th>TEAM A</th><th>TEAM B</th><th class="c">WON</th></tr></thead><tbody>'+L.sched.map(x=>{const dn=x.st==='done',aw=dn&&x.sa>x.sb,bw=dn&&x.sb>x.sa;
+  return '<tr class="'+(x.st==='now'?'now':'')+'"><td class="mu">'+x.n+'</td><td class="mu">'+cnum(x.court)+'</td><td><span class="fmt f'+x.ty+'">'+x.ty+'</span></td><td class="'+(aw?'w':'')+'">'+T(x.a)+(dn?' <span class="scn">('+x.sa+')</span>':'')+'</td><td class="'+(bw?'w':'')+'">'+T(x.b)+(dn?' <span class="scn">('+x.sb+')</span>':'')+'</td><td class="c">'+(aw?'<b class="w">A</b>':bw?'<b class="w">B</b>':x.st==='now'?'<span class="live on"><i class="dot"></i></span>':'')+'</td></tr>'}).join('')+'</tbody></table></div>'}
+function statsH(){return '<h2>'+(L.ended?'SESSION':'TODAY')+' · GAMES &amp; WINS</h2><div class="card"><table><thead><tr><th>PLAYER</th><th class="n">GAMES</th><th class="n">WINS</th></tr></thead><tbody>'+L.stats.map((s,i)=>'<tr class="tap" data-a="pcard" data-i="'+i+'"><td><span class="pnl">'+e(s.name)+'</span> <span class="mu" style="font-size:12px">›</span></td><td class="n">'+s.g+'</td><td class="n">'+s.w+'</td></tr>').join('')+'</tbody></table></div>'}
+/* v24: animated player card (view only) – tap a name in Games & wins */
+const ini=n=>String(n||'?').split(/\\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+const mlab=d=>new Date(d+'T12:00:00Z').toLocaleDateString('en-GB',{month:'short',year:'numeric'});
+function quip(s){const p=s.g?Math.round(s.w/s.g*100):0,a=s.all||{};return s.g>=3&&p>=75?'Rebel says: on fire today 🔥 – save some wins for the rest!':a.row>=4?'Rebel says: never misses a Sunday – legend.':p>50?'Rebel says: more wins than losses – solid day.':p===50&&s.g?'Rebel says: dead even today – next game decides it!':s.g?'Rebel says: every rally counts – see you next Sunday!':'Rebel says: warming up – first game coming.'}
+function pcard(i){const s=L&&L.stats[i];const m=document.getElementById('pc');if(!s){m.className='';m.innerHTML='';return}const a=s.all||{},p=s.g?Math.round(s.w/s.g*100):0;
+ const cf=Array.from({length:18},(_,k)=>'<i style="--x:'+(Math.cos(k/18*6.283)*(70+k%3*25)).toFixed(0)+'px;--y:'+(Math.sin(k/18*6.283)*(70+k%4*20)-40).toFixed(0)+'px;--r:'+(k*47%360)+'deg;background:'+['#E5383B','#34C77B','#FFD43B','#4C9AFF','#fff'][k%5]+'"></i>').join('');
+ m.className='on';m.innerHTML='<div class="pcb" role="dialog" aria-label="'+e(s.name)+'"><div class="cfx" aria-hidden="true">'+cf+'</div><button class="pcx" data-a="pcx" aria-label="Close">×</button>'+
+  '<div class="pav">'+e(ini(s.name))+'</div><div class="pnm2">'+e(s.name)+'</div>'+(s.lv?'<span class="lvb">'+e(s.lv)+'</span>':'')+
+  '<div class="lab" style="margin-top:14px">'+(L.ended?'THIS SESSION':'TODAY')+'</div><div class="pst3"><div><b>'+s.g+'</b><small>games</small></div><div><b>'+s.w+'</b><small>wins</small></div><div><b>'+p+'%</b><small>win rate</small></div></div>'+
+  '<div class="lab">ALL TIME</div><div class="pst3"><div><b>'+(a.s||0)+'</b><small>sessions</small></div><div><b>'+(a.g||0)+'</b><small>games</small></div><div><b>'+(a.w||0)+'</b><small>wins</small></div></div>'+
+  '<div class="bdg">'+(a.since?'<span>🏸 Rebel since '+e(mlab(a.since))+' · '+(a.s||0)+' sessions</span>':'')+(a.row>=2?'<span>🔥 '+a.row+' '+(a.sun?'Sundays':'sessions')+' in a row</span>':'')+'</div>'+
+  '<div class="quip">'+e(quip(s))+'</div></div>'}
 function draw(){const v=document.getElementById('v'),sub=document.getElementById('sub');if(!L)return;drawMe();
  if(!L.live){sub.textContent='';v.innerHTML='<div class="card" style="margin-top:18px"><b>No live session</b>'+(L.next?' · next: '+e(dl(L.next.date))+' '+e(L.next.time)+' · '+e(L.next.loc):'')+'</div>';return}
  sub.innerHTML=e(dl(L.date))+' · '+e(L.time)+' · '+e(L.loc)+' · '+(L.ended?'<span class="live" style="color:var(--mu)">■ ENDED</span>':L.started?'<span class="live on"><i class="dot"></i>LIVE</span>':'<span class="live" style="color:var(--amb)">● STARTING SOON</span>');
@@ -322,14 +360,21 @@ function drawC(m){const P=L.pick||[];
 /* send score: sender = the picked name */
 function drawM(){const m=document.getElementById('m');if(M&&M.c){if(!L||!L.live||L.ended){M=null}else return drawC(m)}
  const r=M&&L&&L.results.find(x=>x.k===M.k);if(!r||!((M.fx?r.fix:r.send)&&r.me&&PL())&&!M.busy){M=null;m.className='';m.innerHTML='';return}
- const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" value="'+e(M[s])+'" aria-label="Score"><button data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
- m.className='on';m.innerHTML='<div class="sh"><div class="lab">'+(M.fx?'SUGGEST CORRECTION':'SEND SCORE')+' · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
+ const row=(s,nm)=>'<div class="srow"><span>'+T(nm)+'</span><button type="button" data-a="dn" data-s="'+s+'" aria-label="Minus">−</button><input id="in'+s+'" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" enterkeyhint="'+(s==='sa'?'next':'go')+'" value="'+e(M[s])+'" aria-label="Score"><button type="button" data-a="up" data-s="'+s+'" aria-label="Plus">+</button></div>';
+ m.className='on';m.innerHTML='<form class="sh" id="sf" novalidate><div class="lab">'+(M.fx?'SUGGEST CORRECTION':'SEND SCORE')+' · '+e(r.court.toUpperCase())+' · GAME TO '+r.pts+(r.deuce?' · DEUCE':'')+'</div>'+
   '<div class="mu" id="sas">Sending as <b style="color:var(--tx)">'+e(ME.name)+'</b>'+(M.fx?' · saved now: <b style="color:var(--tx)">'+r.sa+' – '+r.sb+'</b>':'')+'</div>'+
   '<div class="lab" style="color:var(--tx)">FINAL SCORE</div>'+row('sa',r.a)+row('sb',r.b)+'<div class="err" id="er">'+e(M.err)+'</div>'+
-  '<div class="btns"><button class="cx" data-a="close">Cancel</button><button class="ok" data-a="send"'+(M.busy?' disabled':'')+'>'+(M.busy?'Sending…':M.fx?'Send correction':'Send score')+'</button></div>'+
-  '<div class="mu" style="font-size:13px">'+(M.fx?'The organiser checks it on the tablet · the saved score stays until accepted. One correction at a time.':'The organiser checks it on the tablet before it counts. One score per game.')+'</div></div>'}
+  '<div class="btns sbt"><button type="button" class="cx" data-a="close">Cancel</button><button type="submit" class="ok" data-a="send"'+(M.busy?' disabled':'')+'>'+(M.busy?'Sending…':M.fx?'Send correction':'Send score')+'</button></div>'+
+  '<div class="mu" style="font-size:13px">'+(M.fx?'The organiser checks it on the tablet · the saved score stays until accepted. One correction at a time.':'The organiser checks it on the tablet before it counts. One score per game.')+'</div></form>';kb()}
+/* keyboard open: the sheet sits on top of it (visualViewport), Save stays visible */
+function kb(){const m=document.getElementById('m'),vv=window.visualViewport;if(!m||!m.classList.contains('on'))return;const h=vv?vv.height:innerHeight,top=vv?vv.offsetTop:0;
+ m.style.height=h+'px';m.style.top=top+'px';m.style.bottom='auto';const b=m.querySelector('.sbt');const f=document.activeElement;if(b&&f&&/^in(sa|sb)$/.test(f.id))setTimeout(()=>b.scrollIntoView({block:'nearest'}),60)}
+if(window.visualViewport){visualViewport.addEventListener('resize',kb);visualViewport.addEventListener('scroll',kb)}
+document.addEventListener('focusin',ev=>{if(/^in(sa|sb)$/.test(ev.target.id)){if(ev.target.value)try{ev.target.select()}catch(x){}kb()}});
+document.addEventListener('submit',ev=>{if(ev.target.id!=='sf')return;ev.preventDefault();const f=document.activeElement;if(f&&f.id==='insa'){document.getElementById('insb').focus();return}send()});
+document.addEventListener('pointerdown',ev=>{const sh=ev.target.closest&&ev.target.closest('#sf');if(sh&&!ev.target.closest('input,button')&&document.activeElement&&/^in(sa|sb)$/.test(document.activeElement.id))document.activeElement.blur()},true);
 async function post(u,b){const x=await fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return{s:x.status,j:await x.json().catch(()=>({}))}}
-async function send(){const r=L.results.find(x=>x.k===M.k);if(!r)return;const sa=parseInt(M.sa,10),sb=parseInt(M.sb,10);
+async function send(){if(!M)return;const r=L.results.find(x=>x.k===M.k);if(!r)return;if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();const sa=parseInt(M.sa,10),sb=parseInt(M.sb,10);
  M.err=isNaN(sa)||isNaN(sb)?'Enter both scores':sErr(sa,sb,r)||(M.fx&&sa===r.sa&&sb===r.sb?'Same as the saved score':'');if(M.err)return drawM();
  const fx=!!M.fx;M.busy=1;drawM();try{const x=await post('/api/live/score',fx?{k:M.k,t:ME.t,sa,sb,c:1}:{k:M.k,t:ME.t,sa,sb});
   if(x.s===200){M=null;drawM();toast(fx?'Correction sent · waiting for approval':'Score sent · waiting for approval');load();return}M.busy=0;M.err=x.j.error||'Not sent – try again';
@@ -339,12 +384,13 @@ async function pick(k){M.busy=1;M.err='';drawM();try{const x=await post('/api/li
 async function toGuest(){const t=ME&&ME.t;meSave({d:L.date,m:'g'});draw();if(t)try{await post('/api/live/release',{t})}catch(x){}load()}
 document.addEventListener('click',ev=>{const b=ev.target.closest('[data-a]');if(!b){if(ev.target.id==='m'&&M&&!M.c){M=null;drawM()}return}const a=b.dataset.a;
  if(a==='toguest')return toGuest();if(a==='choose'){M={c:1,step:2,err:''};return drawM()}
+ if(a==='pcard')return pcard(+b.dataset.i);if(a==='pcx'){if(ev.target.closest('.pcb')&&!ev.target.closest('.pcx'))return;return pcard(-1)}
  if(a==='arm')return arm(b.dataset.s);if(a==='wake')return wakeT();if(a==='turnok')return turnOk();
  if(a==='fix'){const r=L.results.find(x=>x.k===b.dataset.k);M={k:b.dataset.k,sa:r?String(r.sa):'',sb:r?String(r.sb):'',err:'',fx:1};return drawM()}
  if(a==='open'){M={k:b.dataset.k,sa:'',sb:'',err:''};drawM()}else if(!M)return;
  else if(a==='guest'){if(M.busy)return;M=null;drawM();toGuest()}else if(a==='player'){M.step=2;drawM()}else if(a==='pick'){if(!M.busy)pick(b.dataset.k)}
  else if(a==='close'){M=null;drawM()}
- else if(a==='send')send()});
+ else if(a==='send'){ev.preventDefault();send()}});
 /* v22: +/− = one step per tap, press-and-hold repeats and speeds up; value changed in place (no redraw) so the hold survives; clamped 0..max */
 function stepS(s,d){const r=L&&M&&L.results.find(x=>x.k===M.k);if(!r)return;const v=Math.min(cap(r),Math.max(0,(parseInt(M[s],10)||0)+d));M[s]=String(v);M.err='';
  const i=document.getElementById('in'+s);if(i)i.value=M[s];const er=document.getElementById('er');if(er)er.textContent=''}
@@ -356,7 +402,7 @@ document.addEventListener('pointerdown',ev=>{const b=ev.target.closest('.srow bu
 ['pointerup','pointercancel','lostpointercapture','blur'].forEach(t=>addEventListener(t,holdEnd,true));
 document.addEventListener('pointerleave',ev=>{if(HD&&ev.target===HD.b)holdEnd()},true);
 document.addEventListener('contextmenu',ev=>{if(ev.target.closest&&ev.target.closest('.srow button'))ev.preventDefault()});
-document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){const v=ev.target.value.replace(/[^0-9]/g,'').slice(0,2);if(v!==ev.target.value)ev.target.value=v;M[ev.target.id.slice(2)]=v;M.err='';document.getElementById('er').textContent=''}});
+document.addEventListener('input',ev=>{if(M&&/^in(sa|sb)$/.test(ev.target.id)){const v=ev.target.value.replace(/[^0-9]/g,'').slice(0,2);if(v!==ev.target.value)ev.target.value=v;M[ev.target.id.slice(2)]=v;M.err='';document.getElementById('er').textContent='';if(ev.target.id==='insa'&&v.length===2)document.getElementById('insb').focus()}});
 async function load(){try{const r=await fetch('/api/live',{cache:'no-store',headers:PL()?{'X-Claim':ME.t}:{}});if(r.ok){L=await r.json();off=Date.now()-(L.at||Date.now());
  /* session over or a new session → forget the choice; name freed on the tablet → ask again */
  if(ME&&(!L.live||L.ended||ME.d!==L.date)){meSave(null)}else if(PL()&&L.claimGone){meSave(null);toast('Your name was freed – pick it again')}

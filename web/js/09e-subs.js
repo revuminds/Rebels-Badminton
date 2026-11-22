@@ -8,8 +8,8 @@ async function subsPoll(force){if(!subsOK()||subsBusy||navigator.onLine===false)
   subsBusy=true;try{lclPoll();const r=await req('GET','/api/subs?d='+TODAY(),null,15000);if(r.s!==200)return;const L=r.j.list||[],old=(ui.subs||[]).map(x=>x.id).join();
     ui.subs=L;if(L.map(x=>x.id).join()!==old){if(ui.subm&&!L.length)ui.subm=0;const a=document.activeElement;if(!(ui.subm&&a&&a.dataset&&/^sub_/.test(a.dataset.i||'')))render()}}finally{subsBusy=false}}
 setInterval(()=>subsPoll(false),20000);
-function subsBtn(d){const n=(ui.subs||[]).length,g=S.games[d],np=g&&g.st&&!g.en?(g.hist||[]).filter(h=>!h.sa&&!h.sb).length:0;
-  return (np?'<span class="spend big" title="Games saved with no score – players send it from the live page, or tap the game in Game Summary">⏳ Score pending ('+np+')</span>':'')+(n&&d===TODAY()&&subsOK()?'<button class="ol rvb" data-a="subsopen">Scores to review ('+n+')</button>':'')+lclBtn(d)}
+function subsBtn(d,noL){const n=(ui.subs||[]).length,g=S.games[d],np=g&&g.st&&!g.en?(g.hist||[]).filter(h=>!h.sa&&!h.sb).length:0;
+  return (np?'<span class="spend big" title="Games saved with no score – players send it from the live page, or tap the game in Game Summary">⏳ Score pending ('+np+')</span>':'')+(n&&d===TODAY()&&subsOK()?'<button class="ol rvb" data-a="subsopen">Scores to review ('+n+')</button>':'')+(noL?'':lclBtn(d))}
 function subGame(x){const g=S.games[TODAY()];return g&&(g.hist||[]).find(h=>hKey(h)===x.k)||null}
 function subVal(x){const e=(ui.subE||{})[x.id]||{};return{sa:e.sa!=null?e.sa:x.sa,sb:e.sb!=null?e.sb:x.sb}}
 /* v21: x.st==='cp' = a correction of a score already saved on the tablet (old → new) */

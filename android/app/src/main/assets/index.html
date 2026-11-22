@@ -474,6 +474,34 @@ body.viewer [data-a="ced"],body.viewer [data-a="subsopen"],body.viewer [data-a="
 .spend{display:inline-block;font-size:13px;font-weight:700;padding:4px 10px;border-radius:99px;background:rgba(245,165,36,.16);color:var(--amb);font-family:Outfit,sans-serif;letter-spacing:0;white-space:nowrap}
 .spend.big{font-size:15px;padding:8px 14px}
 .corb{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.1em;padding:3px 8px;border-radius:6px;background:#2D6FA8;color:#fff}
+
+/* ===== v24 ===== */
+html,body{overflow-x:hidden;max-width:100%}
+.app,#main{max-width:100vw;overflow-x:hidden}
+.hbtns{display:flex!important;flex-wrap:wrap;justify-content:flex-end;align-items:center;row-gap:8px}.hbtns>*{flex:0 0 auto!important;width:auto!important}
+/* (23) header: title + subtitle on their own full-width line, buttons wrap below */
+.sb:has(> .hbtns){flex-wrap:wrap}.sb:has(> .hbtns)>div:first-child{flex:1 1 100%;min-width:0}.sb:has(> .hbtns)>.hbtns{flex:1 1 100%}
+.sbar{flex-wrap:wrap;row-gap:6px}.sbar .sbtime{white-space:normal}
+.mwrap{position:relative;display:inline-flex}.mmenu{position:absolute;right:0;top:calc(100% + 6px);z-index:40;background:var(--pn);border:1px solid var(--bd,#3A404C);border-radius:14px;padding:6px;display:flex;flex-direction:column;min-width:270px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.mmenu button{all:unset;cursor:pointer;padding:12px 14px;border-radius:10px;font-weight:600;font-size:15px;color:var(--tx)}.mmenu button:hover,.mmenu button:active{background:var(--bg)}.mmenu .dang{color:var(--bad)}
+/* (9) blinking Update */
+.rbw{display:inline-flex;align-items:center;gap:8px}.rbwhy{font-size:13px;font-weight:700;color:var(--mu);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rbup:not(.pulse){background:transparent!important;color:var(--ok)!important;border:2px solid var(--ok)!important}.rbup.pulse{animation:rbp 1.1s ease-in-out infinite;background:var(--bad);color:#fff}.rbup.pulse+.rbwhy{color:var(--bad)}
+@keyframes rbp{0%,100%{box-shadow:0 0 0 0 rgba(229,56,59,.7)}50%{box-shadow:0 0 0 9px rgba(229,56,59,0);background:#F5A524}}
+@media (prefers-reduced-motion:reduce){.rbup:not(.pulse){background:transparent!important;color:var(--ok)!important;border:2px solid var(--ok)!important}.rbup.pulse{animation:none}}
+.tundo{all:unset;cursor:pointer;text-decoration:underline;font-weight:800;margin-left:6px}
+/* (8) Rebel's notes */
+.rbn .rbt.w{color:var(--bad);font-weight:700}.rbn .rbt.ok{color:var(--ok)}.rbn .rbl span:last-child{font-weight:600}
+.qnm.qau{opacity:.85}
+/* (7) court chips sit on a fixed dark background: white names, light grey levels in both themes */
+.vbox .cpl .pnm b,.cpl .pnm b,body.light .vbox .cpl .pnm b,body.light .cpl .pnm b{color:#fff!important}
+.vbox .cpl .pnm small,.cpl .pnm small,body.light .vbox .cpl .pnm small,body.light .cpl .pnm small{color:#C9CED6!important}
+/* (14) time-left pill: readable in both themes, colour by time; overtime blinks red */
+.cpill.ok{background:#123F33;color:#5EF0A8}.cpill.yel{background:#3A2F14;color:#FFC24B}.cpill.bad{background:#4A1416;color:#FF8486}
+.cpill.over{background:var(--bad);color:#fff;animation:bl1 1s steps(2,start) infinite}
+body.light .cpill.ok{background:#DDF6E8;color:#0B5A33;font-weight:800}body.light .cpill.yel{background:#FFF0D1;color:#7A4B00;font-weight:800}body.light .cpill.bad{background:#FFE1E1;color:#A01417;font-weight:800}
+body.light .cpill.over{background:#D62B2E;color:#fff}
+.rbtips{margin:4px 0 14px}
 </style>
 </head>
 <body>
@@ -532,7 +560,7 @@ let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}
 if(!S)S=blank();
-function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>g.up.filter(x=>x.ac===i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
+function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>qAuto(g,i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
   try{localStorage.setItem(KEY,t)}catch(e){toast('Could not save – export a backup')}
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}
@@ -605,7 +633,7 @@ const cname=(d,i)=>{const c=courtsOf(d)[i];return c?(c.n||'Court '+(i+1)):'Court
 const sessLenH=d=>Math.max(...courtsOf(d).map(c=>num(c.h)||0),0);
 const courtHrs=d=>courtsOf(d).reduce((a,c)=>a+num(c.h),0);
 /* booked start: scheduled time; falls back to the actual start */
-function bookStart(d){const D=S.days[d],g=S.games[d];if(D&&D.time)return tms(d,D.time);return g&&g.st?g.st:tms(d,'20:00')}
+function bookStart(d){const D=S.days[d],g=S.games[d];if(g&&g.st&&!g.man)return g.st;if(D&&D.time)return tms(d,D.time);return g&&g.st?g.st:tms(d,'20:00')}
 const courtEnd=(d,i)=>bookStart(d)+num((courtsOf(d)[i]||{}).h)*3600e3;
 const sessEnd=d=>bookStart(d)+sessLenH(d)*3600e3;
 const upcoming=()=>{const t=TODAY();return Object.keys(S.days).filter(d=>d>t&&isSched(d)).sort()};
@@ -804,7 +832,7 @@ const hlab=h=>(h.n?'Game '+h.n:h.m?'Manual':'#'+(h.r||'–'))+(h.s!=null&&h.at&&
 /* ---------- court flow ---------- */
 function saveGame(g,i,t){t=t||Date.now();const q=g.cur[i],L=g.live[i];const s=Math.max(0,L.run?(t-L.start)/1000:(L.el||0));
   const n=g.hist.filter(h=>h.c===i+1&&!h.m).length+1;
-  const h={r:n,c:i+1,ids:q.slice(),a:[nameOf(q[0]),nameOf(q[1])],b:[nameOf(q[2]),nameOf(q[3])],sa:L.sa,sb:L.sb,s:Math.round(s),at:t};if(L.pts&&+L.pts!==+g.pts)h.pts=+L.pts;
+  const h={r:n,c:i+1,ids:q.slice(),a:[nameOf(q[0]),nameOf(q[1])],b:[nameOf(q[2]),nameOf(q[3])],sa:L.sa,sb:L.sb,s:Math.round(s),at:t};if((L.start||t)>=courtEnd(g.d,i)-60e3)h.ot=1;if(L.pts&&+L.pts!==+g.pts)h.pts=+L.pts;
   if(g.curN&&g.curN[i]){h.n=g.curN[i];g.curN[i]=0}
   g.hist.unshift(h);g.last[i]=h;g.cur[i]=NUL4();g.live[i]=blankLive();q.forEach(id=>benchOn(g,id,t));
   autoNext(g,'fill',null)}
@@ -850,7 +878,7 @@ function recordOverride(g,x){const a=x.a,m=x.q;if(!a||!a.every(Boolean)||!m.ever
   (S.rules||[]).forEach(r=>{if(ks.includes(r.k))r.n=S.ovr.filter(o=>o.k.includes(r.k)).length})}
 
 /* ---------- v16: full session plan (10-min games, numbered), print, enter results ---------- */
-const FULL_MIN=10;let LASTPLAN=null;
+let FULL_MIN=10;let LASTPLAN=null;
 const fullPer=d=>courtsOf(d).map(c=>Math.floor(num(c.h)*60/FULL_MIN));
 function fullSlots(d){const per=fullPer(d),R=Math.max(0,...per),a=[];for(let r=0;r<R;r++)per.forEach((n,i)=>{if(r<n)a.push({r,c:i,n:a.length+1})});return a}
 /* players for the plan: checked-in (session running) or turned on (before Start); gender set */
@@ -867,7 +895,7 @@ function fpSync(g){if(!g.fp)return;const by={};g.fp.forEach(x=>by[x.n]=x);
   g.fp.forEach(x=>{if(!ok(x)||have.has(x.n))return;const k=ord.findIndex(m=>m>x.n);if(k<0)ord.push(x.n);else ord.splice(k,0,x.n)});
   g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;return o})}
 /* keep: games already played, on court, queued, or edited by you (if all their players are still here) – the rest is re-planned */
-function planFull(g,re){if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
+function planFull(g,re){FULL_MIN=fullMin(g.d);if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
   const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.up.filter(x=>x.n&&x.ac!=null).map(x=>x.n)),ok=new Set(ids);
     g.fp.forEach(x=>{if(dn.has(x.n))keep[x.n]=Object.assign({},x,{dn:1});else if(cur.has(x.n)||inQ.has(x.n)||x.x)keep[x.n]=x;else if(x.m&&x.q.every(id=>id&&ok.has(id)))keep[x.n]=x})}
   const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
@@ -922,7 +950,7 @@ function clashOf(g,q){const r=[];(q||[]).forEach(id=>{if(!id)return;const i=g.cu
 /* ▶ Start next on free court i: games assigned to it first (your order), then unassigned ones in Upcoming order.
    Never a game with a player on court; a game without players who just came off wins over one with them. -1 = none. */
 function nextFor(g,i){const jp=justPlayed(g);let b=null;g.up.forEach((x,k)=>{if(x.ac!=null&&x.ac!==i)return;if(clashOf(g,x.q).length)return;
-    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}
+    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0)+(g.st&&Date.now()<g.st+30*60e3&&x.q.some(id=>id&&isDum(g.d,id))?3:0)+(x.ac==null&&x.c===i?0:.5);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}
 
 /* ===== v17 scheduler (spec B + E): fair full-session plan =====
    Priority when rules conflict: 1 equal games / rest → 2 level balance → 3 partner variety → 4 opponent variety.
@@ -976,7 +1004,8 @@ function evenSel(pool,n){let k=n;while(k>0){const sel=pool.slice(0,k*4),rest=poo
 function powerSet(part){const sm=part.filter(id=>isStrong(id)&&!isF(id)),sw=part.filter(id=>isStrong(id)&&isF(id)),ok=new Set();
   if(sm.length>=4||(sm.length>=2&&sw.length>=2))sm.forEach(id=>ok.add(id));if(sw.length>=4||(sw.length>=2&&sm.length>=2))sw.forEach(id=>ok.add(id));return ok}
 function planCtx(g,ids){const d=g.d,Wall=ids.filter(isF).length,part=ids.filter(id=>!isDum(d,id)&&!(Wall<2&&isF(id))),R=Math.max(1,...fullPer(d)),H=Math.max(1,Math.round(R*FULL_MIN/60)),pwOK=PWR()>0?powerSet(part):new Set();
-  return{rt:ratings(),pol:wPolicy(part),Wall,part,dum:new Set(ids.filter(id=>isDum(d,id))),pwOK,power:pwOK.size>=4,H,R}}
+  const el=running(g)&&g.st?Math.max(0,(Date.now()-g.st)/60e3):0,fiR=Math.max(0,Math.ceil((30-el)/(FULL_MIN*.85)-1e-9));
+  return{rt:ratings(),pol:wPolicy(part),Wall,part,dum:new Set(ids.filter(id=>isDum(d,id))),pwOK,power:pwOK.size>=4,H,R,fiR}}
 /* best legal 4 from an ordered list, counting how many of `want` it contains */
 function pick4(L,want){const M=L.filter(id=>!isF(id)),W=L.filter(isF),c=[];if(M.length>=4)c.push(M.slice(0,4));if(W.length>=2&&M.length>=2)c.push(W.slice(0,2).concat(M.slice(0,2)));if(W.length>=4)c.push(W.slice(0,4));
   let b=null;c.forEach(q=>{const k=q.filter(id=>want.has(id)).length;if(!b||k>b.k)b={k,q}});return b&&b.k?b.q:null}
@@ -992,11 +1021,15 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
   /* v23 live: games on court now = round 0 (they count as games); players who just came off start with their streak */
   if(pre){pre.cur.forEach(q=>play(q,0));Object.keys(pre.strk).forEach(id=>{if(pre.onC.has(id)){strk[id]=pre.strk[id]}else{last[id]=-1;strk[id]=pre.strk[id]}})}
   const R=slots.length?Math.max(...slots.map(s=>s.r))+1:0;
+  /* v24: regulars capped at the session target (manual games may go over – they are kept, never fought); fill-ins wait the first 30 min,
+     then share the spare slots spread over the rest of the session (they are the time buffer) */
+  const CAP=TGTS(),fiR=P0.fiR||0,need=P0.part.reduce((a,id)=>a+Math.max(0,CAP-(c[id]||0)),0),fiSp=Math.max(0,slots.length*4-need-Object.keys(keep).length*4);let fiU=0;
   for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();if(pre&&r<2)pre.onC.forEach(id=>busy.add(id));
     rs.forEach(s=>{const k=keep[s.n];if(!k)return;out.push(k);k.q.forEach(id=>id&&busy.add(id));play(k.q,r)});
     const free=rs.filter(s=>!keep[s.n]);if(!free.length)continue;const h=hourOf(r,P0.H);
-    const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id];
-      return{id,s,t:dm?(s===0?2:s===1?2.5:s===2?2.8:3.25+(s-3)*.5):s===0?0:s===1?1:3+(s-2)*.5,rest,c:c[id]||0,o:att%2&&st.owes(id,h)?0:1,x:Math.random()}};
+    const fiOK=r>=fiR&&fiU<fiSp*(r-fiR+1)/Math.max(1,R-fiR);
+    const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id],cp=!dm&&(c[id]||0)>=CAP;
+      return{id,s,t:dm?(r<fiR?4:s===0?(fiOK?.9:2):s===1?2.5:s===2?2.8:3.25+(s-3)*.5):cp?6:s===0?(rest===1?.5:0):s===1?1:3+(s-2)*.5,rest,c:c[id]||0,o:att%2&&st.owes(id,h)?0:1,x:Math.random()}};
     const ks=ids.filter(id=>!busy.has(id)&&!(P0.Wall<2&&isF(id))).map(key).sort((a,b)=>a.t-b.t||(a.c-.6*Math.min(a.rest,4))-(b.c-.6*Math.min(b.rest,4))||a.c-b.c||a.o-b.o||a.x-b.x);
     let pool=ks.map(x=>x.id);const fresh=ks.filter(x=>x.t<=1).map(x=>x.id),mode=att%4;let F=null;
     /* some attempts pull a power game (strong players who still owe one this hour) or a WD game (women still without WD) to the front */
@@ -1006,7 +1039,9 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
     if(F&&free.length)pool=F.concat(pool.filter(id=>!F.includes(id)));
     const n=Math.min(free.length,Math.floor(pool.length/4)),tt={};ks.forEach(x=>tt[x.id]=x.t);
     /* v23: keep the 2-in-a-row cap when the round can be filled without it (also when fixing the women count) */
-    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
+    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n)sel=evenSel(pool.filter(id=>tt[id]<3||tt[id]===4),n);
+    if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool.filter(id=>tt[id]<6),n);if(sel.length/4<n&&!(pre&&pre.hard)&&!P0.dum.size)sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
+    sel.forEach(id=>{if(P0.dum.has(id))fiU++});
     const gr=groupBest(sel,st,h);
     gr.forEach((q,k)=>{const s=free[k];gsum+=gcost2(q,st,h).c;out.push({n:s.n,r:s.r,c:s.c,q:q.slice(),a:q.slice(),m:0});play(q,r)})}
   /* score the whole plan */
@@ -1014,7 +1049,7 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
   if(P0.power)P0.part.filter(isStrong).forEach(id=>{for(let h=0;h<P0.H;h++)pd+=Math.max(0,PWR()-(pw[id+'|'+h]||0))});
   if(P0.pol.wd)P0.part.filter(isF).forEach(w=>{wdf+=(wd[w]?0:1)+(xd[w]||P0.pol.M<2?0:1)});
   if(P0.pol.quota)wdf+=Math.max(0,st.wdTot-P0.pol.quota)*.4;
-  return{out:out.sort((a,b)=>a.n-b.n),sc:spread*1000+em*500+b3*200+b2*12+pd*400+wdf*1200+gsum*.05,st:{c,wd,xd,pw,b2,b3,spread,pd,wdf,wdTot:st.wdTot}}}
+  return{out:out.sort((a,b)=>a.n-b.n),sc:spread*1000+P0.part.reduce((a,id)=>a+Math.max(0,(c[id]||0)-TGTS()),0)*900+em*500+b3*200+b2*12+pd*400+wdf*1200+gsum*.05,st:{c,wd,xd,pw,b2,b3,spread,pd,wdf,wdTot:st.wdTot}}}
 /* achievable games per hour for participants (target 3/hr → max 8 players per court) */
 function rateInfo(g){const d=g.d,ids=fullIds(g),part=ids.filter(id=>!isDum(d,id)),nC=courtsOf(d).length,hrs=Math.max(.5,sessLenH(d));
   const slots=fullPer(d).reduce((a,n)=>a+n,0)*4,rate=part.length?Math.min(60/FULL_MIN,slots/part.length/hrs):0;
@@ -1033,6 +1068,153 @@ function fmtGate(q,where){if(fmtOK(q))return true;const f=q.filter(isF).length,t
   if(!confirm('Override format rule?\n\n'+t+' is not allowed in automatic games. Use it anyway for this game?'))return false;
   audit('Format override ('+(f===1?'1W+3M':'3W+1M')+') '+where+': '+q.map(nameOf).join(', '));return true}
 function audit(m){S.audit=S.audit||[];S.audit.unshift({t:Date.now(),m,by:whoAmI()});if(S.audit.length>300)S.audit.length=300}
+
+/* ===== v24 Rebel: the live Update loop =====
+   Update keeps the plan and only repairs it, in the priority order Raj set:
+   1 regulars get 6 (cap = Settings target) · 2 booked time (long games drop a fill-in game, short games add one back)
+   3 rest balancing (on court now / 3 in a row / 3 games quickly → moved later, longest-waiting player in)
+   4 fill-ins in the spare slots (never in the first 30 min) · 5 Rebel's notes.
+   Games Raj placed or edited are only touched for hard conflicts; a 7th game Raj gave by hand is kept (x.ovr) and not learned from. */
+const R_FI_MIN=30,R_WAIT=25*60e3;
+const capOK=(d,id)=>isDum(d,id)?Infinity:TGTS();
+/* average real game length this session (incl. 1 min changeover); learned length before the first 2 games */
+function rbLen(g){const L=g.hist.filter(h=>!h.m&&!h.ot&&h.s>=300&&h.s<=1800).slice(0,8);return L.length>=2?Math.max(6,L.reduce((a,h)=>a+h.s,0)/L.length/60)+1:fullMin(g.d)}
+/* when each upcoming game should start (courts free up in turn), and whether it still fits the booked time */
+function rbTimes(g,t){const d=g.d,len=rbLen(g)*60e3,C=courtsOf(d),fr=C.map((c,i)=>{if(g.closed[i])return Infinity;const q=g.cur[i],L=g.live[i];
+    if(q&&q.every(Boolean)){const st=L&&L.run?L.start:t;return Math.max(t+60e3,st+len)}return t});
+  return g.up.map(x=>{let i=x.ac!=null&&!g.closed[x.ac]?x.ac:-1;if(i<0){i=0;fr.forEach((v,j)=>{if(v<fr[i])i=j})}const s=fr[i];fr[i]=s+len;return{s,i,fit:s+len*.6<=courtEnd(d,i)}})}
+function rbProj(g){const c=counts(g,true);g.up.forEach(x=>x.q.forEach(id=>{if(id)c[id]=(c[id]||0)+1}));return c}
+const rbRound=(g,x)=>{if(!x.n||!g.fp)return null;const f=g.fp.find(o=>o.n===x.n);return f?f.r:null};
+/* another game in the same plan round (or the neighbour in Upcoming when there is no plan) already has id */
+/* v24: by estimated start time – two games overlap when they start less than ~one game apart; on court now = busy until that court is free */
+let RBT=null,RBL=11;
+function rbBusy(g,x,id){const k=g.up.indexOf(x);if(!RBT||!RBT[k]){const r=rbRound(g,x);if(r!=null)return g.up.some(o=>o!==x&&rbRound(g,o)===r&&o.q.includes(id));return [k-1,k+1].some(j=>g.up[j]&&g.up[j].q.includes(id))}
+  const s=RBT[k].s,w=RBL*60e3*.9;if(g.up.some((o,j)=>j!==k&&RBT[j]&&o.q.includes(id)&&Math.abs(RBT[j].s-s)<w))return true;
+  const i=g.cur.findIndex(q=>q&&q.every(Boolean)&&q.includes(id));if(i>=0){const L=g.live[i],e=(L&&L.run?L.start:Date.now())+RBL*60e3;return s<e-w*.3}return false}
+function rbSet(g,x,q){x.q=q;if(x.n&&g.fp){const f=g.fp.find(o=>o.n===x.n);if(f)f.q=q.slice()}}
+/* players who came off court in the last few minutes after 2 games in a row, or played 3 games in the last 35 min */
+function rbTired(g,t){const s=new Set(),oc=onCourt(g);justPlayed(g,t).forEach(id=>{if((g.strk[id]||0)>=2)s.add(id)});
+  const rec={};g.hist.forEach(h=>{if(t-(h.at||0)<35*60e3)h.ids.forEach(id=>rec[id]=(rec[id]||0)+1)});
+  Object.keys(rec).forEach(id=>{if(rec[id]+(oc.has(id)?1:0)>=3)s.add(id)});oc.forEach(id=>{if((g.strk[id]||0)>=2)s.add(id)});return s}
+const wMin=(g,id,t)=>Math.max(0,(t-idleFrom(g,id))/60e3);
+/* best replacement for slot k of game x: regulars short of their games first (longest waiting), then the fill-in with fewest games */
+function rbRep(g,x,k,P,cx){const d=g.d,q=x.q,out=q[k],est=cx.est||(RBT&&RBT[g.up.indexOf(x)]),early=(est?est.s:cx.t)<g.st+R_FI_MIN*60e3+RBL*30e3;
+  const c=onIds(d).filter(id=>id!==out&&hasSx(id)&&eligible(d,id)&&!q.includes(id)&&!(cx.near&&(cx.oc.has(id)||cx.tired.has(id)))&&!rbBusy(g,x,id)).map(id=>{
+    const fi=isDum(d,id),pj=P[id]||0,nq=q.slice();nq[k]=id;if(!fmtOK(nq))return null;if(!fi&&pj>=TGTS())return null;if(fi&&early)return null;
+    return{id,s:(fi?100+pj*5:-(TGTS()-pj)*20)-Math.min(40,wMin(g,id,cx.t))/4+(sxOf(id)===sxOf(out)?0:3)+(cx.avoid&&cx.avoid.has(id)?50:0)}}).filter(Boolean).sort((a,b)=>a.s-b.s);
+  return c.length?c[0].id:null}
+function rbSnap(g){return JSON.stringify({fp:g.fp||null,up:g.up})}
+/* the Update. o.quiet = simulation / check only (no log, no save). Returns {n, ch:[{s,m}]} */
+function rebelUpdate(g,o){o=o||{};if(!running(g))return{n:0,ch:[]};const d=g.d,t=Date.now(),ch=[],add=(s,m)=>ch.push({s,m}),before=rbSnap(g);
+  if(g.fp)fpSync(g);const oc=onCourt(g),tired=rbTired(g,t),nm=nameOf;
+  if(inOT(g,t)){return{n:0,ch:[],ot:1}}
+  /* 0. players who left / were turned off / are on court now in a game that is next */
+  g.up.forEach((x,k)=>x.q.forEach((id,j)=>{if(id&&(!eligible(d,id)||!onIds(d).includes(id))){const P=rbProj(g),r=rbRep(g,x,j,P,{t,oc,tired,near:k<2});rbSet(g,x,x.q.map((v,i)=>i===j?r:v));add(nm(id)+' left',nm(id)+' is not here → '+(r?nm(r)+' takes the place in '+gl(x):'place in '+gl(x)+' open'))}}));
+  /* 1. booked time: games that no longer fit are dropped (fill-in games first); spare time gets a game back */
+  let T=rbTimes(g,t);const lenM=rbLen(g);RBL=lenM;RBT=T;
+  for(let k=g.up.length-1;k>=0&&T.filter(z=>!z.fit).length;k--){if(T[k].fit)continue;const P=rbProj(g),pick=()=>{let b=-1,bs=1e9;g.up.forEach((x,j)=>{if(x.m&&x.ac!=null)return;
+      const s=x.q.reduce((a,id)=>a+(!id?0:isDum(d,id)?0:(P[id]||0)<=TGTS()?10:-2),0)+(T[j].fit?0:-1)+(g.up.length-j)*.01;if(s<bs){bs=s;b=j}});return b};
+    const j=pick();if(j<0)break;const x=g.up[j],fi=x.q.filter(id=>id&&isDum(d,id));g.up.splice(j,1);if(x.n&&g.fp)g.fp=g.fp.filter(f=>f.n!==x.n);
+    RBT=null;add('Time tight',(lenM>11?'Games run ~'+Math.round(lenM-1)+' min':'Booked time')+' → '+gl(x)+' dropped'+(fi.length?' ('+fi.map(nm).join(', ')+'’s fill-in)':''));T=rbTimes(g,t);RBT=T;k=g.up.length}
+  {const C=courtsOf(d);for(let it=0;it<3;it++){T=rbTimes(g,t);const fr=C.map((c,i)=>g.closed[i]?-1:courtEnd(d,i));
+    const last=C.map((c,i)=>{let e=t;const q=g.cur[i];if(q&&q.every(Boolean))e=Math.max(t,(g.live[i].start||t)+lenM*60e3);T.forEach(z=>{if(z.i===i)e=Math.max(e,z.s+lenM*60e3)});return e});
+    let ci=-1;C.forEach((c,i)=>{if(fr[i]>0&&fr[i]-last[i]>=lenM*60e3*1.05&&(ci<0||fr[i]-last[i]>fr[ci]-last[ci]))ci=i});if(ci<0)break;
+    const P=rbProj(g),ex=new Set(),ids=onIds(d).filter(id=>hasSx(id)&&eligible(d,id)),late=last[ci],early=late<g.st+R_FI_MIN*60e3;
+    const lastQ=g.up.length?g.up[g.up.length-1].q:[],cand=ids.filter(id=>!lastQ.includes(id)&&(isDum(d,id)?!early:(P[id]||0)<TGTS())).sort((a,b)=>(isDum(d,a)-isDum(d,b))||((P[a]||0)-(P[b]||0))||(wMin(g,b,t)-wMin(g,a,t)));
+    const q=pick4(cand,new Set(cand));if(!q)break;const oq=orderQ(q,g);ex.add(1);
+    RBT=null;if(g.fp){const n=Math.max(0,...g.fp.map(f=>f.n),...g.hist.map(h=>h.n||0))+1,r=Math.max(0,...g.fp.map(f=>f.r))+1;g.fp.push({n,r,c:ci,q:oq.slice(),a:oq.slice(),m:0});fpSync(g);
+      add('Time spare','Games running short → G'+n+' added on '+cname(d,ci)+' ('+oq.map(nm).join(', ')+')')}
+    else{g.up.push({q:oq,m:0,a:oq.slice()});add('Time spare','Games running short → one more game added ('+oq.map(nm).join(', ')+')')}}}
+  RBT=T=rbTimes(g,t);
+  /* 2. cap: a regular heading over the target loses their last auto game place (a 7th game Raj gave by hand stays) */
+  for(let it=0;it<20;it++){const P=rbProj(g),ov=onIds(d).find(id=>!isDum(d,id)&&(P[id]||0)>TGTS()&&g.up.some(x=>x.q.includes(id)&&!(x.ovr||[]).includes(id)));if(!ov)break;
+    const x=[...g.up].reverse().find(x=>x.q.includes(ov)&&!(x.ovr||[]).includes(ov)),k=x.q.indexOf(ov),ix=g.up.indexOf(x),r=rbRep(g,x,k,P,{t,oc,tired,near:ix<2,est:T[ix]});
+    if(!r){x.ovr=(x.ovr||[]).concat(ov);continue}rbSet(g,x,x.q.map((v,i)=>i===k?r:v));add(nm(ov)+' → '+(P[ov]),nm(ov)+' was heading to '+P[ov]+' games → '+nm(r)+' takes the place in '+gl(x))}
+  /* 3. short: a regular below the target takes a fill-in's place (latest game first, no clash) */
+  for(let it=0;it<20;it++){const P=rbProj(g),sh=onIds(d).filter(id=>hasSx(id)&&eligible(d,id)&&!isDum(d,id)&&(P[id]||0)<TGTS()).sort((a,b)=>(P[a]||0)-(P[b]||0)||wMin(g,b,t)-wMin(g,a,t));let done=0;
+    for(const id of sh){for(let ix=g.up.length-1;ix>=0&&!done;ix--){const x=g.up[ix];if(x.q.includes(id)||rbBusy(g,x,id)||(ix<2&&(oc.has(id)||tired.has(id))))continue;
+        const k=x.q.findIndex(v=>v&&isDum(d,v)&&fmtOK(x.q.map((w,i)=>i===x.q.indexOf(v)?id:w)));if(k<0)continue;const out=x.q[k];rbSet(g,x,x.q.map((v,i)=>i===k?id:v));done=1;
+        add(nm(id)+' short',nm(id)+' was short of '+TGTS()+' → takes '+nm(out)+'’s fill-in place in '+gl(x))}if(done)break}if(!done)break}
+  /* 4. fill-ins never in the first 30 min */
+  RBT=T=rbTimes(g,t);g.up.forEach((x,ix)=>{if(T[ix].s>=g.st+R_FI_MIN*60e3+lenM*30e3)return;x.q.forEach((id,k)=>{if(!id||!isDum(d,id))return;const P=rbProj(g),r=rbRep(g,x,k,P,{t,oc,tired,near:ix<2,est:T[ix]});
+    if(r&&!isDum(d,r)){rbSet(g,x,x.q.map((v,i)=>i===k?r:v));add('Fill-in early',nm(id)+' (fill-in) was due in the first 30 min → '+nm(r)+' plays '+gl(x)+' instead')}})});
+  /* still a fill-in game too early → swap it with the first later game that has none */
+  RBT=T=rbTimes(g,t);for(let ix=0;ix<g.up.length;ix++){if(T[ix].s>=g.st+R_FI_MIN*60e3+lenM*30e3)break;const x=g.up[ix];if(!x.q.some(id=>id&&isDum(d,id))||x.ac!=null)continue;
+    const j=g.up.findIndex((y,m)=>m>ix&&y.ac==null&&!y.q.some(id=>id&&isDum(d,id))&&!(ix<2&&y.q.some(v=>v&&(oc.has(v)||tired.has(v)))));if(j<0)break;const y=g.up[j];g.up[ix]=y;g.up[j]=x;add('Fill-in early',gl(x)+' (with a fill-in) moved after '+gl(y)+' — first 30 min for regulars');RBT=T=rbTimes(g,t)}
+  /* 5. rest: the next 2 games – nobody on court now, nobody 3 in a row / 3 games quickly; swap with a later game */
+  RBT=rbTimes(g,t);for(let ix=0;ix<Math.min(2,g.up.length);ix++){const x=g.up[ix];x.q.forEach((id,k)=>{if(!id||!(oc.has(id)||tired.has(id)))return;
+    const why=oc.has(id)?(tired.has(id)?'3 in a row':'on court now'):'needs a rest';let sw=null;
+    for(let j=2;j<g.up.length&&!sw;j++){const y=g.up[j];if(y.q.includes(id)||rbBusy(g,y,id))continue;
+      const ex0=RBT&&RBT[ix]&&RBT[ix].s<g.st+R_FI_MIN*60e3+RBL*30e3;y.q.forEach((o2,m)=>{if(sw||!o2||(ex0&&isDum(d,o2))||oc.has(o2)||tired.has(o2)||x.q.includes(o2)||rbBusy(g,x,o2))return;const nx=x.q.map((v,i)=>i===k?o2:v),ny=y.q.map((v,i)=>i===m?id:v);if(fmtOK(nx)&&fmtOK(ny))sw={j,m,o2,nx,ny}})}
+    if(sw){rbSet(g,x,sw.nx);rbSet(g,g.up[sw.j],sw.ny);add(nm(id)+' — '+why,nm(id)+' '+why+' → moved '+gl(x)+'→'+gl(g.up[sw.j])+' · '+nm(sw.o2)+' plays '+gl(x))}
+    else{const j=g.up.findIndex((y,m)=>m>ix&&!y.q.some(v=>v&&(oc.has(v)||tired.has(v)))&&!(RBT&&RBT[ix]&&RBT[ix].s<g.st+R_FI_MIN*60e3+RBL*30e3&&y.q.some(v=>v&&isDum(d,v))));
+      if(j>ix){const y=g.up.splice(j,1)[0];g.up.splice(ix,0,y);add(nm(id)+' — '+why,nm(id)+' '+why+' → '+gl(y)+' moved up, '+gl(x)+' waits');return}
+      const P=rbProj(g),r=rbRep(g,x,k,P,{t,oc,tired,near:1});if(r){rbSet(g,x,x.q.map((v,i)=>i===k?r:v));add(nm(id)+' — '+why,nm(id)+' '+why+' → '+nm(r)+' plays '+gl(x))}}})}
+  /* 6. waiting: someone sitting 25+ min with no game in the next 2 → swap into the next game with whoever waited least */
+  {const near=new Set(g.up.slice(0,2).flatMap(x=>x.q)),W=onIds(d).filter(id=>!isDum(d,id)&&eligible(d,id)&&!oc.has(id)&&!near.has(id)&&!tired.has(id)&&wMin(g,id,t)*60e3>=R_WAIT&&g.up.some(x=>x.q.includes(id))).sort((a,b)=>wMin(g,b,t)-wMin(g,a,t));
+    W.slice(0,2).forEach(id=>{for(let ix=0;ix<Math.min(2,g.up.length);ix++){const x=g.up[ix],j=g.up.findIndex((y,k)=>k>=2&&y.q.includes(id));if(j<0)return;const y=g.up[j];if(rbBusy(g,x,id))continue;
+      const opt=x.q.map((o2,k)=>({o2,k})).filter(z=>z.o2&&!y.q.includes(z.o2)&&!rbBusy(g,y,z.o2)&&wMin(g,z.o2,t)<wMin(g,id,t)-5&&fmtOK(x.q.map((v,i)=>i===z.k?id:v))&&fmtOK(y.q.map(v=>v===id?z.o2:v))).sort((a,b)=>wMin(g,a.o2,t)-wMin(g,b.o2,t))[0];
+      if(!opt)continue;rbSet(g,x,x.q.map((v,i)=>i===opt.k?id:v));rbSet(g,y,y.q.map(v=>v===id?opt.o2:v));add(nm(id)+' waited '+Math.floor(wMin(g,id,t))+' min',nm(id)+' waited '+Math.floor(wMin(g,id,t))+' min → into '+gl(x)+' · '+nm(opt.o2)+' moves to '+gl(y));break}})}
+  RBT=null;if(g.fp){g.fp.forEach(f=>{const x=g.up.find(u=>u.n===f.n);if(x)f.q=x.q.slice()});fpSync(g)}
+  const changed=rbSnap(g)!==before;if(!o.quiet){if(changed){g.undo={s:before,t};}
+    const P=rbProj(g),reg=onIds(d).filter(id=>eligible(d,id)&&!isDum(d,id)),sh=reg.filter(id=>(P[id]||0)<TGTS());
+    logIt(g,'⟳ '+hm(t)+' · Update — '+(ch.length?ch.map(c=>c.m).join(' · ')+' · ':'')+(sh.length?'Short of '+TGTS()+': '+sh.map(id=>nm(id)+' '+(P[id]||0)).join(', '):'Everyone still on track for '+TGTS()+' ✓'));g.log[0].rb=1}
+  return{n:changed?Math.max(1,ch.length):0,ch}}
+const gl=x=>x.n?'G'+x.n:'the next game';
+/* what would Update change right now? (runs on a copy) – drives the blinking button */
+let RCk='',RCv=[];
+function rebelCheck(g){if(!running(g)||VIEW())return[];const k=S.savedAt+'|'+Math.floor(Date.now()/20e3);if(RCk===k)return RCv;RCk=k;
+  const c=JSON.parse(JSON.stringify(g));let r;try{r=rebelUpdate(c,{quiet:1})}catch(e){r={ch:[]}}RCv=[...new Set(r.ch.map(x=>x.s))];
+  if(!RCv.length){const t=Date.now(),L=g.cur.map((q,i)=>q&&q.every(Boolean)&&g.live[i].run?(t-g.live[i].start)/60e3:0),m=rbLen(g);L.forEach((v,i)=>{if(v>m+4)RCv.push(cname(g.d,i)+' game '+Math.round(v)+' min')})}
+  return RCv}
+function rebelUndo(){const g=CG();if(!g||!g.undo)return toast('Nothing to undo');const o=JSON.parse(g.undo.s);g.fp=o.fp||undefined;if(!o.fp)delete g.fp;g.up=o.up;delete g.undo;logIt(g,'⟲ Update undone · plan back as it was');save();render();toast('Undone')}
+/* overtime: every open court past its booked end – no auto scheduling */
+function inOT(g,t){const C=courtsOf(g.d);return C.some((c,i)=>!g.closed[i])&&C.every((c,i)=>g.closed[i]||courtEnd(g.d,i)<=(t||Date.now()))}
+/* v24 (6): learned game length over the last 3 sessions (real timed games, 5–30 min) → plan slot; 10 min until then */
+let FMc='',FMv=10;
+function fullMin(d){const k=S.savedAt+'';if(FMc===k)return FMv;FMc=k;const ds=Object.keys(S.games).filter(x=>x<(d||TODAY())&&(S.games[x].hist||[]).filter(h=>!h.m&&h.s>=300&&h.s<=1800).length>=5).sort().slice(-3);
+  const L=[].concat(...ds.map(x=>S.games[x].hist.filter(h=>!h.m&&!h.ot&&h.s>=300&&h.s<=1800).map(h=>h.s)));FMv=L.length>=8?Math.min(15,Math.max(8,Math.round(L.reduce((a,b)=>a+b,0)/L.length/60+1))):10;return FMv}
+function learnInfo(){const ds=Object.keys(S.games).filter(x=>(S.games[x].hist||[]).filter(h=>!h.m&&h.s>=300&&h.s<=1800).length>=5).sort().slice(-3);
+  const L=[].concat(...ds.map(x=>S.games[x].hist.filter(h=>!h.m&&!h.ot&&h.s>=300&&h.s<=1800).map(h=>h.s)));return{n:ds.length,g:L.length,avg:L.length?L.reduce((a,b)=>a+b,0)/L.length/60:0}}
+/* typical overtime per venue (minutes past the booked end, from ended sessions) */
+function otInfo(loc){const L=Object.keys(S.games).filter(d=>{const g=S.games[d],D=S.days[d];return g&&g.en&&g.st&&D&&D.loc===loc}).map(d=>{const g=S.games[d],ot=g.hist.filter(h=>h.ot).length;return{ot,m:Math.max(0,(g.en-sessEnd(d))/60e3)}}).filter(x=>x.ot);
+  return L.length?{n:L.length,m:Math.round(L.reduce((a,x)=>a+x.m,0)/L.length)}:null}
+/* Raj → Rebel: a manual change is acknowledged in Rebel's notes */
+function rebelAck(g,x,inId,outId){const d=g.d,P=rbProj(g),n=P[inId]||0,nm=nameOf;let m='Rebel here — Raj, '+nm(inId)+(outId?' in for '+nm(outId):' added')+' in '+gl(x)+'. ';
+  if(!isDum(d,inId)&&n>TGTS()){x.ovr=(x.ovr||[]).concat(inId);m+=nm(inId)+' now has '+n+' games — your call, I’ll keep it and won’t learn from it.'}
+  else if(outId&&!isDum(d,outId)&&(P[outId]||0)<TGTS())m+=nm(outId)+' is now at '+(P[outId]||0)+' — I’ll find another game at the next Update.';
+  else m+='Everyone still on track for '+TGTS()+'.';logIt(g,m);g.log[0].rb=1}
+/* ---------- v24 Rebel's notes (Games tab): numbers come from the same projection Update uses ---------- */
+function rebelNotes(g,now){const d=g.d,N=[],P=rbProj(g),el=onIds(d).filter(id=>eligible(d,id)),reg=el.filter(id=>!isDum(d,id)),fi=el.filter(id=>isDum(d,id)),nC=courtsOf(d).filter((c,i)=>!g.closed[i]).length,nm=nameOf,cap=TGTS();
+  N.push(['mu','Rebel here — Raj, '+el.length+' checked in · '+pl(nC,'court')+' open · games about '+Math.round(rbLen(g)-1)+' min'+(g.hist.filter(h=>!h.m&&h.s>=300).length>=2?' today':' (learned)')]);
+  if(inOT(g,now)){const m=Math.max(...courtsOf(d).map((c,i)=>g.closed[i]?0:(now-courtEnd(d,i))/60e3)),oi=otInfo((S.days[d]||{}).loc);
+    N.push(['w','Overtime +'+Math.max(1,Math.floor(m))+' min — I won’t schedule now. Add games by hand (▶ Start next → ＋ Overtime game); I’ll record them'+(oi?' · here you usually run +'+oi.m+' min':'')]);return N}
+  const sh=reg.filter(id=>(P[id]||0)<cap),ov=reg.filter(id=>(P[id]||0)>cap);
+  N.push(sh.length?['w','Short of '+cap+': '+sh.map(id=>nm(id)+' '+(P[id]||0)).join(', ')+(g.up.length?' — tap Update and I’ll find them games':' — no time left for more')]:reg.length?['ok','Everyone on track for '+cap+' games ✓']:['mu','No regulars checked in yet']);
+  if(ov.length)N.push(['mu',ov.map(id=>nm(id)+' '+(P[id]||0)).join(', ')+' — over '+cap+' by your choice, I’ll leave it']);
+  const T=rbTimes(g,now),nf=T.filter(z=>!z.fit).length;if(nf)N.push(['w','Time tight: '+pl(nf,'game')+' won’t fit the booked time — Update drops fill-in games first']);
+  if(g.st&&now-g.st>60*60e3){const st=fi.filter(id=>!(P[id]||0));if(st.length)N.push(['w','Fill-ins with no game yet: '+st.map(nm).join(', ')+' — Update adds one if time allows'])}
+  else if(g.st&&now-g.st<30*60e3&&fi.length)N.push(['mu','First 30 min are for the regulars — fill-ins ('+fi.map(nm).join(', ')+') come in after']);
+  (S.rules||[]).filter(r=>r.on).forEach(r=>N.push(['mu','Learned from you: '+r.why]));return N}
+function rebelEnd(g){const d=g.d,cnt=counts(g,false),ids=Object.keys(cnt),reg=ids.filter(id=>!isDum(d,id)),fi=ids.filter(id=>isDum(d,id)),N=[];if(!g.hist.length)return N;
+  const rc=reg.map(id=>cnt[id]);N.push(['mu','Rebel here — Raj, '+pl(g.hist.length,'game')+' played · regulars '+(rc.length?Math.min(...rc)+'–'+Math.max(...rc):'–')+' games'+(fi.length?' · fill-ins '+fi.map(id=>nameOf(id)+' '+cnt[id]).join(', '):'')]);
+  const ot=g.hist.filter(h=>h.ot).length;if(ot)N.push(['mu',pl(ot,'overtime game')+' recorded']);return N.concat(rebelTips(d).map(m=>['mu',m]))}
+/* ---------- v24 (5) suggestions: player count and shuttles – Games end sheet + Finance ---------- */
+function rebelTips(d){const T=[];if(!d||!S.days[d])return T;const g=S.games[d]||{},cnt={};(g.hist||[]).forEach(h=>h.ids.forEach(id=>cnt[id]=(cnt[id]||0)+1));
+  const att=Object.keys((S.days[d]||{}).att||{}).concat(Object.keys(cnt)),ppl=[...new Set(att)].filter(id=>P(id)),org=ppl.filter(id=>isDum(d,id)),reg=ppl.length-org.length;
+  const len=fullMin(d),games=courtsOf(d).reduce((a,c)=>a+Math.floor(num(c.h)*60/len),0),spare=games*4-reg*TGTS()-org.length;
+  if(reg){const k=Math.floor(spare/TGTS());T.push(k>0?'Raj, even with all '+pl(org.length,'organizer')+' getting 1 game, you can add '+pl(k,'player')+' ('+games+' games of ~'+len+' min fit) — more profit.':
+    k<0?'Raj, '+pl(-k,'player')+' too many for '+TGTS()+' games each in the booked time — add court time or cap the list.':'Raj, the list is full: '+reg+' regulars × '+TGTS()+' games fill the courts.')}
+  const F=S.fin||{},u=x=>num((F[x]||{}).used),pp=x=>{const G=S.games[x];return G?new Set((G.hist||[]).flatMap(h=>h.ids)).size:0};
+  {const d0=d;d=u(d)?d:Object.keys(F).filter(x=>x<=d0&&u(x)&&pp(x)).sort().pop();}
+  if(d&&u(d)){const g=S.games[d]||{},prev=Object.keys(F).filter(x=>x<d&&u(x)&&pp(x)).sort().pop(),gN=(g.hist||[]).length||1,me=u(d)/gN;
+    if(prev){const pg=(S.games[prev].hist||[]).length||1,pv=u(prev)/pg,a=pp(prev)+' players used '+pl(u(prev),'shuttle'),b=pp(d)+' used '+u(d);
+      const lb=dlab(d);T.push(me>pv*1.35?'Shuttles ('+lb+'): last session '+a+', this time '+b+' ('+me.toFixed(2)+' vs '+pv.toFixed(2)+' per game) — check quality/brand.':me<pv*.75?'Shuttles ('+lb+'): '+b+' this time vs '+a+' last session — better per game ✓':'Shuttles ('+lb+'): '+me.toFixed(2)+' per game, about the same as last session ('+pv.toFixed(2)+').')}
+    else T.push('Shuttles: '+pl(u(d),'shuttle')+' for '+pl(gN,'game')+' — I’ll compare from next session.')}
+  return T}
+function rebelTipsBox(){const ss=typeof sessions==='function'?sessions():[],d=(ui.ks&&ui.ks.s)||ss[ss.length-1];const L=rebelTips(d);if(!L.length)return '';
+  return '<div class="tipbox rbtips"><div class="laby" style="font-size:12px">REBEL’S TIPS · '+esc(dlab(d).toUpperCase())+'</div>'+L.map(x=>'<div class="tip"><span>→</span><span>'+esc(x)+'</span></div>').join('')+'</div>'}
+function toastU(m){const t=$('#toast');t.innerHTML=esc(m)+' · <button class="tundo" data-a="rbundo">Undo</button>';t.style.display='block';t.style.pointerEvents='auto';clearTimeout(tT);tT=setTimeout(()=>{t.style.display='none'},6000)}
 
 /* ===== money: Kitty sessions, bulk buys, Rebels partners, QR ===== */
 function sessions(){const t=TODAY(),ds=new Set();
@@ -1385,13 +1567,16 @@ function lvChanged(ids){const d=curDate(),g=S.games[d];if(!g)return;if(running(g
 function vSBar(g){const d=g.d,ps=playMs(g)/1000,ed=!g.en&&d>=TODAY();
   const cs=courtsOf(d).map((c,i)=>'<span class="cbh">'+esc(c.n)+' <b>'+hrsL(num(c.h))+'</b>'+(ed?'<button data-a="gch" data-x="'+i+'" data-y="-0.5" aria-label="Less time">−</button><button data-a="gch" data-x="'+i+'" data-y="0.5" aria-label="More time">+</button>':'')+'</span>').join('');
   return '<div class="sbar"><label class="ptsl">POINTS <input class="ptsin" type="number" inputmode="numeric" min="1" max="99" value="'+esc(g.pts)+'" data-i="g_pts" aria-label="Session points"'+(VIEW()?' disabled':'')+'></label><span>DEUCE '+(g.deuce?'ON · CAP '+capOf(g):'OFF')+' · '+(g.fp?FULL_MIN+' MIN GAMES':Math.round(gameMin(g))+'+'+num(g.chg)+' MIN')+'</span>'+cs+
-   '<span style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span>'+(!VIEW()&&d===TODAY()&&!g.en?'<button class="ol sm" data-a="liveshare">📡 Share live link</button>':'')+'</div>'}
+   '<span class="sbtime" style="margin-left:auto;cursor:pointer;text-decoration:underline dotted" data-a="sedit">'+(g.st?'START '+hm(g.st)+(g.en?' · END '+hm(g.en):'')+' · PLAYED <b style="color:var(--tx)" data-tk="sess">'+fmtH(ps)+'</b> / BOOKED '+hrsL(sessLenH(d))+(g.en&&ps>sessLenH(d)*3600+60?' · <b style="color:var(--ok)">+'+Math.round(ps/60-sessLenH(d)*60)+' MIN EXTRA</b>':''):'Booked '+t12((S.days[d]||{}).time)+' · tap to enter times')+'</span>'+(!VIEW()&&d===TODAY()&&!g.en&&!running(g)?'<button class="ol sm" data-a="liveshare">📡 Share live link</button>':'')+'</div>'}
 
 function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY(),g=G(d),D=day(d),on=onIds(d),plan=d>t,past=d<t,run=running(g),ended=!!g.en,now=Date.now();
   if(!past&&!g.st)ensurePlan(g);if(run)autoNext(g,'fill',null);
   const title=past?'SESSION <span>'+esc(dlab(d).toUpperCase())+'</span>':plan?'PLAN <span>'+esc(dlab(d).toUpperCase())+'</span>':ended?'SESSION <span>ENDED</span>':run?'GAMES <span>LIVE</span>':'READY TO <span>PLAY</span>';
   const pb='<button class="ol" style="border-color:var(--y);color:var(--y)" data-a="ckopen">Players · '+on.filter(id=>arrived(d,id)).length+'/'+on.length+'</button>';
-  const ctl=past?'':run?(g.fp?'<button class="ol sm2" data-a="fpre">↻ Re-plan remaining games</button>':'<button class="ol sm2" data-a="reshuffle">↻ Re-pick upcoming</button>')+'<button class="ol" data-a="cts">Courts</button>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>':
+  /* v24: live = one Update button (blinks with a reason when the plan drifted) + ⋯ More (share link, live names, courts, emergency rebuild) */
+  const why=run?rebelCheck(g):[],ot=run&&inOT(g,now);
+  const ctl=past?'':run?'<span class="rbw"><button class="btn rbup'+(why.length&&!ot?' pulse':'')+'" data-a="rbupd" data-tk="rbup">⟳ Update</button><span class="rbwhy" data-tk="rbwhy">'+esc(ot?'Overtime · add games by hand':why.length?why.slice(0,2).join(' · ')+(why.length>2?' +'+(why.length-2):''):'✓ All good')+'</span></span>'+pb+'<button class="ol" style="border-color:var(--bad);color:var(--bad)" data-a="endsess">■ End session</button>'+
+    '<span class="mwrap"><button class="ol" data-a="more" aria-expanded="'+(ui.more?'true':'false')+'">⋯ More</button>'+(ui.more?'<div class="mmenu" data-a="noop">'+(VIEW()?'':'<button data-a="liveshare">📡 Share live link</button>')+lclBtn(d).replace('class="ol lclb"','class="lclb"')+'<button data-a="cts">Courts</button>'+(VIEW()?'':'<button data-a="fpre" class="dang">⟳ Rebuild remaining games (emergency)</button>')+'</div>':'')+'</span>':
     ended?'':
     plan?'<button class="btn" disabled>▶ Start session</button>':pb.replace(/Players · \d+\/(\d+)/,'Players · $1')+'<button class="btn sh" data-a="startsess">▶ Start session</button>';
   const onC=new Set(g.cur.flat().filter(Boolean)),inN=new Set(g.nxt.flat().filter(Boolean));
@@ -1431,14 +1616,11 @@ function vGames(){const d=curDate();if(!d)return noSess('GAMES');const t=TODAY()
     if(!c&&(g.en||now)-a.a>20*60e3)return true;if(a.l&&c<tg)return true;if(run&&!a.l){const rem=Math.max(0,sessEnd(d)-now)/60e3;return c+Math.floor(rem/slotOf(g)*2/3)<tg}return false};
   const ppl=[...new Set([...on,...g.ros,...Object.keys(cnt)])].filter(id=>P(id)).sort((a,b)=>(cnt[a]||0)-(cnt[b]||0)||nameOf(a).localeCompare(nameOf(b)));
   const prow=ppl.map(id=>'<tr'+(red(id)?' class="redr"':'')+'><td>'+pwho(id,32,leftAt(d,id)?' · left '+hm(leftAt(d,id)):'')+'</td><td class="d" style="text-align:center;font-size:22px;color:var(--y)">'+(cnt[id]||0)+'</td><td style="text-align:center;font-weight:700" data-tk="tot" data-id="'+id+'"></td></tr>').join('');
-  let happ='';if(g.st){const el=on.filter(id=>eligible(d,id)).length,nC2=courtsOf(d).filter((c,i)=>!g.closed[i]).length,remS=Math.max(0,Math.floor((sessEnd(d)-now)/60e3/slotOf(g)))*Math.max(1,nC2)*4;
-    const notes=run?[el+' checked in · '+pl(nC2,'court')+' open'+(el?' → ≈ '+Math.floor(remS/Math.max(1,el))+' more games each possible':''),
-      ...(el&&el<nC2*4?['Only '+el+' checked in – some courts wait for more players']:[]),
-      ...((S.rules||[]).filter(r=>r.on).map(r=>'Learned rule in use: '+r.why))]:[];
-    happ='<section class="pn" style="gap:8px"><div class="sb"><span class="lab">WHAT\'S HAPPENING</span><span class="lab">THE APP KEEPS UPCOMING GAMES READY</span></div>'+
-     notes.map(x=>'<div class="tip"><span>●</span><span>'+esc(x)+'</span></div>').join('')+
-     (g.log.length?g.log.slice(0,14).map(l=>'<div class="tip"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
-  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row">'+subsBtn(d)+ctl+lockBtn()+'</div></div>'+
+  let happ='';if(g.st){const notes=run?rebelNotes(g,now):g.en?rebelEnd(g):[];
+    happ='<section class="pn rbn" style="gap:8px"><div class="sb"><span class="lab">REBEL’S NOTES</span><span class="lab">'+(run?'TAP ⟳ UPDATE WHEN IT BLINKS':'')+'</span></div>'+
+     notes.map(([c,x])=>'<div class="tip rbt '+c+'"><span>'+(c==='w'?'⚠':c==='ok'?'✓':'●')+'</span><span>'+esc(x)+'</span></div>').join('')+
+     (g.log.length?g.log.slice(0,16).map(l=>'<div class="tip'+(l.rb?' rbl':'')+'"><span style="color:var(--mu);min-width:44px">'+hm(l.t)+'</span><span>'+esc(l.m)+'</span></div>').join(''):'<div style="color:var(--mu);font-size:14px">Nothing yet.</div>')+'</section>'}
+  return '<div class="sb" style="align-items:flex-end"><div><div class="lab" style="letter-spacing:.18em">DOUBLES · LEVEL-BALANCED · '+esc(dlab(d).toUpperCase())+' · <span style="color:var(--y)">'+esc((D.loc||'').toUpperCase())+'</span></div><h1>'+title+'</h1></div><div class="row hbtns">'+subsBtn(d,run)+ctl+lockBtn()+'</div></div>'+
    vSBar(g)+
    (plan?'<div class="warn yel">Planning mode · games planned here wait for '+esc(dlab(d))+'. Start session on match day.</div>':'')+
    (!ended&&!past&&on.length<4?'<div class="warn yel">Only '+pl(on.length,'player')+' on. Turn on at least 4 in Players.</div>':'')+
@@ -1459,6 +1641,7 @@ function tick(){const now=Date.now();{const c=document.querySelector('[data-tk="
     else if(k==='sess'){if(g.st)el.textContent=fmtH(playMs(g,now)/1000)}
     else if(k==='left'){const p2=cpill(g.d,+el.dataset.i,now);el.textContent=p2.t;el.className='cpill '+p2.c}
     else if(k==='bsit'||k==='btot')benchTick(g,el,now);
+    else if(k==='rbup'&&run){const w=rebelCheck(g),ot=inOT(g,now);el.classList.toggle('pulse',!!w.length&&!ot);const s=el.parentNode.querySelector('[data-tk="rbwhy"]');if(s)s.textContent=ot?'Overtime · add games by hand':w.length?w.slice(0,2).join(' · ')+(w.length>2?' +'+(w.length-2):''):'✓ All good'}
     else if(k==='tot'){const id=el.dataset.id;const s=benchSec(g,id,now);el.textContent=fmtL(s);el.style.color=s>1800?'var(--bad)':'var(--tx)'}})}
 
 /* ---------- Players pop-up: check in / left / dummy ---------- */
@@ -1521,7 +1704,7 @@ function vFull(g){const d=g.d,run=running(g),ended=!!g.en,dn=fpDone(g),cur=fpCur
   const open=ed||ui.fpo;
   const pin=x=>{const h=hb(x.n),v=h?(h.pts||g.pts):gp(g,x).pts;return (ed||run)&&!h&&!cur.has(x.n)&&!VIEW()?'<input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+v+'" data-i="fp_pts" data-x="'+x.n+'" aria-label="Points for game '+x.n+'">':'<span style="color:var(--mu)">'+v+'</span>'};
   const rows=g.fp.map(x=>'<tr'+(hb(x.n)||x.x?' style="opacity:.6"':'')+'><td class="d" style="font-size:22px;color:var(--y)">'+x.n+'</td><td>'+esc(cname(d,x.c))+'</td><td>'+tyB(x.q)+(x.q.every(Boolean)&&!fmtOK(x.q)?' <span class="badge" title="Format override">OVR</span>':'')+'</td><td>'+pin(x)+'</td><td><div class="row" style="gap:6px;flex-wrap:nowrap">'+slot(x,0)+slot(x,1)+'</div></td><td class="d" style="color:var(--y);text-align:center">VS</td><td><div class="row" style="gap:6px;flex-wrap:nowrap">'+slot(x,2)+slot(x,3)+'</div></td><td>'+st(x)+'</td></tr>').join('');
-  const btns=(!ended?'<button class="ol sm" data-a="fpre">↻ Re-plan remaining games</button>':'')+(!fpStarted(g)?'<button class="btn sm" data-a="fpprint">🖨 Print schedule</button>':'')+'<button class="ol sm" style="border-color:var(--y);color:var(--y)" data-a="eropen" data-x="'+d+'">✎ Enter results</button>'+(!g.hist.some(h=>h.n)?'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="fpclear">Clear plan</button>':'');
+  const btns=(!ended&&!run?'<button class="ol sm" data-a="fpre">↻ Re-plan remaining games</button>':'')+(!fpStarted(g)?'<button class="btn sm" data-a="fpprint">🖨 Print schedule</button>':'')+'<button class="ol sm" style="border-color:var(--y);color:var(--y)" data-a="eropen" data-x="'+d+'">✎ Enter results</button>'+(!g.hist.some(h=>h.n)?'<button class="ol sm" style="color:var(--bad);border-color:var(--bad)" data-a="fpclear">Clear plan</button>':'');
   return '<section class="pn" style="gap:10px"><div class="sb" style="flex-wrap:wrap;gap:10px"><span class="lab">FULL SESSION PLAN · '+g.fp.filter(x=>!x.x).length+' GAMES · '+rng+' EACH · MD '+ty.MD+' · WD '+ty.WD+' · XD '+ty.XD+(dn.size?' · '+dn.size+' PLAYED':'')+'</span><span class="row" style="gap:8px;flex-wrap:wrap">'+btns+'</span></div>'+
    fpNotes(g)+(ed?'<div style="font-size:13px;color:var(--mu)">'+FULL_MIN+' min per game. Tap × to swap a player (checked: same round, gender, format), then print once. The printed schedule is fixed: for no-shows, swap in whoever is available.</div>':run?'<div style="font-size:13px;color:var(--mu)">The games below feed Upcoming in order. Played, on-court, queued and edited games are kept when you re-plan.</div>':'')+
    (open?'<div style="overflow-x:auto"><table><thead><tr><th>GAME</th><th>COURT</th><th>TYPE</th><th>PTS</th><th>TEAM A</th><th></th><th>TEAM B</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(ed?'':'<button class="lnk" data-a="fpo">Hide games ▴</button>'):'<button class="lnk" style="align-self:flex-start" data-a="fpo">Show all '+g.fp.length+' planned games ▾</button>')+'</section>'}
@@ -1557,7 +1740,9 @@ function fpNotes(g){const d=g.d,ri=rateInfo(g),ids=fullIds(g),W=ids.filter(isF),
   if(W.length===1)L.push(['amb','Only 1 woman on – mixed games need 2 women, so '+nameOf(W[0])+' can only play via a manual swap (format override).']);
   const P0=planCtx(g,ids);if(P0.power)L.push(['ok','Power games: '+P0.pwOK.size+' strong players · each gets '+PWR()+' per hour; their other games are mentor games']);
   else if(ids.filter(isStrong).length)L.push(['mu','Fewer than 4 strong players who can form a legal game → mentor games only']);
-  const dm=ids.filter(id=>isDum(d,id));if(dm.length)L.push(['mu','Fill-ins ('+dm.map(nameOf).join(', ')+'): used only for gaps and to rest players after 2 games in a row']);
+  const dm=ids.filter(id=>isDum(d,id));if(dm.length)L.push(['mu','Fill-ins ('+dm.map(nameOf).join(', ')+'): not in the first 30 min, then the spare slots – regulars are capped at '+TGTS()]);
+  {const li=learnInfo();L.push(['mu',li.g>=8?'Rebel: games averaged '+li.avg.toFixed(1)+' min over the last '+pl(li.n,'session')+' → planning '+FULL_MIN+'-min slots':'Rebel: planning '+FULL_MIN+'-min slots until 2–3 sessions of timed games are recorded']);
+   if(!running(g))rebelTips(d).slice(0,1).forEach(t=>L.push(['mu',t]))}
   return L.map(([c,m])=>'<div class="note '+c+'">'+esc(m)+'</div>').join('')}
 function vGPP(g,ppl){const d=g.d,run=running(g),hrs=Math.max(.5,sessLenH(d)),now=Date.now(),cnt=counts(g,false),win={},dn=fpDone(g),cur=fpCur(g),pln={},rr={};
   g.hist.forEach(h=>{if(h.sa===h.sb)return;(h.sa>h.sb?h.ids.slice(0,2):h.ids.slice(2)).forEach(id=>win[id]=(win[id]||0)+1)});
@@ -1593,7 +1778,7 @@ const orgChips=(cur,a,x)=>(S.orgs||[]).length?(S.orgs||[]).map(o=>'<button class
 function vFinance(){if(!canFin())return '<div class="pn"><div class="empty">Finance is for admin and organizer only.</div></div>';
   const top='<div class="sb"><div class="row" style="gap:14px"><h1>FIN<span>ANCE</span></h1><div class="seg">'+['kitty','rebels'].map(k=>'<button class="'+(ui.fsub===k?'on':'')+'" data-a="fsub" data-x="'+k+'">'+(k==='kitty'?'The Kitty':'Rebels')+'</button>').join('')+'</div></div>'+
    '</div>';
-  return top+(ui.fsub==='rebels'?vRebels():vKitty())}
+  return top+rebelTipsBox()+(ui.fsub==='rebels'?vRebels():vKitty())}
 function kSel(ss){const k=ui.ks||(ui.ks={m:'session'});if(!k.s||!ss.includes(k.s))k.s=ss[ss.length-1];const ms=[...new Set(ss.map(d=>d.slice(0,7)))].sort().reverse(),ys=[...new Set(ss.map(d=>d.slice(0,4)))].sort().reverse();
   if(!k.mo||!ms.includes(k.mo))k.mo=ms[0];if(!k.y||!ys.includes(k.y))k.y=ys[0];if(!k.a)k.a=ss[0];if(!k.b)k.b=ss[ss.length-1];
   const list=k.m==='session'?[k.s]:k.m==='month'?ss.filter(d=>d.slice(0,7)===k.mo):k.m==='year'?ss.filter(d=>d.slice(0,4)===k.y):k.m==='range'?ss.filter(d=>d>=k.a&&d<=k.b):ss.slice();
@@ -1952,7 +2137,7 @@ const act={
  shuffle:()=>{},
  /* v16 full session plan */
  fpplan:()=>{const g=CG();if(planFull(g,false)){logIt(g,'Full session planned · '+g.fp.length+' games');save();render();toast(pl(g.fp.length,'game')+' planned')}},
- fpre:()=>{const g=CG();if(!g.fp)return act.reshuffle();if(!confirm('Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
+ fpre:()=>{const g=CG();ui.more=0;if(!g.fp)return act.reshuffle();if(!confirm(running(g)?'Emergency rebuild: re-plan ALL remaining games from scratch?\n\nNormally use ⟳ Update – it keeps the plan. Played, on-court, assigned and edited games stay either way.':'Re-plan the remaining games? Played, on-court, assigned and edited games stay.'))return;if(planFull(g,true)){logIt(g,'Remaining games re-planned');save();render();toast('Remaining games re-planned')}},
  fpclear:()=>{const g=CG();if(!confirm('Clear the full session plan?'))return;delete g.fp;if(running(g)){g.up=g.up.filter(x=>!x.n);autoNext(g,'fill',null)}else g.psig='';save();render()},
  fpo:()=>{ui.fpo=!ui.fpo;render()},
  fpprint:()=>{const g=CG();if(!g.fp)return;const ti='Game schedule '+g.d,el=$('#print');el.className='sp';el.innerHTML=vFullPrint(g);
@@ -2125,12 +2310,14 @@ W.addEventListener('click',enter);setTimeout(enter,5000);
 
 /* ===== v12 live Games: courts stacked, per-court queues (max 3), Upcoming games pool, All players ===== */
 /* booked hours are a guide only: after the booked end the court stays fully usable until closed in Courts */
-function cpill(d,i,t){const l=courtEnd(d,i)-t;return l>0?{t:Math.ceil(l/60e3)+' min left',c:l<10*60e3?'bad':l<20*60e3?'yel':'ok'}:{t:'+'+Math.max(1,Math.floor(-l/60e3))+' min over · still open',c:'over'}}
+function cpill(d,i,t){const l=courtEnd(d,i)-t;return l>0?{t:Math.ceil(l/60e3)+' min left',c:l<=5*60e3?'bad':l<=15*60e3?'yel':'ok'}:{t:'+'+Math.max(1,Math.floor(-l/60e3))+' min',c:'over'}}
 /* v13: live status under names in Upcoming / queue cards (instead of Level) */
 function cno(d,i){const m=String(cname(d,i)).match(/\d+/);return m?m[0]:String(i+1)}
-function pstat(g,id,now){const d=g.d;for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id)&&g.cur[i].every(Boolean))return{t:'<i class="gdot"></i>C:'+esc(cno(d,i)),c:'ston'};
+function pstat(g,id,now){const d=g.d;for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id)&&g.cur[i].every(Boolean))return{t:'<i class="gdot"></i>On Court '+esc(cno(d,i)),c:'ston'};
   if(!arrived(d,id))return{t:'Not here',c:'stno'};if(leftAt(d,id))return{t:'Left '+hm(leftAt(d,id)),c:'stno'};
-  const m=g.since[id]!=null&&running(g)?Math.floor((now-g.since[id])/60e3):0;return{t:'Idle '+m+' min',c:m>15?'stid red':'stid'}}
+  const m=running(g)?Math.max(0,Math.floor((now-idleFrom(g,id))/60e3)):0;return{t:'Idle '+m+' min',c:m>15?'stid red':'stid'}}
+/* v24 (16): waiting since = bench clock, else end of their last game, else check-in – never stuck at 0 */
+function idleFrom(g,id){if(g.since[id]!=null)return g.since[id];const h=g.hist.find(x=>x.ids&&x.ids.includes(id)),a=att(g.d,id);const t=Math.max(h?h.at||0:0,a&&a.a||0,g.st||0);if(t&&running(g)&&eligible(g.d,id)&&!onCourt(g).has(id))g.since[id]=t;return t||Date.now()}
 const pstw=(g,id,sz,now)=>{const s=pstat(g,id,now);return '<span class="pwho">'+pav(id,sz)+'<span class="pnm"><b>'+esc(nameOf(id))+'</b><small class="pst '+s.c+'" data-tk="pst" data-id="'+id+'">'+s.t+'</small></span></span>'};
 function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf(d);
   const isSel=(t,i,k,s)=>!!(pk&&pk.t===t&&pk.i==i&&pk.k==k&&pk.s==s);
@@ -2140,11 +2327,11 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
   const dup=q=>q.some(id=>id&&(im[id]||0)>1);
   const lines='<div class="l1"></div><div class="l2" style="left:36%"></div><div class="l2" style="right:36%"></div><div class="net"></div>';
   const openC=C.map((c,i)=>i).filter(i=>!g.closed[i]);
-  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=qOf(g,i),pi=cpill(d,i,now),nk=full||cl?-1:nextFor(g,i),nx=nk>=0?g.up[nk]:null;
+  const courts=C.map((c,i)=>{const q=g.cur[i]||NUL4(),L=g.live[i]||blankLive(),full=q.every(Boolean),cl=!!g.closed[i],n=g.hist.filter(h=>h.c===i+1).length,Q=qAuto(g,i),pi=cpill(d,i,now),nk=full||cl?-1:nextFor(g,i),nx=nk>=0?g.up[nk]:null;
     const secs=L.run?(now-L.start)/1000:(L.el||0);
     const ed=ui.ced===i&&full&&L.run;
     const btn=cl?'':full?'<button class="tbtn'+(L.run?' run':'')+'" data-a="timer" data-x="'+i+'">'+(L.run?'■ Stop &amp; save':(L.sa||L.sb||L.el)?'✓ Save':'▶ Start')+'</button>'+(L.run?(ed?'<button class="tbtn done" data-a="cedx">✓ Done</button>':'<button class="tbtn edt" data-a="ced" data-x="'+i+'" aria-label="Change players on '+esc(c.n)+'">✎ Edit</button>'):'')+(L.run||L.sa||L.sb||L.el?'<button class="tbtn nos" data-a="savenos" data-x="'+i+'" title="Save the game with no score – the 4 players send it from the live page">■ Save · score from players</button>':''):
-      '<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(nx?'':' disabled')+'>▶ Start next</button>';
+      (now>=courtEnd(d,i)?'<button class="tbtn" data-a="otgame" data-x="'+i+'">＋ Overtime game</button>':'<button class="tbtn" data-a="cfopen" data-x="'+i+'"'+(nx?'':' disabled')+'>▶ Start next</button>');
     const head='<div class="chead'+(cl?' off':'')+'">'+(ui.cne===i?'<input class="cnin" id="cnin" value="'+esc(c.n)+'" data-i="cn" data-x="'+i+'" aria-label="Court name" autocomplete="off">':'<span class="cntx">'+esc(c.n)+'</span><button class="cnp" data-a="cnedit" data-x="'+i+'" aria-label="Rename court">✎</button>')+'<span class="cinfo">Booked till '+hm(courtEnd(d,i))+' · '+pl(n,'game')+' played</span>'+
       (cl?'<span class="cpill shut">Closed '+hm(g.closed[i])+'</span>':'<span class="cpill '+pi.c+'" data-tk="left" data-i="'+i+'">'+pi.t+'</span>')+(full?tyB(q)+'<label class="ptsl">TO <input class="ptsin sm" type="number" inputmode="numeric" min="1" max="99" value="'+gp(g,L).pts+'" data-i="lv_pts" data-x="'+i+'" aria-label="Points for this game"'+(VIEW()?' disabled':'')+'></label>':'')+'<span style="flex:1"></span>'+
       (full?'<span class="tdot'+(L.run?' run':'')+'"></span><span class="d ctm" data-tk="court" data-i="'+i+'">'+fmt(secs)+'</span>':'')+btn+'</div>';
@@ -2156,20 +2343,22 @@ function vLive(g){const d=g.d,now=Date.now(),im=inGames(g),pk=ui.pick,C=courtsOf
       body=(ed?'<div class="note ok cedn">Change players: tap ⇄ Swap, then a name in All players · timer and score keep running · tap ✓ Done when finished</div>':'')+'<div class="vcourt">'+VCRT+
         [0,1,2,3].map(k=>'<div class="vbox b'+k+'">'+cp(k)+'</div>').join('')+'<div class="vmid">'+sc(L.sa,'a')+'<div class="row" style="gap:6px">'+wb('a')+wb('b')+'</div>'+sc(L.sb,'b')+'</div><span class="vlab ta">TEAM A</span><span class="vlab tb">TEAM B</span></div>'}
     else{const last=g.last[i];body='<div class="vcourt free'+(cl?' shut':'')+'">'+VCRT+'<div class="cwait vwait">'+(last?'<span style="font-size:15px">Last: '+esc(tn(last,0))+' <b>'+(last.sa||last.sb?last.sa+' – '+last.sb:'score pending')+'</b> '+esc(tn(last,1))+'</span>':'')+
-      '<span>'+(cl?'Court closed · reopen it with the Courts button':nx?'Court free · ▶ Start next takes '+(nx.n?'G'+nx.n:'Upcoming #'+(nk+1)):g.up.length?'Court free · every upcoming game has a player on court – wait or edit one':'Court free')+'</span></div></div>'}
+      '<span>'+(cl?'Court closed · reopen it with the Courts button':now>=courtEnd(d,i)?'Overtime · ＋ add a game by hand':nx?'Court free · ▶ Start next takes '+(nx.n?'G'+nx.n:'Upcoming #'+(nk+1)):g.up.length?'Court free · every upcoming game has a player on court – wait or edit one':'Court free')+'</span></div></div>'}
     /* v23: queue = the games assigned to this court in Upcoming · names only */
     const T2=q=>esc(q.slice(0,2).map(id=>id?nameOf(id):'?').join(' & '))+' <span class="vs">vs</span> '+esc(q.slice(2).map(id=>id?nameOf(id):'?').join(' & '));
     const qb=cl?'':'<div class="qbox" data-drop="c" data-i="'+i+'"><span class="lab">NEXT ON '+esc(String(c.n).toUpperCase())+' · '+Q.length+'/3</span>'+
-      (Q.length?Q.map((x,k)=>'<div class="qnm"><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+'</span><span class="qnt">'+T2(x.q)+'</span></div>').join(''):
-       '<div class="qempty">Empty · tap Assign on an upcoming game, or drag one here</div>')+'</div>';
+      (Q.length?Q.map((x,k)=>'<div class="qnm'+(x.ac==null?' qau':'')+'"><span class="qtag'+(k?'':' nx')+'">'+(k?'THEN':'NEXT')+(x.n?' · G'+x.n:'')+(x.ac==null?' · auto':'')+'</span><span class="qnt">'+T2(x.q)+'</span></div>').join(''):
+       '<div class="qempty">Nothing planned for this court · Assign or drag a game here</div>')+'</div>';
     return '<section class="cblock" data-drop="c" data-i="'+i+'">'+head+body+qb+'</section>'}).join('');
   /* v23: warnings on upcoming games – a player on court now, or twice in the same round of the plan */
   const fpR={};(g.fp||[]).forEach(x=>fpR[x.n]=x.r);const inR={};g.up.forEach(x=>{if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{if(id){const k=fpR[x.n]+'|'+id;(inR[k]=inR[k]||[]).push(x.n)}})});
-  const warn=x=>{const w=clashOf(g,x.q).map(o=>'⚠ '+nameOf(o.id)+' on '+cname(d,o.i));if(x.n&&fpR[x.n]!=null)x.q.forEach(id=>{const L=id&&inR[fpR[x.n]+'|'+id];if(L&&L.length>1)w.push('⚠ '+nameOf(id)+' also in G'+L.filter(n=>n!==x.n).join(', G')+' (same round)')});
-    return w.length?'<div class="gwarn">'+esc(w.join(' · '))+'</div>':''};
+  /* v24: smart warnings only for the next 2 games (on court now / 3 in a row); later games just show the On Court badge under the name */
+  const tired=rbTired(g,now),oc0=onCourt(g);
+  const warn=(x,k)=>{if(k>1)return '';const w=[];x.q.forEach(id=>{if(!id)return;if(oc0.has(id)&&(g.strk[id]||0)>=2)w.push('⚠ '+nameOf(id)+' — 3 in a row');else if(oc0.has(id))w.push('⚠ '+nameOf(id)+' — on court now');else if(tired.has(id))w.push('⚠ '+nameOf(id)+' — 3 in a row')});
+    return w.length?'<div class="gwarn">'+esc(w.join(' · '))+' · tap ⟳ Update</div>':''};
   const up='<section class="upbox"><div class="uph">UPCOMING GAMES</div><div class="ups">'+pl(g.up.length,'game')+(g.fp?' · from your full session plan':' · auto-picked')+' · × removes a player, then tap a name in All players</div>'+
     (g.up.length?g.up.map((x,k)=>'<div class="gcard'+(dup(x.q)&&!g.fp?' dup':'')+'" data-drop="u" data-k="'+k+'"><span class="hdl" data-drag="u.0.'+k+'" aria-label="Drag">≡</span>'+(x.n?'<span class="qtag">G'+x.n+' · '+esc(cno(d,x.c))+' · '+gType(x.q)+'</span>':'')+row('u',0,k,x.q)+
-      '<button class="gcb'+(x.ac!=null?' on':'')+'" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>'+(x.ac!=null?esc(cname(d,x.ac)):'Assign')+' ▾</button>'+warn(x)+'</div>').join(''):
+      '<button class="gcb'+(x.ac!=null?' on':'')+'" style="flex:none" data-a="asg" data-x="'+k+'"'+(openC.length?'':' disabled')+'>'+(x.ac!=null?esc(cname(d,x.ac)):'Assign')+' ▾</button>'+warn(x,k)+'</div>').join(''):
      '<div class="qempty">Upcoming games appear once 4 players are checked in (Players button).</div>')+'</section>';
   const ids=onIds(d),where=id=>{for(let i=0;i<g.cur.length;i++)if(g.cur[i]&&g.cur[i].includes(id))return 'On '+cname(d,i);for(let i=0;i<g.cur.length;i++){const k=qOf(g,i).findIndex(x=>x.q.includes(id));if(k>=0)return (k?'Then':'Next')+' on '+cname(d,i)}
     const k=g.up.findIndex(x=>x.q.includes(id));return k>=0?'Upcoming #'+(k+1):''};
@@ -2186,15 +2375,17 @@ const VCRT='<svg class="vsvg" viewBox="0 0 700 1440" preserveAspectRatio="none" 
  '<g fill="none" stroke="#fff" stroke-width="3"><rect x="45" y="50" width="610" height="1340" vector-effect="non-scaling-stroke"/><path vector-effect="non-scaling-stroke" d="M91 50V1390M609 50V1390M45 126H655M45 1314H655M45 522H655M45 918H655M350 50V522M350 918V1390"/></g>'+
  '<path d="M20 720H680" stroke="#111" stroke-width="5" vector-effect="non-scaling-stroke"/><path d="M20 712V728M680 712V728" stroke="#fff" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>';
 
+/* v24: a court's "Next on" queue = games assigned to it, then the planned games for that court (auto), max 3 */
+function qAuto(g,i){const A=qOf(g,i);if(A.length>=3||inOT(g))return A.slice(0,3);const au=g.up.filter(x=>x.ac==null&&x.q.some(Boolean)&&(x.c===i||(x.c==null&&g.cur.length===1)));return A.concat(au).slice(0,3)}
 /* ---------- check the 4 players before the game starts ---------- */
-function cfGame(g){const c=ui.cf;if(!c)return null;return g.up[c.k]||null}
+function cfGame(g){const c=ui.cf;if(!c)return null;if(c.ot)return ui.otg||null;return g.up[c.k]||null}
 function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=x.q;
   const pool=onIds(d).filter(id=>!leftAt(d,id)||q.includes(id));
   const sel=k=>{const cur=q[k];return '<div class="row" style="gap:8px">'+(cur?pav(cur,38):'')+'<select class="gei cfs" data-c="cfslot" data-y="'+k+'"><option value="">Player…</option>'+[...new Set([cur,...pool].filter(Boolean))].filter(id=>id===cur||!q.includes(id)).sort((a,b)=>nameOf(a).localeCompare(nameOf(b))).map(id=>'<option value="'+id+'"'+(id===cur?' selected':'')+'>'+esc(nameOf(id))+' · Level: '+LVS[lvOf(id)]+(arrived(d,id)?'':' · not checked in')+'</option>').join('')+'</select></div>'};
   const full=q.every(Boolean)&&new Set(q).size===4,busy=q.filter(id=>id&&g.cur.some((c,j)=>j!==i&&c&&c.includes(id))),nh=q.filter(id=>id&&!eligible(d,id));
   const team=(l,a,b)=>'<div style="background:var(--bg);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0"><div class="lab">'+l+'</div>'+sel(a)+sel(b)+'</div>';
   const msg=busy.length?'<b style="color:var(--bad)">'+esc(busy.map(nameOf).join(', '))+' still on court – swap or wait</b>':nh.length?'<span style="color:var(--y)">'+esc(nh.map(nameOf).join(', '))+' will be checked in now</span>':!full?'<span style="color:var(--mu)">Fill all 4</span>':'<span></span>';
-  return '<div class="modal" data-a="closecf"><div class="pn" data-a="noop" style="gap:16px"><div class="sb"><div class="laby">SEND TO '+esc(cname(d,i).toUpperCase())+' · CHECK THE 4 PLAYERS</div><button class="ib" data-a="closecf">×</button></div>'+
+  return '<div class="modal" data-a="closecf"><div class="pn" data-a="noop" style="gap:16px"><div class="sb"><div class="laby">'+(x.ot?'OVERTIME GAME · ':'')+'SEND TO '+esc(cname(d,i).toUpperCase())+' · '+(x.ot?'PICK THE 4 PLAYERS':'CHECK THE 4 PLAYERS')+'</div><button class="ib" data-a="closecf">×</button></div>'+
    '<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center">'+team('TEAM A',0,1)+'<span class="d" style="color:var(--y);font-size:28px">VS</span>'+team('TEAM B',2,3)+'</div>'+
    '<div class="sb">'+msg+'<span style="font-size:13px;color:var(--mu)">Swap anyone here · your choice always wins</span></div>'+
    '<div class="sb"><button class="ol" data-a="closecf">Cancel</button><button class="btn sh" data-a="cfok"'+(full&&!busy.length?'':' disabled')+'>✓ Confirm · start game ▶</button></div></div></div>'}
@@ -2203,7 +2394,7 @@ function vCf(){const g=CG(),d=g.d,i=ui.cf.i,x=cfGame(g);if(!x)return '';const q=
 const CLOSE_MS=10*60e3;
 function vAsg(){const g=CG(),d=g.d,k=ui.asg-1;if(!g||!g.up[k]){ui.asg=0;return ''}const x=g.up[k],cl=clashOf(g,x.q);
   return '<div class="modal" data-a="asgx"><div class="pn" data-a="noop" style="gap:12px;width:min(520px,92vw)"><div class="sb"><div class="laby">ASSIGN TO COURT</div><button class="ib" data-a="asgx" aria-label="Close">×</button></div>'+
-   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=qOf(g,i).filter(o=>o!==x).length,me=x.ac===i,bad=cl.filter(o=>o.i!==i),f=!me&&(n>=3||bad.length);
+   courtsOf(d).map((c,i)=>{if(g.closed[i])return '';const n=qOf(g,i).filter(o=>o!==x).length,me=x.ac===i,bad=cl,f=!me&&n>=3;
      return '<button class="ckr asgr" style="padding:10px 14px;text-align:left;width:100%'+(f?';opacity:.45':'')+(me?';border-color:var(--y)':'')+'" data-a="asgc" data-x="'+i+'"'+(f?' disabled':'')+'><span style="flex:1;font-weight:700;font-size:17px">'+(me?'✓ ':'')+esc(c.n)+' <small style="color:'+(bad.length?'var(--bad)':'var(--mu)')+';font-weight:500">'+(bad.length?'⚠ '+esc(bad.map(o=>nameOf(o.id)+' on '+cname(d,o.i)).join(', ')):'Booked till '+hm(courtEnd(d,i))+' · queue '+n+'/3'+(n>=3?' · full':''))+'</small></span></button>'}).join('')+
    (x.ac!=null?'<button class="ol" data-a="asgu">Unassign · back to Upcoming only</button>':'')+'</div></div>'}
 function vCts(){const g=CG(),d=g.d,now=Date.now();
@@ -2223,11 +2414,11 @@ function pickName(id){const g=CG(),pk=ui.pick,d=g.d,t=Date.now();ui.pick=null;
     logIt(g,'Swap on '+cname(d,pk.i)+': '+nameOf(old)+' → '+nameOf(id));if(clearFrom(g,[id]).length)logIt(g,nameOf(id)+' now on '+cname(d,pk.i)+' → replaced in later games');autoNext(g,'fill',null)}
   else{const x=gRef(g,pk.t+'.'+pk.i+'.'+pk.k);if(!x)return render();if(x.q.includes(id)){render();return toast(nameOf(id)+' is already in this game')}
     const nq=x.q.slice();nq[pk.s]=id;if(nq.every(Boolean)&&!fmtGate(nq,'upcoming game'))return render();
-    x.q[pk.s]=id;x.m=1;if(x.q.every(Boolean)&&x.a)recordOverride(g,x)}
+    const old=x.q[pk.s];x.q[pk.s]=id;x.m=1;rebelAck(g,x,id,old);if(x.q.every(Boolean)&&x.a&&!(x.ovr||[]).includes(id))recordOverride(g,x);else if(x.a)x.a=x.q.slice()}
   save();render();window.scrollTo(0,ui.pickY||0)}
 /* v23: assign a game to a court (it stays in Upcoming); blocked when one of its players is on another court */
-function assignGame(g,x,i){if(!x)return;if(g.closed[i])return toast(cname(g.d,i)+' is closed');const bad=clashOf(g,x.q).filter(o=>o.i!==i);
-  if(bad.length)return toast(bad.map(o=>nameOf(o.id)).join(', ')+' is on '+cname(g.d,bad[0].i)+' – can’t assign to '+cname(g.d,i));
+function assignGame(g,x,i,ok){if(!x)return;if(g.closed[i])return toast(cname(g.d,i)+' is closed');const bad=clashOf(g,x.q);
+  if(bad.length&&!ok&&!confirm(bad.map(o=>nameOf(o.id)+' is still on '+cname(g.d,o.i)).join('\n')+'\n\nWait or swap?\nOK = assign and wait until they come off\nCancel = don’t assign (tap × on the player to swap)'))return render();
   if(x.ac!==i&&qOf(g,i).length>=3)return toast(cname(g.d,i)+' queue is full (3)');x.ac=i;x.m=1;save();render()}
 /* ☰ drag reorders Upcoming; dropping on a court assigns the game there */
 function moveGame(g,src,t,i,k){const a=String(src).split('.'),sk=+a[2],x=g.up[sk];if(!x)return;if(t==='q')return assignGame(g,x,i);
@@ -2578,8 +2769,8 @@ async function subsPoll(force){if(!subsOK()||subsBusy||navigator.onLine===false)
   subsBusy=true;try{lclPoll();const r=await req('GET','/api/subs?d='+TODAY(),null,15000);if(r.s!==200)return;const L=r.j.list||[],old=(ui.subs||[]).map(x=>x.id).join();
     ui.subs=L;if(L.map(x=>x.id).join()!==old){if(ui.subm&&!L.length)ui.subm=0;const a=document.activeElement;if(!(ui.subm&&a&&a.dataset&&/^sub_/.test(a.dataset.i||'')))render()}}finally{subsBusy=false}}
 setInterval(()=>subsPoll(false),20000);
-function subsBtn(d){const n=(ui.subs||[]).length,g=S.games[d],np=g&&g.st&&!g.en?(g.hist||[]).filter(h=>!h.sa&&!h.sb).length:0;
-  return (np?'<span class="spend big" title="Games saved with no score – players send it from the live page, or tap the game in Game Summary">⏳ Score pending ('+np+')</span>':'')+(n&&d===TODAY()&&subsOK()?'<button class="ol rvb" data-a="subsopen">Scores to review ('+n+')</button>':'')+lclBtn(d)}
+function subsBtn(d,noL){const n=(ui.subs||[]).length,g=S.games[d],np=g&&g.st&&!g.en?(g.hist||[]).filter(h=>!h.sa&&!h.sb).length:0;
+  return (np?'<span class="spend big" title="Games saved with no score – players send it from the live page, or tap the game in Game Summary">⏳ Score pending ('+np+')</span>':'')+(n&&d===TODAY()&&subsOK()?'<button class="ol rvb" data-a="subsopen">Scores to review ('+n+')</button>':'')+(noL?'':lclBtn(d))}
 function subGame(x){const g=S.games[TODAY()];return g&&(g.hist||[]).find(h=>hKey(h)===x.k)||null}
 function subVal(x){const e=(ui.subE||{})[x.id]||{};return{sa:e.sa!=null?e.sa:x.sa,sb:e.sb!=null?e.sb:x.sb}}
 /* v21: x.st==='cp' = a correction of a score already saved on the tablet (old → new) */
@@ -2632,13 +2823,22 @@ Object.assign(act,{
    if(r.s!==200&&r.s!==404)return toast(r.s===0?'No internet – try again':(r.j.error||'Not freed'));
    ui.lcl=(ui.lcl||[]).filter(o=>o.id!==id);if(r.s===200){audit('Live page name freed: '+x.name);save()}toast(x.name+' freed · can be picked again');if(!ui.lcl.length)ui.lclm=0;render()}});
 
+/* ===== v24 Rebel actions (Update, Undo, ⋯ More, overtime game) ===== */
+Object.assign(act,{
+ rbupd:()=>{const g=CG();if(!g||!running(g))return;if(inOT(g))return toast('Overtime – Rebel doesn’t schedule now. Add games by hand.');const r=rebelUpdate(g);RCk='';save();render();
+   if(r.n)toastU('✓ Updated '+hm(Date.now())+' · '+pl(r.ch.length||1,'change'));else toast('✓ All good — no changes needed.')},
+ rbundo:()=>{rebelUndo();const t=$('#toast');t.style.display='none'},
+ more:()=>{ui.more=!ui.more;render()},
+ otgame:x=>{const g=CG(),i=+x;ui.otg={q:NUL4(),m:1,ot:1};ui.cf={i,t:'u',k:-1,ot:1};render()}});
+document.addEventListener('click',e=>{if(ui.more&&!e.target.closest('.mwrap')){ui.more=0;render()}},true);
+
 /* ===== start-up (last file: every module is defined) ===== */
 Object.assign(act,SYACT);
 migrate();save();render();const H0=document.querySelector('.home');if(H0)H0.classList.add('pre');
 /* H3: never auto-login – the account picker opens under the logo animation */
 ui.lg={step:'pick'};lgRender();
 /* test hooks (headless checks) */
-window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,rebels,vRebels,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui},planLive,nextFor,saveGame,justPlayed,onCourt,clashOf,fpDone,fpCur,qOf,assignGame,waLive,TODAY,autoNext};
+window.RB={get S(){return S},set S(v){S=v},G,planFull,rateInfo,checkGame,fmtOK,gType,isF,isDum,isStrong,powerSet,schedOnce,planCtx,fullSlots,save,render,act,ui,migrate,fullIds,get LAST(){return LASTPLAN},ratings,counts,sendCourt,erSave,snapList,snapTake,dataOnly,scoreErr,gp,get SY(){return SY},syncNow,vStat,allCalc,rebels,vRebels,impText,VIEW,GM,ADMIN,replaceAll,undoRestore,canUndo,fpSync,AUTH,get ACC(){return ACC},lockApp,enterAs,lgPassword,remember,lhash,sha256,liveUrl,benchRows,rotCourts,subsPoll,lclPoll,hKey,get ui(){return ui},planLive,nextFor,saveGame,justPlayed,onCourt,clashOf,fpDone,fpCur,qOf,assignGame,waLive,TODAY,autoNext,rebelUpdate,rebelCheck,rbTimes,inOT,fullMin,bookStart};
 
 })();
 </script>

@@ -14,7 +14,7 @@ let S=null;
 try{S=parse(localStorage.getItem(KEY))}catch(e){}
 if(!S&&NB&&NB.loadFile){try{S=parse(NB.loadFile())}catch(e){}}
 if(!S)S=blank();
-function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>g.up.filter(x=>x.ac===i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
+function save(){S.savedAt=Date.now();Object.values(S.games).forEach(g=>{if(g&&g.fp&&running(g))fpSync(g);if(g&&running(g)&&Array.isArray(g.up))g.qq=(g.cur||[]).map((c,i)=>qAuto(g,i).map(x=>({q:x.q.slice(),n:x.n||0})))});const t=JSON.stringify(S);
   try{localStorage.setItem(KEY,t)}catch(e){toast('Could not save – export a backup')}
   if(NB&&NB.saveFile){try{NB.saveFile(t)}catch(e){}}
   try{markDirty();syLater()}catch(e){}}
@@ -87,7 +87,7 @@ const cname=(d,i)=>{const c=courtsOf(d)[i];return c?(c.n||'Court '+(i+1)):'Court
 const sessLenH=d=>Math.max(...courtsOf(d).map(c=>num(c.h)||0),0);
 const courtHrs=d=>courtsOf(d).reduce((a,c)=>a+num(c.h),0);
 /* booked start: scheduled time; falls back to the actual start */
-function bookStart(d){const D=S.days[d],g=S.games[d];if(D&&D.time)return tms(d,D.time);return g&&g.st?g.st:tms(d,'20:00')}
+function bookStart(d){const D=S.days[d],g=S.games[d];if(g&&g.st&&!g.man)return g.st;if(D&&D.time)return tms(d,D.time);return g&&g.st?g.st:tms(d,'20:00')}
 const courtEnd=(d,i)=>bookStart(d)+num((courtsOf(d)[i]||{}).h)*3600e3;
 const sessEnd=d=>bookStart(d)+sessLenH(d)*3600e3;
 const upcoming=()=>{const t=TODAY();return Object.keys(S.days).filter(d=>d>t&&isSched(d)).sort()};

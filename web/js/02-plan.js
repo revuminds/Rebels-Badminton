@@ -170,7 +170,7 @@ const hlab=h=>(h.n?'Game '+h.n:h.m?'Manual':'#'+(h.r||'–'))+(h.s!=null&&h.at&&
 /* ---------- court flow ---------- */
 function saveGame(g,i,t){t=t||Date.now();const q=g.cur[i],L=g.live[i];const s=Math.max(0,L.run?(t-L.start)/1000:(L.el||0));
   const n=g.hist.filter(h=>h.c===i+1&&!h.m).length+1;
-  const h={r:n,c:i+1,ids:q.slice(),a:[nameOf(q[0]),nameOf(q[1])],b:[nameOf(q[2]),nameOf(q[3])],sa:L.sa,sb:L.sb,s:Math.round(s),at:t};if(L.pts&&+L.pts!==+g.pts)h.pts=+L.pts;
+  const h={r:n,c:i+1,ids:q.slice(),a:[nameOf(q[0]),nameOf(q[1])],b:[nameOf(q[2]),nameOf(q[3])],sa:L.sa,sb:L.sb,s:Math.round(s),at:t};if((L.start||t)>=courtEnd(g.d,i)-60e3)h.ot=1;if(L.pts&&+L.pts!==+g.pts)h.pts=+L.pts;
   if(g.curN&&g.curN[i]){h.n=g.curN[i];g.curN[i]=0}
   g.hist.unshift(h);g.last[i]=h;g.cur[i]=NUL4();g.live[i]=blankLive();q.forEach(id=>benchOn(g,id,t));
   autoNext(g,'fill',null)}
@@ -216,7 +216,7 @@ function recordOverride(g,x){const a=x.a,m=x.q;if(!a||!a.every(Boolean)||!m.ever
   (S.rules||[]).forEach(r=>{if(ks.includes(r.k))r.n=S.ovr.filter(o=>o.k.includes(r.k)).length})}
 
 /* ---------- v16: full session plan (10-min games, numbered), print, enter results ---------- */
-const FULL_MIN=10;let LASTPLAN=null;
+let FULL_MIN=10;let LASTPLAN=null;
 const fullPer=d=>courtsOf(d).map(c=>Math.floor(num(c.h)*60/FULL_MIN));
 function fullSlots(d){const per=fullPer(d),R=Math.max(0,...per),a=[];for(let r=0;r<R;r++)per.forEach((n,i)=>{if(r<n)a.push({r,c:i,n:a.length+1})});return a}
 /* players for the plan: checked-in (session running) or turned on (before Start); gender set */
@@ -233,7 +233,7 @@ function fpSync(g){if(!g.fp)return;const by={};g.fp.forEach(x=>by[x.n]=x);
   g.fp.forEach(x=>{if(!ok(x)||have.has(x.n))return;const k=ord.findIndex(m=>m>x.n);if(k<0)ord.push(x.n);else ord.splice(k,0,x.n)});
   g.up=ord.map(n=>{const x=by[n],o={q:x.q.slice(),m:1,n,c:x.c};if(x.ac!=null&&!g.closed[x.ac])o.ac=x.ac;return o})}
 /* keep: games already played, on court, queued, or edited by you (if all their players are still here) – the rest is re-planned */
-function planFull(g,re){if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
+function planFull(g,re){FULL_MIN=fullMin(g.d);if(running(g))return planLive(g,re);const d=g.d,ids=fullIds(g),slots=fullSlots(d);if(ids.length<4)return toast(running(g)?'Check in at least 4 players (with gender set) first':'Turn on at least 4 players (with gender set) first'),0;
   const keep={};if(re&&g.fp){const dn=fpDone(g),cur=fpCur(g),inQ=new Set(g.up.filter(x=>x.n&&x.ac!=null).map(x=>x.n)),ok=new Set(ids);
     g.fp.forEach(x=>{if(dn.has(x.n))keep[x.n]=Object.assign({},x,{dn:1});else if(cur.has(x.n)||inQ.has(x.n)||x.x)keep[x.n]=x;else if(x.m&&x.q.every(id=>id&&ok.has(id)))keep[x.n]=x})}
   const P0=planCtx(g,ids);let best=null;for(let k=0;k<48;k++){const p=schedOnce(g,ids,slots,keep,P0,k);if(!best||p.sc<best.sc)best=p;if(best.sc<1)break}LASTPLAN=best;
@@ -288,4 +288,4 @@ function clashOf(g,q){const r=[];(q||[]).forEach(id=>{if(!id)return;const i=g.cu
 /* ▶ Start next on free court i: games assigned to it first (your order), then unassigned ones in Upcoming order.
    Never a game with a player on court; a game without players who just came off wins over one with them. -1 = none. */
 function nextFor(g,i){const jp=justPlayed(g);let b=null;g.up.forEach((x,k)=>{if(x.ac!=null&&x.ac!==i)return;if(clashOf(g,x.q).length)return;
-    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}
+    const sc=(x.ac===i?0:4)+(x.q.every(Boolean)?0:2)+(x.q.some(id=>id&&jp.has(id))?1:0)+(g.st&&Date.now()<g.st+30*60e3&&x.q.some(id=>id&&isDum(g.d,id))?3:0)+(x.ac==null&&x.c===i?0:.5);if(!b||sc<b.sc)b={sc,k}});return b?b.k:-1}

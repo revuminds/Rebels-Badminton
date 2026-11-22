@@ -50,7 +50,8 @@ function evenSel(pool,n){let k=n;while(k>0){const sel=pool.slice(0,k*4),rest=poo
 function powerSet(part){const sm=part.filter(id=>isStrong(id)&&!isF(id)),sw=part.filter(id=>isStrong(id)&&isF(id)),ok=new Set();
   if(sm.length>=4||(sm.length>=2&&sw.length>=2))sm.forEach(id=>ok.add(id));if(sw.length>=4||(sw.length>=2&&sm.length>=2))sw.forEach(id=>ok.add(id));return ok}
 function planCtx(g,ids){const d=g.d,Wall=ids.filter(isF).length,part=ids.filter(id=>!isDum(d,id)&&!(Wall<2&&isF(id))),R=Math.max(1,...fullPer(d)),H=Math.max(1,Math.round(R*FULL_MIN/60)),pwOK=PWR()>0?powerSet(part):new Set();
-  return{rt:ratings(),pol:wPolicy(part),Wall,part,dum:new Set(ids.filter(id=>isDum(d,id))),pwOK,power:pwOK.size>=4,H,R}}
+  const el=running(g)&&g.st?Math.max(0,(Date.now()-g.st)/60e3):0,fiR=Math.max(0,Math.ceil((30-el)/(FULL_MIN*.85)-1e-9));
+  return{rt:ratings(),pol:wPolicy(part),Wall,part,dum:new Set(ids.filter(id=>isDum(d,id))),pwOK,power:pwOK.size>=4,H,R,fiR}}
 /* best legal 4 from an ordered list, counting how many of `want` it contains */
 function pick4(L,want){const M=L.filter(id=>!isF(id)),W=L.filter(isF),c=[];if(M.length>=4)c.push(M.slice(0,4));if(W.length>=2&&M.length>=2)c.push(W.slice(0,2).concat(M.slice(0,2)));if(W.length>=4)c.push(W.slice(0,4));
   let b=null;c.forEach(q=>{const k=q.filter(id=>want.has(id)).length;if(!b||k>b.k)b={k,q}});return b&&b.k?b.q:null}
@@ -66,11 +67,15 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
   /* v23 live: games on court now = round 0 (they count as games); players who just came off start with their streak */
   if(pre){pre.cur.forEach(q=>play(q,0));Object.keys(pre.strk).forEach(id=>{if(pre.onC.has(id)){strk[id]=pre.strk[id]}else{last[id]=-1;strk[id]=pre.strk[id]}})}
   const R=slots.length?Math.max(...slots.map(s=>s.r))+1:0;
+  /* v24: regulars capped at the session target (manual games may go over – they are kept, never fought); fill-ins wait the first 30 min,
+     then share the spare slots spread over the rest of the session (they are the time buffer) */
+  const CAP=TGTS(),fiR=P0.fiR||0,need=P0.part.reduce((a,id)=>a+Math.max(0,CAP-(c[id]||0)),0),fiSp=Math.max(0,slots.length*4-need-Object.keys(keep).length*4);let fiU=0;
   for(let r=0;r<R;r++){const rs=slots.filter(s=>s.r===r),busy=new Set();if(pre&&r<2)pre.onC.forEach(id=>busy.add(id));
     rs.forEach(s=>{const k=keep[s.n];if(!k)return;out.push(k);k.q.forEach(id=>id&&busy.add(id));play(k.q,r)});
     const free=rs.filter(s=>!keep[s.n]);if(!free.length)continue;const h=hourOf(r,P0.H);
-    const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id];
-      return{id,s,t:dm?(s===0?2:s===1?2.5:s===2?2.8:3.25+(s-3)*.5):s===0?0:s===1?1:3+(s-2)*.5,rest,c:c[id]||0,o:att%2&&st.owes(id,h)?0:1,x:Math.random()}};
+    const fiOK=r>=fiR&&fiU<fiSp*(r-fiR+1)/Math.max(1,R-fiR);
+    const key=id=>{const dm=P0.dum.has(id),s=last[id]===r-1?strk[id]:0,rest=last[id]==null?99:r-1-last[id],cp=!dm&&(c[id]||0)>=CAP;
+      return{id,s,t:dm?(r<fiR?4:s===0?(fiOK?.9:2):s===1?2.5:s===2?2.8:3.25+(s-3)*.5):cp?6:s===0?(rest===1?.5:0):s===1?1:3+(s-2)*.5,rest,c:c[id]||0,o:att%2&&st.owes(id,h)?0:1,x:Math.random()}};
     const ks=ids.filter(id=>!busy.has(id)&&!(P0.Wall<2&&isF(id))).map(key).sort((a,b)=>a.t-b.t||(a.c-.6*Math.min(a.rest,4))-(b.c-.6*Math.min(b.rest,4))||a.c-b.c||a.o-b.o||a.x-b.x);
     let pool=ks.map(x=>x.id);const fresh=ks.filter(x=>x.t<=1).map(x=>x.id),mode=att%4;let F=null;
     /* some attempts pull a power game (strong players who still owe one this hour) or a WD game (women still without WD) to the front */
@@ -80,7 +85,9 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
     if(F&&free.length)pool=F.concat(pool.filter(id=>!F.includes(id)));
     const n=Math.min(free.length,Math.floor(pool.length/4)),tt={};ks.forEach(x=>tt[x.id]=x.t);
     /* v23: keep the 2-in-a-row cap when the round can be filled without it (also when fixing the women count) */
-    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
+    let sel=evenSel(pool.filter(id=>tt[id]<3),n);if(sel.length/4<n)sel=evenSel(pool.filter(id=>tt[id]<3||tt[id]===4),n);
+    if(sel.length/4<n&&!(pre&&pre.hard))sel=evenSel(pool.filter(id=>tt[id]<6),n);if(sel.length/4<n&&!(pre&&pre.hard)&&!P0.dum.size)sel=evenSel(pool,n);const ng=sel.length/4;em+=free.length-ng;
+    sel.forEach(id=>{if(P0.dum.has(id))fiU++});
     const gr=groupBest(sel,st,h);
     gr.forEach((q,k)=>{const s=free[k];gsum+=gcost2(q,st,h).c;out.push({n:s.n,r:s.r,c:s.c,q:q.slice(),a:q.slice(),m:0});play(q,r)})}
   /* score the whole plan */
@@ -88,7 +95,7 @@ function schedOnce(g,ids,slots,keep,P0,att,pre){const c={},last={},strk={},pp={}
   if(P0.power)P0.part.filter(isStrong).forEach(id=>{for(let h=0;h<P0.H;h++)pd+=Math.max(0,PWR()-(pw[id+'|'+h]||0))});
   if(P0.pol.wd)P0.part.filter(isF).forEach(w=>{wdf+=(wd[w]?0:1)+(xd[w]||P0.pol.M<2?0:1)});
   if(P0.pol.quota)wdf+=Math.max(0,st.wdTot-P0.pol.quota)*.4;
-  return{out:out.sort((a,b)=>a.n-b.n),sc:spread*1000+em*500+b3*200+b2*12+pd*400+wdf*1200+gsum*.05,st:{c,wd,xd,pw,b2,b3,spread,pd,wdf,wdTot:st.wdTot}}}
+  return{out:out.sort((a,b)=>a.n-b.n),sc:spread*1000+P0.part.reduce((a,id)=>a+Math.max(0,(c[id]||0)-TGTS()),0)*900+em*500+b3*200+b2*12+pd*400+wdf*1200+gsum*.05,st:{c,wd,xd,pw,b2,b3,spread,pd,wdf,wdTot:st.wdTot}}}
 /* achievable games per hour for participants (target 3/hr → max 8 players per court) */
 function rateInfo(g){const d=g.d,ids=fullIds(g),part=ids.filter(id=>!isDum(d,id)),nC=courtsOf(d).length,hrs=Math.max(.5,sessLenH(d));
   const slots=fullPer(d).reduce((a,n)=>a+n,0)*4,rate=part.length?Math.min(60/FULL_MIN,slots/part.length/hrs):0;
