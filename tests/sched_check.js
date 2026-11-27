@@ -6,8 +6,8 @@ function mkS(spec){/* spec: {m:[lv...], f:[lv...], dum:{m:n,f:n}, courts:[h,h]} 
   const d='2026-12-06';S.days={};S.games={};S.days[d]={sch:1,time:'10:00',loc:'Test',courts:spec.courts.map((h,i)=>({n:'Court '+(i+1),h})),on:Object.fromEntries(ids.map(i=>[i,true])),att:{}};
   return d}
 function check(name,d,expect){const S=R.S,g=R.G(d);if(!R.planFull(g,false))return out.push({name,ok:false,msg:'planFull failed'});
-  const fp=g.fp,ids=R.fullIds(g),Wall=ids.filter(R.isF).length,part=ids.filter(id=>!R.isDum(d,id)&&!(Wall<2&&R.isF(id))),c={},wd={},xd={},pp={},pw={},errs=[],rounds={};let banned=0,dupR=0,maxStr=0,str3=0;
-  fp.forEach(x=>{if(!x.q.every(Boolean))return;const f=x.q.filter(R.isF).length;if(f===1||f===3)banned++;
+  const fp=g.fp,ids=R.fullIds(g),Wall=ids.filter(R.isF).length,part=ids.filter(id=>!R.isDum(d,id)),c={},wd={},xd={},pp={},pw={},errs=[],rounds={};let banned=0,dupR=0,maxStr=0,str3=0;
+  fp.forEach(x=>{if(!x.q.every(Boolean))return;const f=x.q.filter(R.isF).length;if(f===3)banned++;
     rounds[x.r]=rounds[x.r]||new Set();x.q.forEach(id=>{if(rounds[x.r].has(id))dupR++;rounds[x.r].add(id);c[id]=(c[id]||0)+1});
     if(f===4)x.q.forEach(w=>wd[w]=(wd[w]||0)+1);if(f===2)x.q.filter(R.isF).forEach(w=>xd[w]=(xd[w]||0)+1);
     [[0,1],[2,3]].forEach(([a,b])=>{const k=[x.q[a],x.q[b]].sort().join();pp[k]=(pp[k]||0)+1});

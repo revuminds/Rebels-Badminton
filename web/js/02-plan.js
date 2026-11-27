@@ -46,12 +46,15 @@ function pairMaps(g){const p={},o={},wd={},xd={},wm={};g.hist.forEach(h=>{const[
 const sxOf=id=>{const p=P(id);return p&&p.sx||''};
 const isF=id=>sxOf(id)==='f';
 const hasSx=id=>!!sxOf(id);
-const gType=q=>{const f=q.filter(id=>id&&isF(id)).length;return f===2?'XD':f>=3?'WD':'MD'};
+const gType=q=>{const f=q.filter(id=>id&&isF(id)).length;return f===2?'XD':f>=3?'WD':f===1?'MX':'MD'};
+/* v26: can k games hold W women? each game has 0, 1 (1W+3M), 2 (XD) or 4 (WD) women – never 3 */
+const wFeas=(W,k)=>{for(let a=0;a<=k;a++){const r=W-4*a;if(r>=0&&r<=2*(k-a))return true}return false};
 const noSx=ids=>ids.filter(id=>P(id)&&!hasSx(id));
 function gCost(o,pr){const f=o.map(isF),nf=f.filter(Boolean).length;if(!nf)return 0;let c=0;
   if(nf===2){if(f[0]===f[1])return 400;if(pr.alt)o.forEach((id,k)=>{if(f[k])c+=((pr.xd[id]||0)-(pr.wd[id]||0))*14})}
   else if(nf===4){if(pr.alt)o.forEach(id=>c+=((pr.wd[id]||0)-(pr.xd[id]||0))*14)}
-  else c+=5000; /* v17: 1W+3M / 3W+1M never in auto */
+  else if(nf===1)c+=pr.alt?150:0; /* v26: 1W+3M is a normal format (avoided only when ≥4 women can play WD/XD) */
+  else c+=5000; /* 3W+1M never in auto */
   return c}
 /* learned rules make their part of the mixing score count double */
 const ruleOn=k=>(S.rules||[]).some(r=>r.k===k&&r.on);
@@ -138,12 +141,12 @@ const planSig=g=>[Math.round(gameMin(g)*2),onIds(g.d).sort().join(','),JSON.stri
 /* v16: pick the n players for a round so women pair up (MD / WD / XD). Odd woman out: first she waits with priority (owe);
    if she already waited she plays in a men's doubles game. Prefers bringing in the next woman when that is fair. */
 function evenW(sorted,n,owe,cnt,rested){const sel=sorted.slice(0,n),rest=sorted.slice(n);cnt=cnt||{};
-  if(sel.filter(isF).length%2===0)return sel;
+  if(wFeas(sel.filter(isF).length,n/4))return sel; /* v26: a lone woman plays 1W+3M – only 3-women groups need fixing */
   const lastM=[...sel].reverse().find(id=>!isF(id)),nextW=rest.find(isF);
   if(lastM&&nextW&&(cnt[nextW]||0)<=(cnt[lastM]||0)){sel[sel.indexOf(lastM)]=nextW;return sel}
   const lastW=[...sel].reverse().find(isF),nextM=rest.find(id=>!isF(id));
   if(lastW&&nextM&&!owe.has(lastW)&&!(rested&&rested.has(lastW))){sel[sel.indexOf(lastW)]=nextM;owe.add(lastW);return sel}
-  if(lastW&&nextM){sel[sel.indexOf(lastW)]=nextM;owe.add(lastW)} /* v17: never leave an odd woman (1W+3M banned) */
+  if(lastW&&nextM){sel[sel.indexOf(lastW)]=nextM;owe.add(lastW)}
   return sel}
 const tier=(d,id,c)=>isDum(d,id)?3:c>=TGT?2:0;
 function buildPlan(g){let best=null;const ids=onIds(g.d).filter(hasSx);for(let k=0;k<80;k++){if(k===40&&best.sc<100)break;const p=planOnce(g,k>=40),cn={};let em=0;
